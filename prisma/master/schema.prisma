@@ -1,0 +1,64 @@
+// Master Database Schema
+// Contains ONLY platform-level data (tenants, platform admins)
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/@prisma/master-client"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("MASTER_DATABASE_URL")
+}
+
+// ============================================
+// PLATFORM ADMINISTRATION MODULE
+// ============================================
+
+enum FeaturePackage {
+  Basic
+  Advanced
+}
+
+enum TenantStatus {
+  Active
+  Suspended
+  Inactive
+}
+
+model Tenant {
+  id             String         @id @default(uuid())
+  name           String
+  subdomain      String         @unique
+  dbName         String         @unique
+  dbHost         String
+  dbPort         Int            @default(5432)
+  dbUser         String
+  dbPassword     String         // Encrypted
+  featurePackage FeaturePackage @default(Basic)
+  status         TenantStatus   @default(Active)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([subdomain])
+  @@index([status])
+  @@map("tenants")
+}
+
+enum PlatformAdminRole {
+  SuperAdmin
+}
+
+model PlatformAdmin {
+  id        String            @id @default(uuid())
+  name      String
+  email     String            @unique
+  password  String            // Hashed
+  role      PlatformAdminRole @default(SuperAdmin)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([email])
+  @@map("platform_admins")
+}

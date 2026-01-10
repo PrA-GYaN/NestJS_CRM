@@ -1,0 +1,634 @@
+// Tenant Database Schema
+// Contains ALL tenant-specific operational data
+// Each tenant has their own database with this schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/@prisma/tenant-client"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("TENANT_DATABASE_URL")
+}
+
+// ============================================
+// USER & ACCESS CONTROL MODULE
+// ============================================
+
+enum UserStatus {
+  Active
+  Inactive
+}
+
+model User {
+  id        String     @id @default(uuid())
+  tenantId  String
+  name      String
+  email     String
+  password  String     // Hashed
+  roleId    String
+  status    UserStatus @default(Active)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  role              Role            @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedLeads     Lead[]          @relation("AssignedUser")
+  assignedTasks     Task[]          @relation("AssignedUser")
+  staffAppointments Appointment[]   @relation("StaffAppointments")
+  instructorClasses Class[]         @relation("Instructor")
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId, email])
+  @@index([tenantId, roleId])
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users           User[]
+  rolePermissions RolePermission[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String   @id @default(uuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// ============================================
+// LEAD MANAGEMENT MODULE
+// ============================================
+
+enum LeadStatus {
+  New
+  Contacted
+  Qualified
+  Converted
+}
+
+enum Priority {
+  High
+  Medium
+  Low
+}
+
+model Lead {
+  id                 String     @id @default(uuid())
+  tenantId           String
+  assignedUserId     String?
+  firstName          String
+  lastName           String
+  email              String
+  phone              String?
+  academicBackground String?
+  studyInterests     String?
+  status             LeadStatus @default(New)
+  priority           Priority   @default(Medium)
+  source             String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  assignedUser User?     @relation("AssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  students     Student[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, email])
+  @@index([tenantId, assignedUserId])
+  @@map("leads")
+}
+
+// ============================================
+// STUDENT MANAGEMENT MODULE
+// ============================================
+
+enum StudentStatus {
+  Prospective
+  Enrolled
+  Alumni
+}
+
+model Student {
+  id              String        @id @default(uuid())
+  tenantId        String
+  leadId          String?
+  firstName       String
+  lastName        String
+  email           String
+  phone           String?
+  academicRecords Json?         // Stores academic history
+  testScores      Json?         // Stores test scores
+  status          StudentStatus @default(Prospective)
+  priority        Priority      @default(Medium)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  lead             Lead?               @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  documents        StudentDocument[]
+  appointments     Appointment[]
+  classEnrollments ClassEnrollment[]
+  testAssignments  TestAssignment[]
+  visaApplications VisaApplication[]
+  payments         Payment[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, email])
+  @@index([tenantId, leadId])
+  @@map("students")
+}
+
+enum DocumentType {
+  Passport
+  Transcript
+  VisaForm
+  Photo
+  Certificate
+  Other
+}
+
+model StudentDocument {
+  id           String       @id @default(uuid())
+  studentId    String
+  documentType DocumentType
+  filePath     String
+  uploadedAt   DateTime     @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@map("student_documents")
+}
+
+// ============================================
+// UNIVERSITY & COURSE MODULE
+// ============================================
+
+model University {
+  id          String   @id @default(uuid())
+  name        String
+  country     String
+  ranking     Int?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courses     Course[]
+  commissions Commission[]
+
+  @@index([country])
+  @@map("universities")
+}
+
+model Course {
+  id            String   @id @default(uuid())
+  universityId  String
+  name          String
+  fees          Decimal  @db.Decimal(10, 2)
+  requirements  Json?    // Entry requirements
+  intakePeriods Json?    // Available intake periods
+  deadlines     Json?    // Application deadlines
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  classes    Class[]
+
+  @@index([universityId])
+  @@map("courses")
+}
+
+// ============================================
+// CLASS & TEST MODULE
+// ============================================
+
+enum ClassLevel {
+  Beginner
+  Intermediate
+  Advanced
+}
+
+model Class {
+  id           String     @id @default(uuid())
+  tenantId     String
+  courseId     String?
+  level        ClassLevel
+  schedule     Json       // Class schedule with dates and times
+  instructorId String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  course      Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  instructor  User?             @relation("Instructor", fields: [instructorId], references: [id], onDelete: SetNull)
+  enrollments ClassEnrollment[]
+
+  @@index([tenantId])
+  @@index([tenantId, instructorId])
+  @@map("classes")
+}
+
+enum EnrollmentStatus {
+  Active
+  Completed
+  Dropped
+}
+
+model ClassEnrollment {
+  id        String           @id @default(uuid())
+  classId   String
+  studentId String
+  status    EnrollmentStatus @default(Active)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, studentId])
+  @@index([studentId])
+  @@map("class_enrollments")
+}
+
+enum TestType {
+  IELTS
+  TOEFL
+  GRE
+  GMAT
+  SAT
+  Other
+}
+
+model Test {
+  id          String   @id @default(uuid())
+  name        String
+  type        TestType
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignments TestAssignment[]
+
+  @@map("tests")
+}
+
+enum TestAssignmentStatus {
+  Pending
+  Completed
+  Graded
+}
+
+model TestAssignment {
+  id        String               @id @default(uuid())
+  testId    String
+  studentId String
+  status    TestAssignmentStatus @default(Pending)
+  score     Decimal?             @db.Decimal(5, 2)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  test    Test    @relation(fields: [testId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([testId])
+  @@map("test_assignments")
+}
+
+// ============================================
+// APPOINTMENT MODULE
+// ============================================
+
+enum AppointmentStatus {
+  Scheduled
+  Completed
+  Cancelled
+  NoShow
+}
+
+model Appointment {
+  id           String            @id @default(uuid())
+  tenantId     String
+  studentId    String
+  staffId      String
+  scheduledAt  DateTime
+  status       AppointmentStatus @default(Scheduled)
+  outcomeNotes String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  staff   User    @relation("StaffAppointments", fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, scheduledAt])
+  @@index([tenantId, studentId])
+  @@index([tenantId, staffId])
+  @@map("appointments")
+}
+
+// ============================================
+// TASK & WORKFLOW MODULE
+// ============================================
+
+enum TaskStatus {
+  Pending
+  InProgress
+  Completed
+  Cancelled
+}
+
+enum RelatedEntityType {
+  Student
+  Lead
+  Visa
+  Service
+  Appointment
+}
+
+model Task {
+  id                String            @id @default(uuid())
+  tenantId          String
+  assignedTo        String
+  relatedEntityType RelatedEntityType
+  relatedEntityId   String
+  title             String
+  description       String?
+  status            TaskStatus        @default(Pending)
+  priority          Priority          @default(Medium)
+  dueDate           DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  assignedUser User @relation("AssignedUser", fields: [assignedTo], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, assignedTo])
+  @@index([tenantId, status])
+  @@index([tenantId, relatedEntityType, relatedEntityId])
+  @@map("tasks")
+}
+
+// ============================================
+// VISA PROCESSING MODULE
+// ============================================
+
+enum VisaStatus {
+  Pending
+  Submitted
+  Approved
+  Rejected
+  UnderReview
+}
+
+model VisaApplication {
+  id                 String     @id @default(uuid())
+  studentId          String
+  destinationCountry String
+  status             VisaStatus @default(Pending)
+  submissionDate     DateTime?
+  decisionDate       DateTime?
+  notes              String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  student   Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  documents VisaDocument[]
+
+  @@index([studentId])
+  @@index([status])
+  @@map("visa_applications")
+}
+
+model VisaDocument {
+  id                String       @id @default(uuid())
+  visaApplicationId String
+  documentType      DocumentType
+  filePath          String
+  uploadedAt        DateTime     @default(now())
+
+  visaApplication VisaApplication @relation(fields: [visaApplicationId], references: [id], onDelete: Cascade)
+
+  @@index([visaApplicationId])
+  @@map("visa_documents")
+}
+
+// ============================================
+// SERVICES & COMMISSIONS MODULE
+// ============================================
+
+model Service {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  commissions Commission[]
+  payments    Payment[]
+
+  @@index([tenantId])
+  @@map("services")
+}
+
+enum CommissionStatus {
+  Pending
+  Paid
+  Cancelled
+}
+
+model Commission {
+  id           String           @id @default(uuid())
+  serviceId    String
+  universityId String
+  amount       Decimal          @db.Decimal(10, 2)
+  status       CommissionStatus @default(Pending)
+  paidDate     DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  service    Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@index([universityId])
+  @@index([status])
+  @@map("commissions")
+}
+
+// ============================================
+// CONTENT MANAGEMENT MODULE
+// ============================================
+
+model BlogPost {
+  id          String    @id @default(uuid())
+  tenantId    String
+  title       String
+  content     String
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, publishedAt])
+  @@map("blog_posts")
+}
+
+model FAQ {
+  id        String   @id @default(uuid())
+  tenantId  String
+  question  String
+  answer    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("faqs")
+}
+
+model LandingPage {
+  id        String   @id @default(uuid())
+  tenantId  String
+  title     String
+  content   String
+  slug      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@map("landing_pages")
+}
+
+model Scholarship {
+  id          String   @id @default(uuid())
+  tenantId    String
+  title       String
+  description String
+  deadline    DateTime
+  amount      Decimal? @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, deadline])
+  @@map("scholarships")
+}
+
+// ============================================
+// PAYMENTS & NOTIFICATIONS MODULE
+// ============================================
+
+enum PaymentStatus {
+  Pending
+  Completed
+  Failed
+  Refunded
+}
+
+model Payment {
+  id          String        @id @default(uuid())
+  tenantId    String
+  studentId   String
+  serviceId   String?
+  amount      Decimal       @db.Decimal(10, 2)
+  status      PaymentStatus @default(Pending)
+  paymentDate DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  student Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, studentId])
+  @@index([tenantId, status])
+  @@map("payments")
+}
+
+enum NotificationType {
+  Email
+  SMS
+  InApp
+}
+
+enum NotificationStatus {
+  Sent
+  Pending
+  Failed
+}
+
+model Notification {
+  id        String             @id @default(uuid())
+  tenantId  String
+  userId    String
+  type      NotificationType
+  message   String
+  status    NotificationStatus @default(Pending)
+  sentAt    DateTime?
+  createdAt DateTime           @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+  @@index([tenantId, status])
+  @@map("notifications")
+}
+
+// ============================================
+// AUDIT & ACTIVITY MODULE
+// ============================================
+
+enum AuditAction {
+  Create
+  Update
+  Delete
+  Login
+  Logout
+}
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  tenantId   String
+  userId     String?
+  entityType String
+  entityId   String
+  action     AuditAction
+  metadata   Json?       // Additional context
+  timestamp  DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, userId])
+  @@index([tenantId, timestamp])
+  @@map("audit_logs")
+}

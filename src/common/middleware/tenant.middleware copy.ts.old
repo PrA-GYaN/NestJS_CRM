@@ -1,0 +1,38 @@
+// import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
+// import { Request, Response, NextFunction } from 'express';
+// import { MasterPrismaService } from '../prisma/master-prisma.service';
+
+// @Injectable()
+// export class TenantMiddleware implements NestMiddleware {
+//   use(req: Request, res: Response, next: NextFunction) {
+//     // Extract tenant ID from subdomain or header
+//     const host = req.get('host');
+//     const tenantIdHeader = req.get('X-Tenant-ID');
+
+//     let tenantId: string | null = null;
+
+//     if (tenantIdHeader) {
+//       tenantId = tenantIdHeader;
+//     } else if (host) {
+//       // Extract subdomain from host
+//       const subdomain = host.split('.')[0];
+//       if (subdomain && subdomain !== 'localhost' && subdomain !== 'www') {
+//         // In production, you would look up tenant by subdomain
+//         // For now, we'll use the subdomain as tenantId
+//         tenantId = subdomain;
+//       }
+//     }
+
+//     if (!tenantId) {
+//       throw new UnauthorizedException('Tenant ID is required');
+//     }
+//     const tenant = await this.masterPrisma.tenant.findUnique({
+//       where: { id: tenantId },
+//     });
+
+//     // Attach tenant ID to request
+//     (req as any).tenantId = tenantId;
+
+//     next();
+//   }
+// }

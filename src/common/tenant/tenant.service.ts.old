@@ -1,0 +1,143 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+import * as crypto from 'crypto';
+
+interface TenantConnection {
+  prisma: PrismaClient;
+  lastAccessed: Date;
+}
+
+@Injectable()
+export class TenantService {
+  private tenantConnections: Map<string, TenantConnection> = new Map();
+  private readonly ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'default-key-change-in-production-32c';
+  private readonly CONNECTION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+  constructor() {
+    // Cleanup stale connections every 10 minutes
+    setInterval(() => this.cleanupStaleConnections(), 10 * 60 * 1000);
+  }
+
+  /**
+   * Get Prisma client for a specific tenant
+   */
+  async getTenantPrisma(tenantId: string, masterPrisma: PrismaClient): Promise<PrismaClient> {
+    // Check if connection exists and is recent
+    const existing = this.tenantConnections.get(tenantId);
+    if (existing) {
+      existing.lastAccessed = new Date();
+      return existing.prisma;
+    }
+
+    // Fetch tenant configuration from master database
+    const tenant = await masterPrisma.tenant.findUnique({
+      where: { subdomain: tenantId },
+    });
+
+    if (!tenant) {
+      throw new Error(`Tenant not found: ${tenantId}`);
+    }
+
+    if (tenant.status !== 'Active') {
+      throw new Error(`Tenant is not active: ${tenantId}`);
+    }
+
+    // Decrypt database password
+    const dbPassword = this.decrypt(tenant.dbPassword);
+
+    // Build connection string
+    const connectionString = `postgresql://${tenant.dbUser}:${dbPassword}@${tenant.dbHost}/${tenant.dbName}`;
+
+    // Create new Prisma client
+    const prisma = new PrismaClient({
+      datasources: {
+        db: {
+          url: connectionString,
+        },
+      },
+    });
+
+    // Connect to database
+    await prisma.$connect();
+
+    // Store connection
+    this.tenantConnections.set(tenantId, {
+      prisma,
+      lastAccessed: new Date(),
+    });
+
+    return prisma;
+  }
+
+  /**
+   * Close connection for a specific tenant
+   */
+  async closeTenantConnection(tenantId: string): Promise<void> {
+    const connection = this.tenantConnections.get(tenantId);
+    if (connection) {
+      await connection.prisma.$disconnect();
+      this.tenantConnections.delete(tenantId);
+    }
+  }
+
+  /**
+   * Cleanup stale connections
+   */
+  private async cleanupStaleConnections(): Promise<void> {
+    const now = new Date();
+    const staleConnections: string[] = [];
+
+    this.tenantConnections.forEach((connection, tenantId) => {
+      const timeSinceLastAccess = now.getTime() - connection.lastAccessed.getTime();
+      if (timeSinceLastAccess > this.CONNECTION_TIMEOUT) {
+        staleConnections.push(tenantId);
+      }
+    });
+
+    for (const tenantId of staleConnections) {
+      await this.closeTenantConnection(tenantId);
+    }
+  }
+
+  /**
+   * Encrypt sensitive data
+   */
+  encrypt(text: string): string {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv(
+      'aes-256-cbc',
+      Buffer.from(this.ENCRYPTION_KEY.slice(0, 32)),
+      iv,
+    );
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return `${iv.toString('hex')}:${encrypted}`;
+  }
+
+  /**
+   * Decrypt sensitive data
+   */
+  decrypt(encryptedText: string): string {
+    const parts = encryptedText.split(':');
+    const iv = Buffer.from(parts[0], 'hex');
+    const encrypted = parts[1];
+    const decipher = crypto.createDecipheriv(
+      'aes-256-cbc',
+      Buffer.from(this.ENCRYPTION_KEY.slice(0, 32)),
+      iv,
+    );
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  }
+
+  /**
+   * Cleanup all connections on shutdown
+   */
+  async onModuleDestroy(): Promise<void> {
+    const disconnectPromises = Array.from(this.tenantConnections.keys()).map((tenantId) =>
+      this.closeTenantConnection(tenantId),
+    );
+    await Promise.all(disconnectPromises);
+  }
+}
