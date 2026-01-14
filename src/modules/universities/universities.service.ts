@@ -8,8 +8,30 @@ export class UniversitiesService {
 
   async createUniversity(tenantId: string, data: any) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    
+    // Verify country exists if countryId is provided
+    if (data.countryId) {
+      const country = await tenantPrisma.country.findFirst({
+        where: { id: data.countryId, tenantId },
+      });
+      if (!country) {
+        throw new NotFoundException('Country not found');
+      }
+    }
+
     return tenantPrisma.university.create({
-      data,
+      data: {
+        ...data,
+        tenantId,
+      },
+      include: {
+        country: true,
+        _count: {
+          select: {
+            courses: true,
+          },
+        },
+      },
     });
   }
 
@@ -18,14 +40,14 @@ export class UniversitiesService {
     const { page = 1, limit = 10, sortBy = 'name', sortOrder = 'asc', search } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const where = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as any } },
-            { country: { contains: search, mode: 'insensitive' as any } },
-          ],
-        }
-      : {};
+    const where = {
+      tenantId,
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' as any } },
+        ],
+      }),
+    };
 
     const [universities, total] = await Promise.all([
       tenantPrisma.university.findMany({
@@ -34,7 +56,12 @@ export class UniversitiesService {
         take: limit,
         orderBy: { [sortBy]: sortOrder },
         include: {
-          courses: true,
+          country: true,
+          _count: {
+            select: {
+              courses: true,
+            },
+          },
         },
       }),
       tenantPrisma.university.count({ where }),
@@ -51,9 +78,10 @@ export class UniversitiesService {
 
   async getUniversityById(tenantId: string, id: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    const university = await tenantPrisma.university.findUnique({
-      where: { id },
+    const university = await tenantPrisma.university.findFirst({
+      where: { id, tenantId },
       include: {
+        country: true,
         courses: true,
         commissions: true,
       },
@@ -68,10 +96,25 @@ export class UniversitiesService {
 
   async updateUniversity(tenantId: string, id: string, data: any) {
     await this.getUniversityById(tenantId, id);
+    
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    
+    // Verify country exists if countryId is being updated
+    if (data.countryId) {
+      const country = await tenantPrisma.country.findFirst({
+        where: { id: data.countryId, tenantId },
+      });
+      if (!country) {
+        throw new NotFoundException('Country not found');
+      }
+    }
+
     return tenantPrisma.university.update({
       where: { id },
       data,
+      include: {
+        country: true,
+      },
     });
   }
 
@@ -91,9 +134,14 @@ export class UniversitiesService {
       data: {
         ...data,
         universityId,
+        tenantId,
       },
       include: {
-        university: true,
+        university: {
+          include: {
+            country: true,
+          },
+        },
       },
     });
   }
@@ -101,20 +149,38 @@ export class UniversitiesService {
   async getCoursesByUniversity(tenantId: string, universityId: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     return tenantPrisma.course.findMany({
-      where: { universityId },
+      where: { universityId, tenantId },
       include: {
-        university: true,
+        university: {
+          include: {
+            country: true,
+          },
+        },
       },
     });
   }
 
   async updateCourse(tenantId: string, id: string, data: any) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    
+    // Verify course exists and belongs to tenant
+    const course = await tenantPrisma.course.findFirst({
+      where: { id, tenantId },
+    });
+    
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
     return tenantPrisma.course.update({
       where: { id },
       data,
       include: {
-        university: true,
+        university: {
+          include: {
+            country: true,
+          },
+        },
       },
     });
   }

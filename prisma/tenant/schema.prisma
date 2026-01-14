@@ -179,6 +179,7 @@ enum DocumentType {
 
 model StudentDocument {
   id           String       @id @default(uuid())
+  tenantId     String
   studentId    String
   documentType DocumentType
   filePath     String
@@ -186,8 +187,32 @@ model StudentDocument {
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
+  @@index([tenantId, studentId])
   @@index([studentId])
   @@map("student_documents")
+}
+
+// ============================================
+// COUNTRY MODULE (TENANT-SCOPED)
+// ============================================
+
+model Country {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  code      String   // ISO country code (e.g., US, UK, CA)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  universities University[]
+  visaTypes    VisaType[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([tenantId, isActive])
+  @@map("countries")
 }
 
 // ============================================
@@ -196,25 +221,31 @@ model StudentDocument {
 
 model University {
   id          String   @id @default(uuid())
+  tenantId    String
+  countryId   String
   name        String
-  country     String
   ranking     Int?
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  country     Country      @relation(fields: [countryId], references: [id], onDelete: Cascade)
   courses     Course[]
   commissions Commission[]
 
-  @@index([country])
+  @@index([tenantId])
+  @@index([tenantId, countryId])
+  @@index([countryId])
   @@map("universities")
 }
 
 model Course {
   id            String   @id @default(uuid())
+  tenantId      String
   universityId  String
   name          String
   fees          Decimal  @db.Decimal(10, 2)
+  duration      String?  // e.g., "2 years", "6 months"
   requirements  Json?    // Entry requirements
   intakePeriods Json?    // Available intake periods
   deadlines     Json?    // Application deadlines
@@ -224,6 +255,8 @@ model Course {
   university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
   classes    Class[]
 
+  @@index([tenantId])
+  @@index([tenantId, universityId])
   @@index([universityId])
   @@map("courses")
 }
@@ -408,11 +441,76 @@ enum VisaStatus {
   UnderReview
 }
 
+model VisaType {
+  id          String   @id @default(uuid())
+  tenantId    String
+  countryId   String
+  name        String   // e.g., "Student Visa", "Work Visa", "Tourist Visa"
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  country      Country           @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  workflows    VisaWorkflow[]
+  applications VisaApplication[]
+
+  @@unique([tenantId, countryId, name])
+  @@index([tenantId])
+  @@index([tenantId, countryId])
+  @@index([countryId])
+  @@map("visa_types")
+}
+
+model VisaWorkflow {
+  id          String   @id @default(uuid())
+  tenantId    String
+  visaTypeId  String
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  visaType VisaType           @relation(fields: [visaTypeId], references: [id], onDelete: Cascade)
+  steps    VisaWorkflowStep[]
+
+  @@index([tenantId])
+  @@index([tenantId, visaTypeId])
+  @@index([visaTypeId])
+  @@map("visa_workflows")
+}
+
+model VisaWorkflowStep {
+  id                   String   @id @default(uuid())
+  tenantId             String
+  workflowId           String
+  name                 String
+  description          String?
+  stepOrder            Int
+  requiresDocument     Boolean  @default(false)
+  isActive             Boolean  @default(true)
+  expectedDurationDays Int?     // SLA in days
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  workflow VisaWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, stepOrder])
+  @@index([tenantId])
+  @@index([tenantId, workflowId])
+  @@index([workflowId])
+  @@map("visa_workflow_steps")
+}
+
 model VisaApplication {
   id                 String     @id @default(uuid())
+  tenantId           String
   studentId          String
-  destinationCountry String
+  visaTypeId         String
+  destinationCountry String     // Kept for backward compatibility
   status             VisaStatus @default(Pending)
+  currentStepId      String?    // Current workflow step
   submissionDate     DateTime?
   decisionDate       DateTime?
   notes              String?
@@ -420,15 +518,21 @@ model VisaApplication {
   updatedAt          DateTime   @updatedAt
 
   student   Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  visaType  VisaType       @relation(fields: [visaTypeId], references: [id], onDelete: Restrict)
   documents VisaDocument[]
 
+  @@index([tenantId])
+  @@index([tenantId, studentId])
+  @@index([tenantId, visaTypeId])
   @@index([studentId])
+  @@index([visaTypeId])
   @@index([status])
   @@map("visa_applications")
 }
 
 model VisaDocument {
   id                String       @id @default(uuid())
+  tenantId          String
   visaApplicationId String
   documentType      DocumentType
   filePath          String
@@ -436,8 +540,44 @@ model VisaDocument {
 
   visaApplication VisaApplication @relation(fields: [visaApplicationId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
+  @@index([tenantId, visaApplicationId])
   @@index([visaApplicationId])
   @@map("visa_documents")
+}
+
+// ============================================
+// FILE UPLOAD & STORAGE MODULE
+// ============================================
+
+enum FileCategory {
+  StudentDocument
+  VisaDocument
+  CourseDocument
+  General
+}
+
+model FileUpload {
+  id               String       @id @default(uuid())
+  tenantId         String
+  studentId        String?
+  visaApplicationId String?
+  courseId         String?
+  category         FileCategory
+  originalFileName String
+  storedFileName   String
+  filePath         String       // Relative path from root
+  fileSize         Int          // Size in bytes
+  mimeType         String
+  uploadedBy       String?      // User ID
+  uploadedAt       DateTime     @default(now())
+  metadata         Json?        // Additional metadata
+
+  @@index([tenantId])
+  @@index([tenantId, studentId])
+  @@index([tenantId, visaApplicationId])
+  @@index([tenantId, category])
+  @@map("file_uploads")
 }
 
 // ============================================
@@ -486,62 +626,213 @@ model Commission {
 }
 
 // ============================================
-// CONTENT MANAGEMENT MODULE
+// CONTENT MANAGEMENT MODULE (CMS)
 // ============================================
 
-model BlogPost {
-  id          String    @id @default(uuid())
-  tenantId    String
-  title       String
-  content     String
-  publishedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+enum ContentStatus {
+  Draft
+  Published
+  Unpublished
+}
 
+model BlogPost {
+  id            String        @id @default(uuid())
+  tenantId      String
+  title         String
+  slug          String
+  excerpt       String?
+  content       String        // Main content (HTML/Markdown)
+  featuredImage String?       // Image URL or path
+  author        String?       // Author name
+  tags          Json?         // Array of tags
+  metaTitle     String?       // SEO meta title
+  metaDescription String?     // SEO meta description
+  status        ContentStatus @default(Draft)
+  publishedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([tenantId, slug])
   @@index([tenantId])
+  @@index([tenantId, status])
   @@index([tenantId, publishedAt])
   @@map("blog_posts")
 }
 
 model FAQ {
-  id        String   @id @default(uuid())
-  tenantId  String
-  question  String
-  answer    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  tenantId   String
+  category   String?  // FAQ category (e.g., "Visa", "Admission", "General")
+  question   String
+  answer     String
+  sortOrder  Int      @default(0) // For custom ordering
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([tenantId])
+  @@index([tenantId, category])
+  @@index([tenantId, sortOrder])
   @@map("faqs")
 }
 
 model LandingPage {
-  id        String   @id @default(uuid())
-  tenantId  String
-  title     String
-  content   String
-  slug      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String        @id @default(uuid())
+  tenantId        String
+  title           String
+  slug            String
+  content         String        // Main page content (HTML/Markdown)
+  heroImage       String?       // Hero/banner image
+  metaTitle       String?       // SEO meta title
+  metaDescription String?       // SEO meta description
+  status          ContentStatus @default(Draft)
+  publishedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@unique([tenantId, slug])
   @@index([tenantId])
+  @@index([tenantId, status])
   @@map("landing_pages")
 }
 
 model Scholarship {
-  id          String   @id @default(uuid())
-  tenantId    String
-  title       String
-  description String
-  deadline    DateTime
-  amount      Decimal? @db.Decimal(10, 2)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String        @id @default(uuid())
+  tenantId        String
+  title           String
+  slug            String
+  description     String
+  eligibility     String?       // Eligibility criteria
+  amount          Decimal?      @db.Decimal(10, 2)
+  currency        String?       @default("USD")
+  deadline        DateTime
+  applicationUrl  String?       // External application link
+  universityName  String?
+  countryName     String?
+  status          ContentStatus @default(Draft)
+  publishedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
+  @@unique([tenantId, slug])
   @@index([tenantId])
+  @@index([tenantId, status])
   @@index([tenantId, deadline])
   @@map("scholarships")
+}
+
+// ============================================
+// TEMPLATE & MESSAGING MODULE (PER TENANT ONLY)
+// ============================================
+
+enum TemplateType {
+  Email
+  SMS
+}
+
+enum TemplateStatus {
+  Active
+  Inactive
+}
+
+enum MessageEventType {
+  LeadCreated
+  LeadAssigned
+  LeadConverted
+  StudentCreated
+  AppointmentScheduled
+  AppointmentReminder
+  TaskAssigned
+  TaskDueReminder
+  VisaWorkflowStepChanged
+  DocumentRequested
+  DocumentUploaded
+  PaymentReceived
+  PaymentDue
+  PasswordReset
+  WelcomeEmail
+  Custom
+}
+
+model EmailTemplate {
+  id          String         @id @default(uuid())
+  tenantId    String         // MANDATORY - Every template belongs to ONE tenant
+  name        String         // Template name (unique per tenant)
+  subject     String         // Email subject line
+  body        String         // Email body (HTML or plain text)
+  variables   Json?          // Available variables/placeholders (e.g., ["studentName", "appointmentDate"])
+  eventType   MessageEventType? // Optional event mapping
+  status      TemplateStatus @default(Inactive)
+  description String?        // Optional description
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  messages MessageLog[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, eventType])
+  @@map("email_templates")
+}
+
+model SMSTemplate {
+  id          String         @id @default(uuid())
+  tenantId    String         // MANDATORY - Every template belongs to ONE tenant
+  name        String         // Template name (unique per tenant)
+  body        String         // SMS body text
+  variables   Json?          // Available variables/placeholders
+  eventType   MessageEventType? // Optional event mapping
+  status      TemplateStatus @default(Inactive)
+  description String?        // Optional description
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  messages MessageLog[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, eventType])
+  @@map("sms_templates")
+}
+
+enum MessageStatus {
+  Pending
+  Sent
+  Failed
+  Delivered
+}
+
+model MessageLog {
+  id               String            @id @default(uuid())
+  tenantId         String            // MANDATORY - tenant context
+  messageType      TemplateType      // Email or SMS
+  emailTemplateId  String?           // Reference to email template (if email)
+  smsTemplateId    String?           // Reference to SMS template (if SMS)
+  recipientEmail   String?           // For email
+  recipientPhone   String?           // For SMS
+  subject          String?           // For email
+  body             String            // Actual message sent (after variable substitution)
+  variables        Json?             // Variables used in this message
+  eventType        MessageEventType? // Event that triggered this message
+  status           MessageStatus     @default(Pending)
+  sentAt           DateTime?
+  deliveredAt      DateTime?
+  errorMessage     String?           // Error details if failed
+  metadata         Json?             // Additional metadata
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  emailTemplate EmailTemplate? @relation(fields: [emailTemplateId], references: [id], onDelete: SetNull)
+  smsTemplate   SMSTemplate?   @relation(fields: [smsTemplateId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([tenantId, messageType])
+  @@index([tenantId, status])
+  @@index([tenantId, eventType])
+  @@index([tenantId, createdAt])
+  @@map("message_logs")
 }
 
 // ============================================

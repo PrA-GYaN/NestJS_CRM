@@ -14,6 +14,21 @@ import { StudentsModule } from './modules/students/students.module';
 import { UniversitiesModule } from './modules/universities/universities.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { CountriesModule } from './modules/countries/countries.module';
+import { VisaTypesModule } from './modules/visa-types/visa-types.module';
+import { WorkflowsModule } from './modules/workflows/workflows.module';
+import { FilesModule } from './modules/files/files.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+
+// CMS modules
+import { BlogsModule } from './modules/blogs/blogs.module';
+import { FaqsModule } from './modules/faqs/faqs.module';
+import { LandingPagesModule } from './modules/landing-pages/landing-pages.module';
+import { ScholarshipsModule } from './modules/scholarships/scholarships.module';
+
+// Templates & Messaging modules
+import { TemplatesModule } from './modules/templates/templates.module';
+import { MessagingModule } from './modules/messaging/messaging.module';
 
 // Guards, Filters, Interceptors
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
@@ -38,6 +53,19 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     UniversitiesModule,
     AppointmentsModule,
     TasksModule,
+    CountriesModule,
+    VisaTypesModule,
+    WorkflowsModule,
+    FilesModule,
+    DashboardModule,
+    // CMS Modules
+    BlogsModule,
+    FaqsModule,
+    LandingPagesModule,
+    ScholarshipsModule,
+    // Templates & Messaging
+    TemplatesModule,
+    MessagingModule,
   ],
   providers: [
     {

@@ -124,6 +124,7 @@ export class StudentsService {
 
     return tenantPrisma.studentDocument.create({
       data: {
+        tenantId,
         studentId,
         ...uploadDocumentDto,
       },
