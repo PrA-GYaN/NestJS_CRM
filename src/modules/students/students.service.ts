@@ -47,7 +47,6 @@ export class StudentsService {
         orderBy: { [sortBy]: sortOrder },
         include: {
           lead: true,
-          documents: true,
         },
       }),
       tenantPrisma.student.count({ where }),
