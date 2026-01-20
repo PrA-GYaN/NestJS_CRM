@@ -19,6 +19,7 @@ import { VisaTypesModule } from './modules/visa-types/visa-types.module';
 import { WorkflowsModule } from './modules/workflows/workflows.module';
 import { FilesModule } from './modules/files/files.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { ServicesModule } from './modules/services/services.module';
 
 // CMS modules
 import { BlogsModule } from './modules/blogs/blogs.module';
@@ -58,6 +59,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     WorkflowsModule,
     FilesModule,
     DashboardModule,
+    ServicesModule,
     // CMS Modules
     BlogsModule,
     FaqsModule,

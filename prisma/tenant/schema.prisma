@@ -161,6 +161,7 @@ model Student {
   testAssignments  TestAssignment[]
   visaApplications VisaApplication[]
   payments         Payment[]
+  studentServices  StudentService[]
 
   @@index([tenantId, status])
   @@index([tenantId, email])
@@ -593,11 +594,31 @@ model Service {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  commissions Commission[]
-  payments    Payment[]
+  commissions     Commission[]
+  payments        Payment[]
+  studentServices StudentService[]
 
   @@index([tenantId])
   @@map("services")
+}
+
+model StudentService {
+  id         String   @id @default(uuid())
+  tenantId   String
+  studentId  String
+  serviceId  String
+  assignedAt DateTime @default(now())
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, serviceId])
+  @@index([tenantId, studentId])
+  @@index([tenantId, serviceId])
+  @@map("student_services")
 }
 
 enum CommissionStatus {

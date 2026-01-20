@@ -42,6 +42,7 @@ async function bootstrap() {
     .addTag('Universities & Courses', 'University and course catalog')
     .addTag('Appointments', 'Appointment scheduling')
     .addTag('Tasks & Workflows', 'Task management')
+    .addTag('Services', 'Service management and student assignments')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
