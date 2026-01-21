@@ -15,17 +15,20 @@ import { ScholarshipsService } from './scholarships.service';
 import { CreateScholarshipDto, UpdateScholarshipDto, PublishScholarshipDto } from './dto/scholarship.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Content Management - Scholarships')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('scholarships')
 export class ScholarshipsController {
   constructor(private scholarshipsService: ScholarshipsService) {}
 
   @Post()
+  @CanCreate('scholarships')
   @ApiOperation({
     summary: 'Create new scholarship',
     description: 'Creates a new scholarship for the current tenant. Scholarship starts in Draft status.',
@@ -35,6 +38,7 @@ export class ScholarshipsController {
   }
 
   @Get()
+  @CanRead('scholarships')
   @ApiOperation({
     summary: 'Get all scholarships (tenant-scoped)',
     description: 'Returns all scholarships for the current tenant with pagination and search.',
@@ -44,6 +48,7 @@ export class ScholarshipsController {
   }
 
   @Get('active')
+  @CanRead('scholarships')
   @ApiOperation({
     summary: 'Get active scholarships',
     description: 'Returns published scholarships with deadlines in the future.',
@@ -53,6 +58,7 @@ export class ScholarshipsController {
   }
 
   @Get(':id')
+  @CanRead('scholarships')
   @ApiOperation({
     summary: 'Get scholarship by ID',
     description: 'Returns a specific scholarship by ID (tenant-scoped).',
@@ -62,6 +68,7 @@ export class ScholarshipsController {
   }
 
   @Put(':id')
+  @CanUpdate('scholarships')
   @ApiOperation({
     summary: 'Update scholarship',
     description: 'Updates an existing scholarship (tenant-scoped).',

@@ -4,6 +4,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 // Common modules
 import { TenantModule } from './common/tenant/tenant.module';
+import { PermissionsModule } from './common/permissions/permissions.module';
 
 // Feature modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -46,6 +47,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
       envFilePath: '.env',
     }),
     TenantModule,
+    PermissionsModule,
     AuthModule,
     PlatformModule,
     UsersModule,

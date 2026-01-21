@@ -52,6 +52,7 @@ model Role {
   tenantId    String
   name        String
   description String?
+  isAdmin     Boolean  @default(false) // Admin override flag
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -65,17 +66,25 @@ model Role {
 
 model Permission {
   id          String   @id @default(uuid())
-  name        String   @unique
+  tenantId    String
+  name        String   // Format: "module:action" e.g., "leads:create", "students:read"
+  module      String   // e.g., "leads", "students", "users"
+  action      String   // e.g., "create", "read", "update", "delete", "export"
   description String?
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   rolePermissions RolePermission[]
 
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([tenantId, module])
   @@map("permissions")
 }
 
 model RolePermission {
   id           String   @id @default(uuid())
+  tenantId     String
   roleId       String
   permissionId String
   createdAt    DateTime @default(now())
@@ -84,6 +93,7 @@ model RolePermission {
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, permissionId])
+  @@index([tenantId])
   @@map("role_permissions")
 }
 
@@ -925,6 +935,7 @@ enum AuditAction {
   Delete
   Login
   Logout
+  ACCESS_DENIED
 }
 
 model AuditLog {

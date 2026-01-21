@@ -14,7 +14,9 @@ import { VisaTypesService } from './visa-types.service';
 import { CreateVisaTypeDto, UpdateVisaTypeDto } from './dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Visa Types')
 @ApiBearerAuth()
@@ -57,6 +59,7 @@ export class VisaTypesController {
   }
 
   @Put(':id')
+  @CanUpdate('visa-types')
   @ApiOperation({ summary: 'Update visa type' })
   @ApiResponse({ status: 200, description: 'Visa type updated successfully' })
   @ApiResponse({ status: 404, description: 'Visa type or country not found' })
@@ -70,6 +73,7 @@ export class VisaTypesController {
   }
 
   @Delete(':id')
+  @CanDelete('visa-types')
   @ApiOperation({ summary: 'Delete visa type' })
   @ApiResponse({ status: 200, description: 'Visa type deleted successfully' })
   @ApiResponse({ status: 404, description: 'Visa type not found' })

@@ -15,17 +15,20 @@ import { LandingPagesService } from './landing-pages.service';
 import { CreateLandingPageDto, UpdateLandingPageDto, PublishLandingPageDto } from './dto/landing-page.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { CanCreate, CanRead, CanUpdate, CanDelete, RequirePermissions } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Content Management - Landing Pages')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('landing-pages')
 export class LandingPagesController {
   constructor(private landingPagesService: LandingPagesService) {}
 
   @Post()
+  @CanCreate('landing-pages')
   @ApiOperation({
     summary: 'Create new landing page',
     description: 'Creates a new landing page for the current tenant. Page starts in Draft status.',
@@ -35,6 +38,7 @@ export class LandingPagesController {
   }
 
   @Get()
+  @CanRead('landing-pages')
   @ApiOperation({
     summary: 'Get all landing pages (tenant-scoped)',
     description: 'Returns all landing pages for the current tenant with pagination and search.',
@@ -44,6 +48,7 @@ export class LandingPagesController {
   }
 
   @Get(':id')
+  @CanRead('landing-pages')
   @ApiOperation({
     summary: 'Get landing page by ID',
     description: 'Returns a specific landing page by ID (tenant-scoped).',
@@ -53,6 +58,7 @@ export class LandingPagesController {
   }
 
   @Put(':id')
+  @CanUpdate('landing-pages')
   @ApiOperation({
     summary: 'Update landing page',
     description: 'Updates an existing landing page (tenant-scoped).',
@@ -66,6 +72,7 @@ export class LandingPagesController {
   }
 
   @Patch(':id/publish')
+  @RequirePermissions('landing-pages:publish')
   @ApiOperation({
     summary: 'Publish or unpublish landing page',
     description: 'Changes the publication status of a landing page.',

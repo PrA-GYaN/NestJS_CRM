@@ -95,6 +95,7 @@ export class PlatformService {
 
       // 3. Assign all permissions to Admin role
       const rolePermissions = permissions.map((permission) => ({
+        tenantId: tenantId,
         roleId: adminRole.id,
         permissionId: permission.id,
       }));

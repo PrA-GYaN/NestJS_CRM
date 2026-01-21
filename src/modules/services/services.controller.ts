@@ -22,16 +22,19 @@ import {
 } from './dto/service.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { CanCreate, CanRead, CanUpdate, CanDelete, RequirePermissions } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Services')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('services')
 export class ServicesController {
   constructor(private servicesService: ServicesService) {}
 
   @Post()
+  @CanCreate('services')
   @ApiOperation({ summary: 'Create a new service' })
   @ApiResponse({ status: 201, description: 'Service created successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
@@ -40,6 +43,7 @@ export class ServicesController {
   }
 
   @Get()
+  @CanRead('services')
   @ApiOperation({ summary: 'Get all services with pagination' })
   @ApiResponse({ status: 200, description: 'Services retrieved successfully' })
   getAllServices(@TenantId() tenantId: string, @Query() paginationDto: PaginationDto) {
@@ -47,6 +51,7 @@ export class ServicesController {
   }
 
   @Get(':id')
+  @CanRead('services')
   @ApiOperation({ summary: 'Get service by ID' })
   @ApiParam({ name: 'id', description: 'Service ID' })
   @ApiResponse({ status: 200, description: 'Service retrieved successfully' })
@@ -56,6 +61,7 @@ export class ServicesController {
   }
 
   @Put(':id')
+  @CanUpdate('services')
   @ApiOperation({ summary: 'Update service' })
   @ApiParam({ name: 'id', description: 'Service ID' })
   @ApiResponse({ status: 200, description: 'Service updated successfully' })
@@ -69,6 +75,7 @@ export class ServicesController {
   }
 
   @Delete(':id')
+  @CanDelete('services')
   @ApiOperation({ summary: 'Delete service' })
   @ApiParam({ name: 'id', description: 'Service ID' })
   @ApiResponse({ status: 200, description: 'Service deleted successfully' })

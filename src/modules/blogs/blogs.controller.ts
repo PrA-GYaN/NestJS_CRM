@@ -15,17 +15,20 @@ import { BlogsService } from './blogs.service';
 import { CreateBlogDto, UpdateBlogDto, PublishBlogDto } from './dto/blog.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { CanCreate, CanRead, CanUpdate, CanDelete, RequirePermissions } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Content Management - Blogs')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('blogs')
 export class BlogsController {
   constructor(private blogsService: BlogsService) {}
 
   @Post()
+  @CanCreate('blogs')
   @ApiOperation({
     summary: 'Create new blog post',
     description: 'Creates a new blog post for the current tenant. Blog starts in Draft status.',
@@ -35,6 +38,7 @@ export class BlogsController {
   }
 
   @Get()
+  @CanRead('blogs')
   @ApiOperation({
     summary: 'Get all blog posts (tenant-scoped)',
     description: 'Returns all blog posts for the current tenant with pagination and search.',
@@ -44,6 +48,7 @@ export class BlogsController {
   }
 
   @Get(':id')
+  @CanRead('blogs')
   @ApiOperation({
     summary: 'Get blog post by ID',
     description: 'Returns a specific blog post by ID (tenant-scoped).',
@@ -53,6 +58,7 @@ export class BlogsController {
   }
 
   @Put(':id')
+  @CanUpdate('blogs')
   @ApiOperation({
     summary: 'Update blog post',
     description: 'Updates an existing blog post (tenant-scoped).',
@@ -66,6 +72,7 @@ export class BlogsController {
   }
 
   @Patch(':id/publish')
+  @RequirePermissions('blogs:publish')
   @ApiOperation({
     summary: 'Publish or unpublish blog post',
     description: 'Changes the publication status of a blog post.',

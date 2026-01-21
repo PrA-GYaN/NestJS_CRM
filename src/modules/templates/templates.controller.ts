@@ -25,16 +25,19 @@ import {
 } from './dto/sms-template.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Templates & Messaging - Email Templates')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('templates/email')
 export class EmailTemplatesController {
   constructor(private templatesService: TemplatesService) {}
 
   @Post()
+  @CanCreate('templates')
   @ApiOperation({
     summary: 'Create email template (tenant-scoped)',
     description: 'Creates a new email template for the current tenant ONLY. Cannot be shared across tenants.',
@@ -44,6 +47,7 @@ export class EmailTemplatesController {
   }
 
   @Get()
+  @CanRead('templates')
   @ApiOperation({
     summary: 'Get all email templates (tenant-scoped)',
     description: 'Returns email templates for the current tenant ONLY. No cross-tenant visibility.',
@@ -53,6 +57,7 @@ export class EmailTemplatesController {
   }
 
   @Get(':id')
+  @CanRead('templates')
   @ApiOperation({
     summary: 'Get email template by ID',
     description: 'Returns a specific email template (tenant-scoped).',
@@ -62,6 +67,7 @@ export class EmailTemplatesController {
   }
 
   @Put(':id')
+  @CanUpdate('templates')
   @ApiOperation({
     summary: 'Update email template',
     description: 'Updates an email template (tenant-scoped).',

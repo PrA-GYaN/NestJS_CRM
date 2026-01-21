@@ -15,17 +15,20 @@ import { FaqsService } from './faqs.service';
 import { CreateFaqDto, UpdateFaqDto, ReorderFaqDto } from './dto/faq.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Content Management - FAQs')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('faqs')
 export class FaqsController {
   constructor(private faqsService: FaqsService) {}
 
   @Post()
+  @CanCreate('faqs')
   @ApiOperation({
     summary: 'Create new FAQ',
     description: 'Creates a new FAQ for the current tenant.',
@@ -35,6 +38,7 @@ export class FaqsController {
   }
 
   @Get()
+  @CanRead('faqs')
   @ApiOperation({
     summary: 'Get all FAQs (tenant-scoped)',
     description: 'Returns all FAQs for the current tenant with pagination and search.',
@@ -49,6 +53,7 @@ export class FaqsController {
   }
 
   @Get('grouped')
+  @CanRead('faqs')
   @ApiOperation({
     summary: 'Get FAQs grouped by category',
     description: 'Returns active FAQs grouped by their categories.',
@@ -58,6 +63,7 @@ export class FaqsController {
   }
 
   @Get(':id')
+  @CanRead('faqs')
   @ApiOperation({
     summary: 'Get FAQ by ID',
     description: 'Returns a specific FAQ by ID (tenant-scoped).',
@@ -67,6 +73,7 @@ export class FaqsController {
   }
 
   @Put(':id')
+  @CanUpdate('faqs')
   @ApiOperation({
     summary: 'Update FAQ',
     description: 'Updates an existing FAQ (tenant-scoped).',

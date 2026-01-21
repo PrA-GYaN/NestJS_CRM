@@ -18,17 +18,20 @@ import { Multer } from 'multer';
 import { FilesService } from './files.service';
 import { UploadFileDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { RequirePermissions, CanRead } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('File Management')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('files')
 export class FilesController {
   constructor(private filesService: FilesService) {}
 
   @Post('upload')
+  @RequirePermissions('documents:upload')
   @ApiOperation({ summary: 'Upload file' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -63,6 +66,7 @@ export class FilesController {
   }
 
   @Get('student/:studentId')
+  @CanRead('documents')
   @ApiOperation({ summary: 'Get all files for a student' })
   @ApiResponse({ status: 200, description: 'Returns list of files' })
   @ApiResponse({ status: 404, description: 'Student not found' })
@@ -71,6 +75,7 @@ export class FilesController {
   }
 
   @Get('download/:fileId')
+  @RequirePermissions('documents:download')
   @ApiOperation({ summary: 'Download file' })
   @ApiResponse({ status: 200, description: 'File downloaded successfully' })
   @ApiResponse({ status: 404, description: 'File not found' })

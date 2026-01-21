@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { MasterPrismaService } from '../prisma/master-prisma.service';
 import { TenantPrismaFactory } from '../prisma/tenant-prisma.factory';
 import { TenantMigrationService, TenantDatabaseConfig } from './tenant-migration.service';
 import { PrismaClient as TenantPrismaClient } from '@prisma/tenant-client';
+import { PermissionsService } from '../permissions/permissions.service';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -15,6 +16,8 @@ export class TenantService {
     private masterPrisma: MasterPrismaService,
     private tenantPrismaFactory: TenantPrismaFactory,
     private tenantMigration: TenantMigrationService,
+    @Inject(forwardRef(() => PermissionsService))
+    private permissionsService: PermissionsService,
   ) {}
 
   /**
@@ -79,7 +82,14 @@ export class TenantService {
     try {
       // Create database and run migrations
       await this.tenantMigration.provisionTenantDatabase(dbConfig);
+// Seed permissions and roles
+      this.logger.log(`Seeding permissions for tenant: ${tenantId}`);
+      const tenantPrisma = await this.getTenantPrisma(tenantId);
+      
+      await this.permissionsService.seedPermissions(tenantPrisma, tenantId);
+      await this.permissionsService.seedDefaultRoles(tenantPrisma, tenantId);
 
+      
       this.logger.log(`✅ Tenant provisioned successfully: ${tenantId}`);
     } catch (error) {
       this.logger.error(`Failed to provision tenant ${tenantId}:`, error);

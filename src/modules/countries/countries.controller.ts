@@ -14,16 +14,19 @@ import { CountriesService } from './countries.service';
 import { CreateCountryDto, UpdateCountryDto } from './dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Countries')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('countries')
 export class CountriesController {
   constructor(private countriesService: CountriesService) {}
 
   @Post()
+  @CanCreate('countries')
   @ApiOperation({ summary: 'Create new country' })
   @ApiResponse({ status: 201, description: 'Country created successfully' })
   @ApiResponse({ status: 409, description: 'Country code already exists' })
@@ -32,6 +35,7 @@ export class CountriesController {
   }
 
   @Get()
+  @CanRead('countries')
   @ApiOperation({ summary: 'Get all countries with pagination' })
   @ApiResponse({ status: 200, description: 'Returns paginated list of countries' })
   getAllCountries(@TenantId() tenantId: string, @Query() paginationDto: PaginationDto) {
@@ -39,6 +43,7 @@ export class CountriesController {
   }
 
   @Get('active')
+  @CanRead('countries')
   @ApiOperation({ summary: 'Get all active countries' })
   @ApiResponse({ status: 200, description: 'Returns list of active countries' })
   getActiveCountries(@TenantId() tenantId: string) {
@@ -46,6 +51,7 @@ export class CountriesController {
   }
 
   @Get(':id')
+  @CanRead('countries')
   @ApiOperation({ summary: 'Get country by ID' })
   @ApiResponse({ status: 200, description: 'Returns country details' })
   @ApiResponse({ status: 404, description: 'Country not found' })
@@ -54,6 +60,7 @@ export class CountriesController {
   }
 
   @Get(':id/universities')
+  @CanRead('countries')
   @ApiOperation({ summary: 'Get universities by country' })
   @ApiResponse({ status: 200, description: 'Returns paginated list of universities for the country' })
   getCountryUniversities(
@@ -65,6 +72,7 @@ export class CountriesController {
   }
 
   @Get(':id/visa-types')
+  @CanRead('countries')
   @ApiOperation({ summary: 'Get visa types by country' })
   @ApiResponse({ status: 200, description: 'Returns list of visa types for the country' })
   getCountryVisaTypes(@TenantId() tenantId: string, @Param() params: IdParamDto) {
@@ -72,6 +80,7 @@ export class CountriesController {
   }
 
   @Put(':id')
+  @CanUpdate('countries')
   @ApiOperation({ summary: 'Update country' })
   @ApiResponse({ status: 200, description: 'Country updated successfully' })
   @ApiResponse({ status: 404, description: 'Country not found' })

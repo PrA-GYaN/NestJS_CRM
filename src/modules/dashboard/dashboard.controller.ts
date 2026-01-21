@@ -2,16 +2,19 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { CanRead } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Dashboard')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('dashboard')
 export class DashboardController {
   constructor(private dashboardService: DashboardService) {}
 
   @Get('overview')
+  @CanRead('dashboard')
   @ApiOperation({ 
     summary: 'Get comprehensive dashboard overview',
     description: 'Returns aggregated statistics for leads, students, visas, tasks, appointments, payments, and more'
@@ -25,6 +28,7 @@ export class DashboardController {
   }
 
   @Get('stats/date-range')
+  @CanRead('dashboard')
   @ApiOperation({ summary: 'Get statistics for a specific date range' })
   @ApiQuery({ name: 'startDate', required: true, type: String, example: '2024-01-01' })
   @ApiQuery({ name: 'endDate', required: true, type: String, example: '2024-12-31' })

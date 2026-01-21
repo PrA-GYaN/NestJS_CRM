@@ -14,11 +14,13 @@ import { WorkflowsService } from './workflows.service';
 import { CreateWorkflowDto, UpdateWorkflowDto, CreateWorkflowStepDto, UpdateWorkflowStepDto } from './dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Workflows')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('workflows')
 export class WorkflowsController {
   constructor(private workflowsService: WorkflowsService) {}
@@ -26,6 +28,7 @@ export class WorkflowsController {
   // ============ Workflow Endpoints ============
 
   @Post()
+  @CanCreate('workflows')
   @ApiOperation({ summary: 'Create new workflow' })
   @ApiResponse({ status: 201, description: 'Workflow created successfully' })
   @ApiResponse({ status: 404, description: 'Visa type not found' })
@@ -34,6 +37,7 @@ export class WorkflowsController {
   }
 
   @Get()
+  @CanRead('workflows')
   @ApiOperation({ summary: 'Get all workflows with pagination' })
   @ApiResponse({ status: 200, description: 'Returns paginated list of workflows' })
   getAllWorkflows(@TenantId() tenantId: string, @Query() paginationDto: PaginationDto) {
@@ -41,6 +45,7 @@ export class WorkflowsController {
   }
 
   @Get('by-visa-type/:visaTypeId')
+  @CanRead('workflows')
   @ApiOperation({ summary: 'Get workflows by visa type' })
   @ApiParam({ name: 'visaTypeId', description: 'Visa Type ID' })
   @ApiResponse({ status: 200, description: 'Returns list of workflows for the visa type' })
@@ -50,6 +55,7 @@ export class WorkflowsController {
   }
 
   @Get(':id')
+  @CanRead('workflows')
   @ApiOperation({ summary: 'Get workflow by ID' })
   @ApiResponse({ status: 200, description: 'Returns workflow details with steps' })
   @ApiResponse({ status: 404, description: 'Workflow not found' })
@@ -58,6 +64,7 @@ export class WorkflowsController {
   }
 
   @Put(':id')
+  @CanUpdate('workflows')
   @ApiOperation({ summary: 'Update workflow' })
   @ApiResponse({ status: 200, description: 'Workflow updated successfully' })
   @ApiResponse({ status: 404, description: 'Workflow not found' })
@@ -70,6 +77,7 @@ export class WorkflowsController {
   }
 
   @Delete(':id')
+  @CanDelete('workflows')
   @ApiOperation({ summary: 'Delete workflow' })
   @ApiResponse({ status: 200, description: 'Workflow deleted successfully' })
   @ApiResponse({ status: 404, description: 'Workflow not found' })
