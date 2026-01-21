@@ -82,7 +82,7 @@ export class PlatformService {
     // Start transaction to ensure atomicity
     await tenantPrisma.$transaction(async (tx) => {
       // 1. Create all permissions
-      const permissions = await this.createAllPermissions(tx);
+      const permissions = await this.createAllPermissions(tx, tenantId);
 
       // 2. Create Admin role
       const adminRole = await tx.role.create({
@@ -123,7 +123,7 @@ export class PlatformService {
   /**
    * Creates all system permissions
    */
-  private async createAllPermissions(prisma: any) {
+  private async createAllPermissions(prisma: any, tenantId: string) {
     const permissionsList = [
       // User Management
       { name: 'users.view', description: 'View users' },
@@ -205,9 +205,17 @@ export class PlatformService {
     
     for (const perm of permissionsList) {
       const permission = await prisma.permission.upsert({
-        where: { name: perm.name },
+        where: {
+          tenantId_name: {
+            tenantId,
+            name: perm.name,
+          },
+        },
         update: {},
-        create: perm,
+        create: {
+          ...perm,
+          tenantId,
+        },
       });
       createdPermissions.push(permission);
     }
