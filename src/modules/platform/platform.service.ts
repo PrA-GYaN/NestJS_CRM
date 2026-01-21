@@ -204,6 +204,9 @@ export class PlatformService {
     const createdPermissions = [];
     
     for (const perm of permissionsList) {
+      // Extract module and action from permission name (e.g., "users.view" -> module: "users", action: "view")
+      const [module, action] = perm.name.split('.');
+      
       const permission = await prisma.permission.upsert({
         where: {
           tenantId_name: {
@@ -214,6 +217,8 @@ export class PlatformService {
         update: {},
         create: {
           ...perm,
+          module,
+          action,
           tenantId,
         },
       });
