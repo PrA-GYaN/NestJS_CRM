@@ -87,7 +87,7 @@ export class TenantService {
       const tenantPrisma = await this.getTenantPrisma(tenantId);
       
       await this.permissionsService.seedPermissions(tenantPrisma, tenantId);
-      await this.permissionsService.seedDefaultRoles(tenantPrisma, tenantId);
+      // await this.permissionsService.seedDefaultRoles(tenantPrisma, tenantId);
 
       
       this.logger.log(`✅ Tenant provisioned successfully: ${tenantId}`);
