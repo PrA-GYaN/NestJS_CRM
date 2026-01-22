@@ -32,6 +32,10 @@ import { ScholarshipsModule } from './modules/scholarships/scholarships.module';
 import { TemplatesModule } from './modules/templates/templates.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
 
+// Notifications & Activity Logs modules
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ActivityLogsModule } from './modules/activity-logs/activity-logs.module';
+
 // Guards, Filters, Interceptors
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
@@ -70,6 +74,9 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     // Templates & Messaging
     TemplatesModule,
     MessagingModule,
+    // Notifications & Activity Logs
+    NotificationsModule,
+    ActivityLogsModule,
   ],
   providers: [
     {

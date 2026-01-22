@@ -19,36 +19,32 @@ export class PermissionsService {
   private readonly logger = new Logger(PermissionsService.name);
 
   // Define all modules and their available actions
+  // Only includes modules that exist in the system
   private readonly MODULE_DEFINITIONS: ModulePermissions[] = [
     {
+      module: 'users',
+      actions: ['create', 'read', 'update', 'delete'],
+      description: 'User management permissions',
+    },
+    {
+      module: 'roles',
+      actions: ['create', 'read', 'update', 'delete'],
+      description: 'Role management permissions',
+    },
+    {
       module: 'leads',
-      actions: ['create', 'read', 'update', 'delete', 'export', 'assign'],
+      actions: ['create', 'read', 'update', 'delete', 'export', 'assign', 'convert'],
       description: 'Lead management permissions',
     },
     {
       module: 'students',
-      actions: ['create', 'read', 'update', 'delete', 'export', 'manage-documents'],
+      actions: ['create', 'read', 'update', 'delete', 'export'],
       description: 'Student management permissions',
-    },
-    {
-      module: 'users',
-      actions: ['create', 'read', 'update', 'delete', 'manage-roles'],
-      description: 'User management permissions',
     },
     {
       module: 'universities',
       actions: ['create', 'read', 'update', 'delete', 'export'],
       description: 'University management permissions',
-    },
-    {
-      module: 'courses',
-      actions: ['create', 'read', 'update', 'delete', 'export'],
-      description: 'Course management permissions',
-    },
-    {
-      module: 'applications',
-      actions: ['create', 'read', 'update', 'delete', 'submit', 'approve', 'reject'],
-      description: 'Application management permissions',
     },
     {
       module: 'tasks',
@@ -57,33 +53,18 @@ export class PermissionsService {
     },
     {
       module: 'appointments',
-      actions: ['create', 'read', 'update', 'delete', 'schedule', 'cancel'],
+      actions: ['create', 'read', 'update', 'delete', 'cancel'],
       description: 'Appointment management permissions',
     },
     {
-      module: 'documents',
-      actions: ['create', 'read', 'update', 'delete', 'upload', 'download'],
-      description: 'Document management permissions',
-    },
-    {
-      module: 'payments',
-      actions: ['create', 'read', 'update', 'delete', 'process', 'refund'],
-      description: 'Payment management permissions',
-    },
-    {
-      module: 'reports',
-      actions: ['read', 'export', 'create'],
-      description: 'Reporting permissions',
+      module: 'files',
+      actions: ['create', 'read', 'update', 'delete', 'download'],
+      description: 'File management permissions',
     },
     {
       module: 'dashboard',
       actions: ['read'],
       description: 'Dashboard access permissions',
-    },
-    {
-      module: 'settings',
-      actions: ['read', 'update'],
-      description: 'Settings management permissions',
     },
     {
       module: 'workflows',
@@ -207,122 +188,49 @@ export class PermissionsService {
   }
 
   /**
-   * Create default roles with permissions for a new tenant
+   * Create SUPER_ADMIN role with all permissions for a new tenant
+   * This is only called during tenant provisioning - SUPER_ADMIN cannot be created manually
    */
-  async seedDefaultRoles(
+  async createSuperAdminRole(
     tenantPrisma: TenantPrismaClient,
     tenantId: string,
-  ): Promise<void> {
-    this.logger.log(`Creating default roles for tenant: ${tenantId}`);
+  ): Promise<any> {
+    this.logger.log(`Creating SUPER_ADMIN role for tenant: ${tenantId}`);
 
     // Fetch all permissions
     const allPermissions = await tenantPrisma.permission.findMany({
       where: { tenantId },
     });
 
-    // Define default roles
-    const defaultRoles = [
-      {
-        name: 'Super Admin',
-        description: 'Full access to all modules and operations',
-        isAdmin: true,
-        permissions: allPermissions.map((p) => p.id), // All permissions
-      },
-      {
-        name: 'Admin',
-        description: 'Administrative access to most modules',
-        isAdmin: false,
-        permissions: allPermissions
-          .filter((p) => !['users:delete', 'settings:update'].includes(p.name))
-          .map((p) => p.id),
-      },
-      {
-        name: 'Counselor',
-        description: 'Access to student and application management',
-        isAdmin: false,
-        permissions: allPermissions
-          .filter((p) =>
-            [
-              'leads',
-              'students',
-              'applications',
-              'tasks',
-              'appointments',
-              'documents',
-              'universities',
-              'courses',
-              'dashboard',
-              'messaging',
-            ].includes(p.module),
-          )
-          .map((p) => p.id),
-      },
-      {
-        name: 'Sales',
-        description: 'Access to lead management and basic operations',
-        isAdmin: false,
-        permissions: allPermissions
-          .filter((p) =>
-            ['leads', 'tasks', 'appointments', 'dashboard', 'messaging'].includes(
-              p.module,
-            ) && !['delete'].includes(p.action),
-          )
-          .map((p) => p.id),
-      },
-      {
-        name: 'Viewer',
-        description: 'Read-only access to most modules',
-        isAdmin: false,
-        permissions: allPermissions
-          .filter((p) => p.action === 'read')
-          .map((p) => p.id),
-      },
-    ];
-
-    // Create roles
-    for (const roleDef of defaultRoles) {
-      const role = await tenantPrisma.role.upsert({
-        where: {
-          tenantId_name: {
-            tenantId,
-            name: roleDef.name,
-          },
-        },
-        create: {
-          tenantId,
-          name: roleDef.name,
-          description: roleDef.description,
-          isAdmin: roleDef.isAdmin,
-        },
-        update: {
-          description: roleDef.description,
-          isAdmin: roleDef.isAdmin,
-        },
-      });
-
-      // Delete existing role permissions
-      await tenantPrisma.rolePermission.deleteMany({
-        where: { roleId: role.id },
-      });
-
-      // Create role permissions
-      const rolePermissions = roleDef.permissions.map((permissionId) => ({
+    // Create SUPER_ADMIN role
+    const superAdminRole = await tenantPrisma.role.create({
+      data: {
         tenantId,
-        roleId: role.id,
-        permissionId,
-      }));
+        name: 'SUPER_ADMIN',
+        description: 'Immutable super administrator with full system access',
+        isAdmin: true,
+      },
+    });
 
-      if (rolePermissions.length > 0) {
-        await tenantPrisma.rolePermission.createMany({
-          data: rolePermissions,
-          skipDuplicates: true,
-        });
-      }
+    // Assign all permissions to SUPER_ADMIN
+    const rolePermissions = allPermissions.map((permission) => ({
+      tenantId,
+      roleId: superAdminRole.id,
+      permissionId: permission.id,
+    }));
 
-      this.logger.log(
-        `✅ Role "${roleDef.name}" created with ${roleDef.permissions.length} permissions`,
-      );
+    if (rolePermissions.length > 0) {
+      await tenantPrisma.rolePermission.createMany({
+        data: rolePermissions,
+        skipDuplicates: true,
+      });
     }
+
+    this.logger.log(
+      `✅ SUPER_ADMIN role created with ${allPermissions.length} permissions`,
+    );
+
+    return superAdminRole;
   }
 
   /**

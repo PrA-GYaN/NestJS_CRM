@@ -40,9 +40,19 @@ async function seedPermissionsForAllTenants() {
           `   ✅ Permissions: ${permResult.created} created/updated, ${permResult.existing} skipped`,
         );
 
-        // Seed default roles
-        await permissionsService.seedDefaultRoles(tenantPrisma, tenant.id);
-        console.log(`   ✅ Default roles seeded`);
+        // Check if SUPER_ADMIN role exists
+        const superAdminRole = await tenantPrisma.role.findFirst({
+          where: {
+            tenantId: tenant.id,
+            name: 'SUPER_ADMIN',
+          },
+        });
+
+        if (!superAdminRole) {
+          console.log(`   ⚠️  SUPER_ADMIN role not found - this is expected for existing tenants`);
+        } else {
+          console.log(`   ✅ SUPER_ADMIN role exists`);
+        }
 
         successCount++;
       } catch (error: any) {

@@ -16,6 +16,10 @@ export class PlatformService {
     private authService: AuthService,
   ) {}
 
+  /**
+   * Creates a new tenant with full transactional safety
+   * All steps are atomic - if any step fails, everything is rolled back
+   */
   async createTenant(createTenantDto: CreateTenantDto) {
     // Check if subdomain already exists
     const existingTenant = await this.masterPrisma.tenant.findUnique({
@@ -29,74 +33,104 @@ export class PlatformService {
     // Encrypt database password
     const encryptedPassword = this.tenantService.encrypt(createTenantDto.dbPassword);
 
-    // Create tenant in master database
-    const tenant = await this.masterPrisma.tenant.create({
-      data: {
-        name: createTenantDto.name,
-        subdomain: createTenantDto.subdomain,
-        dbHost: createTenantDto.dbHost,
-        dbPort: createTenantDto.dbPort || 5432,
-        dbName: createTenantDto.dbName,
-        dbUser: createTenantDto.dbUser,
-        dbPassword: encryptedPassword,
-        featurePackage: createTenantDto.featurePackage || 'Basic',
-        status: 'Active',
-      },
-    });
+    let tenant = null;
+    let tenantProvisioningSuccess = false;
 
-    // Provision tenant database (create DB + run migrations)
     try {
+      // Step 1: Create tenant in master database
+      tenant = await this.masterPrisma.tenant.create({
+        data: {
+          name: createTenantDto.name,
+          subdomain: createTenantDto.subdomain,
+          dbHost: createTenantDto.dbHost,
+          dbPort: createTenantDto.dbPort || 5432,
+          dbName: createTenantDto.dbName,
+          dbUser: createTenantDto.dbUser,
+          dbPassword: encryptedPassword,
+          featurePackage: createTenantDto.featurePackage || 'Basic',
+          status: 'Active',
+        },
+      });
+
+      this.logger.log(`Step 1/3: Tenant record created - ${tenant.subdomain}`);
+
+      // Step 2: Provision tenant database (create DB + run migrations)
       await this.tenantService.provisionTenant(tenant.id);
-      
-      // Seed tenant database with default admin
-      await this.seedTenantDatabase(tenant.id, tenant.name);
-      
-      this.logger.log(`✅ Tenant created and provisioned: ${tenant.subdomain}`);
+      tenantProvisioningSuccess = true;
+      this.logger.log(`Step 2/3: Database provisioned - ${tenant.subdomain}`);
+
+      // Step 3: Seed tenant database with SUPER_ADMIN and first user (transactional)
+      await this.seedTenantDatabase(tenant.id, tenant.name, createTenantDto);
+      this.logger.log(`Step 3/3: Tenant initialized - ${tenant.subdomain}`);
+
+      this.logger.log(`✅ Tenant fully provisioned: ${tenant.subdomain}`);
+      return tenant;
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Failed to provision tenant ${tenant.subdomain}:`, errorMessage);
-      
-      // Optionally: Rollback tenant creation
-      // await this.masterPrisma.tenant.delete({ where: { id: tenant.id } });
-      
+      this.logger.error(`❌ Tenant provisioning failed for ${createTenantDto.subdomain}:`, errorMessage);
+
+      // ROLLBACK: Clean up based on how far we got
+      if (tenant) {
+        try {
+          // If database was provisioned, drop it
+          if (tenantProvisioningSuccess) {
+            this.logger.warn(`Rolling back: Dropping tenant database...`);
+            await this.tenantService.dropTenantDatabase(tenant.id);
+          }
+
+          // Delete tenant record from master database
+          this.logger.warn(`Rolling back: Deleting tenant record...`);
+          await this.masterPrisma.tenant.delete({ where: { id: tenant.id } });
+          
+          this.logger.warn(`✅ Rollback completed - no partial tenant data remains`);
+        } catch (rollbackError) {
+          const rollbackMsg = rollbackError instanceof Error ? rollbackError.message : 'Unknown error';
+          this.logger.error(`❌ CRITICAL: Rollback failed - manual cleanup required:`, rollbackMsg);
+          // Log critical details for manual intervention
+          this.logger.error(`Tenant ID: ${tenant.id}, Subdomain: ${tenant.subdomain}`);
+        }
+      }
+
       throw new Error(`Tenant provisioning failed: ${errorMessage}`);
     }
-
-    return tenant;
   }
 
   /**
-   * Seeds the tenant database with default admin user and permissions
+   * Seeds the tenant database with SUPER_ADMIN role and first user
+   * All operations are within a transaction for atomicity
    */
-  private async seedTenantDatabase(tenantId: string, tenantName: string) {
-    // Get tenant database connection
+  private async seedTenantDatabase(tenantId: string, tenantName: string, createTenantDto: CreateTenantDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
-    // Generate admin email from tenant name
-    const adminEmail = this.generateAdminEmail(tenantName);
-    const defaultPassword = process.env.TENANT_DEFAULT_PASSWORD || 'Admin@123456';
+    // Use first user details from tenant creation DTO if provided
+    const adminEmail = createTenantDto.adminEmail || this.generateAdminEmail(tenantName);
+    const adminName = createTenantDto.adminName || `${tenantName} Administrator`;
+    const defaultPassword = createTenantDto.adminPassword || process.env.TENANT_DEFAULT_PASSWORD || 'Admin@123456';
 
     // Hash the password
     const hashedPassword = await this.authService.hashPassword(defaultPassword);
 
-    // Start transaction to ensure atomicity
+    // Execute everything in a transaction for atomicity
     await tenantPrisma.$transaction(async (tx) => {
       // 1. Create all permissions
       const permissions = await this.createAllPermissions(tx, tenantId);
+      this.logger.log(`   Created ${permissions.length} permissions`);
 
-      // 2. Create Admin role
-      const adminRole = await tx.role.create({
+      // 2. Create SUPER_ADMIN role with all permissions
+      const superAdminRole = await tx.role.create({
         data: {
           tenantId: tenantId,
-          name: 'Admin',
-          description: 'Full access administrator role',
+          name: 'SUPER_ADMIN',
+          description: 'Immutable super administrator with full system access - cannot be deleted or modified',
+          isAdmin: true,
         },
       });
 
-      // 3. Assign all permissions to Admin role
+      // 3. Assign all permissions to SUPER_ADMIN role
       const rolePermissions = permissions.map((permission) => ({
         tenantId: tenantId,
-        roleId: adminRole.id,
+        roleId: superAdminRole.id,
         permissionId: permission.id,
       }));
 
@@ -104,109 +138,162 @@ export class PlatformService {
         data: rolePermissions,
       });
 
-      // 4. Create default admin user
+      this.logger.log(`   Created SUPER_ADMIN role with ${permissions.length} permissions`);
+
+      // 4. Create first admin user
       await tx.user.create({
         data: {
           tenantId: tenantId,
-          name: `${tenantName} Administrator`,
+          name: adminName,
           email: adminEmail,
           password: hashedPassword,
-          roleId: adminRole.id,
+          roleId: superAdminRole.id,
           status: 'Active',
         },
       });
 
-      this.logger.log(`✅ Created default admin user: ${adminEmail} for tenant: ${tenantName}`);
+      this.logger.log(`   Created first user: ${adminEmail} with SUPER_ADMIN role`);
     });
+
+    // Transaction completed successfully
+    this.logger.log(`✅ Tenant database seeded successfully for: ${tenantName}`);
   }
 
   /**
-   * Creates all system permissions
+   * Creates all system permissions based on existing modules
+   * Uses module:action naming convention
    */
   private async createAllPermissions(prisma: any, tenantId: string) {
     const permissionsList = [
       // User Management
-      { name: 'users.view', description: 'View users' },
-      { name: 'users.create', description: 'Create users' },
-      { name: 'users.update', description: 'Update users' },
-      { name: 'users.delete', description: 'Delete users' },
+      { name: 'users:create', module: 'users', action: 'create', description: 'Create users' },
+      { name: 'users:read', module: 'users', action: 'read', description: 'View users' },
+      { name: 'users:update', module: 'users', action: 'update', description: 'Update users' },
+      { name: 'users:delete', module: 'users', action: 'delete', description: 'Delete users' },
       
       // Role Management
-      { name: 'roles.view', description: 'View roles' },
-      { name: 'roles.create', description: 'Create roles' },
-      { name: 'roles.update', description: 'Update roles' },
-      { name: 'roles.delete', description: 'Delete roles' },
+      { name: 'roles:create', module: 'roles', action: 'create', description: 'Create roles' },
+      { name: 'roles:read', module: 'roles', action: 'read', description: 'View roles' },
+      { name: 'roles:update', module: 'roles', action: 'update', description: 'Update roles' },
+      { name: 'roles:delete', module: 'roles', action: 'delete', description: 'Delete roles' },
       
       // Lead Management
-      { name: 'leads.view', description: 'View leads' },
-      { name: 'leads.create', description: 'Create leads' },
-      { name: 'leads.update', description: 'Update leads' },
-      { name: 'leads.delete', description: 'Delete leads' },
-      { name: 'leads.convert', description: 'Convert leads to students' },
+      { name: 'leads:create', module: 'leads', action: 'create', description: 'Create leads' },
+      { name: 'leads:read', module: 'leads', action: 'read', description: 'View leads' },
+      { name: 'leads:update', module: 'leads', action: 'update', description: 'Update leads' },
+      { name: 'leads:delete', module: 'leads', action: 'delete', description: 'Delete leads' },
+      { name: 'leads:export', module: 'leads', action: 'export', description: 'Export leads' },
+      { name: 'leads:assign', module: 'leads', action: 'assign', description: 'Assign leads' },
+      { name: 'leads:convert', module: 'leads', action: 'convert', description: 'Convert leads to students' },
       
       // Student Management
-      { name: 'students.view', description: 'View students' },
-      { name: 'students.create', description: 'Create students' },
-      { name: 'students.update', description: 'Update students' },
-      { name: 'students.delete', description: 'Delete students' },
+      { name: 'students:create', module: 'students', action: 'create', description: 'Create students' },
+      { name: 'students:read', module: 'students', action: 'read', description: 'View students' },
+      { name: 'students:update', module: 'students', action: 'update', description: 'Update students' },
+      { name: 'students:delete', module: 'students', action: 'delete', description: 'Delete students' },
+      { name: 'students:export', module: 'students', action: 'export', description: 'Export students' },
       
       // University Management
-      { name: 'universities.view', description: 'View universities' },
-      { name: 'universities.create', description: 'Create universities' },
-      { name: 'universities.update', description: 'Update universities' },
-      { name: 'universities.delete', description: 'Delete universities' },
-      
-      // Course Management
-      { name: 'courses.view', description: 'View courses' },
-      { name: 'courses.create', description: 'Create courses' },
-      { name: 'courses.update', description: 'Update courses' },
-      { name: 'courses.delete', description: 'Delete courses' },
-      
-      // Appointment Management
-      { name: 'appointments.view', description: 'View appointments' },
-      { name: 'appointments.create', description: 'Create appointments' },
-      { name: 'appointments.update', description: 'Update appointments' },
-      { name: 'appointments.delete', description: 'Delete appointments' },
+      { name: 'universities:create', module: 'universities', action: 'create', description: 'Create universities' },
+      { name: 'universities:read', module: 'universities', action: 'read', description: 'View universities' },
+      { name: 'universities:update', module: 'universities', action: 'update', description: 'Update universities' },
+      { name: 'universities:delete', module: 'universities', action: 'delete', description: 'Delete universities' },
+      { name: 'universities:export', module: 'universities', action: 'export', description: 'Export universities' },
       
       // Task Management
-      { name: 'tasks.view', description: 'View tasks' },
-      { name: 'tasks.create', description: 'Create tasks' },
-      { name: 'tasks.update', description: 'Update tasks' },
-      { name: 'tasks.delete', description: 'Delete tasks' },
+      { name: 'tasks:create', module: 'tasks', action: 'create', description: 'Create tasks' },
+      { name: 'tasks:read', module: 'tasks', action: 'read', description: 'View tasks' },
+      { name: 'tasks:update', module: 'tasks', action: 'update', description: 'Update tasks' },
+      { name: 'tasks:delete', module: 'tasks', action: 'delete', description: 'Delete tasks' },
+      { name: 'tasks:assign', module: 'tasks', action: 'assign', description: 'Assign tasks' },
+      { name: 'tasks:complete', module: 'tasks', action: 'complete', description: 'Complete tasks' },
       
-      // Application Management
-      { name: 'applications.view', description: 'View applications' },
-      { name: 'applications.create', description: 'Create applications' },
-      { name: 'applications.update', description: 'Update applications' },
-      { name: 'applications.delete', description: 'Delete applications' },
+      // Appointment Management
+      { name: 'appointments:create', module: 'appointments', action: 'create', description: 'Create appointments' },
+      { name: 'appointments:read', module: 'appointments', action: 'read', description: 'View appointments' },
+      { name: 'appointments:update', module: 'appointments', action: 'update', description: 'Update appointments' },
+      { name: 'appointments:delete', module: 'appointments', action: 'delete', description: 'Delete appointments' },
+      { name: 'appointments:cancel', module: 'appointments', action: 'cancel', description: 'Cancel appointments' },
       
-      // Visa Management
-      { name: 'visas.view', description: 'View visa applications' },
-      { name: 'visas.create', description: 'Create visa applications' },
-      { name: 'visas.update', description: 'Update visa applications' },
-      { name: 'visas.delete', description: 'Delete visa applications' },
+      // File Management
+      { name: 'files:create', module: 'files', action: 'create', description: 'Upload files' },
+      { name: 'files:read', module: 'files', action: 'read', description: 'View files' },
+      { name: 'files:update', module: 'files', action: 'update', description: 'Update files' },
+      { name: 'files:delete', module: 'files', action: 'delete', description: 'Delete files' },
+      { name: 'files:download', module: 'files', action: 'download', description: 'Download files' },
       
-      // Payment Management
-      { name: 'payments.view', description: 'View payments' },
-      { name: 'payments.create', description: 'Create payments' },
-      { name: 'payments.update', description: 'Update payments' },
-      { name: 'payments.delete', description: 'Delete payments' },
+      // Dashboard
+      { name: 'dashboard:read', module: 'dashboard', action: 'read', description: 'View dashboard' },
       
-      // Report Access
-      { name: 'reports.view', description: 'View reports and analytics' },
-      { name: 'reports.export', description: 'Export reports' },
+      // Workflow Management
+      { name: 'workflows:create', module: 'workflows', action: 'create', description: 'Create workflows' },
+      { name: 'workflows:read', module: 'workflows', action: 'read', description: 'View workflows' },
+      { name: 'workflows:update', module: 'workflows', action: 'update', description: 'Update workflows' },
+      { name: 'workflows:delete', module: 'workflows', action: 'delete', description: 'Delete workflows' },
+      { name: 'workflows:execute', module: 'workflows', action: 'execute', description: 'Execute workflows' },
       
-      // Settings
-      { name: 'settings.view', description: 'View settings' },
-      { name: 'settings.update', description: 'Update settings' },
+      // Messaging
+      { name: 'messaging:create', module: 'messaging', action: 'create', description: 'Create messages' },
+      { name: 'messaging:read', module: 'messaging', action: 'read', description: 'View messages' },
+      { name: 'messaging:send', module: 'messaging', action: 'send', description: 'Send messages' },
+      { name: 'messaging:delete', module: 'messaging', action: 'delete', description: 'Delete messages' },
+      
+      // Template Management
+      { name: 'templates:create', module: 'templates', action: 'create', description: 'Create templates' },
+      { name: 'templates:read', module: 'templates', action: 'read', description: 'View templates' },
+      { name: 'templates:update', module: 'templates', action: 'update', description: 'Update templates' },
+      { name: 'templates:delete', module: 'templates', action: 'delete', description: 'Delete templates' },
+      
+      // Service Management
+      { name: 'services:create', module: 'services', action: 'create', description: 'Create services' },
+      { name: 'services:read', module: 'services', action: 'read', description: 'View services' },
+      { name: 'services:update', module: 'services', action: 'update', description: 'Update services' },
+      { name: 'services:delete', module: 'services', action: 'delete', description: 'Delete services' },
+      { name: 'services:assign', module: 'services', action: 'assign', description: 'Assign services' },
+      
+      // Visa Type Management
+      { name: 'visa-types:create', module: 'visa-types', action: 'create', description: 'Create visa types' },
+      { name: 'visa-types:read', module: 'visa-types', action: 'read', description: 'View visa types' },
+      { name: 'visa-types:update', module: 'visa-types', action: 'update', description: 'Update visa types' },
+      { name: 'visa-types:delete', module: 'visa-types', action: 'delete', description: 'Delete visa types' },
+      
+      // Country Management
+      { name: 'countries:create', module: 'countries', action: 'create', description: 'Create countries' },
+      { name: 'countries:read', module: 'countries', action: 'read', description: 'View countries' },
+      { name: 'countries:update', module: 'countries', action: 'update', description: 'Update countries' },
+      { name: 'countries:delete', module: 'countries', action: 'delete', description: 'Delete countries' },
+      
+      // Scholarship Management
+      { name: 'scholarships:create', module: 'scholarships', action: 'create', description: 'Create scholarships' },
+      { name: 'scholarships:read', module: 'scholarships', action: 'read', description: 'View scholarships' },
+      { name: 'scholarships:update', module: 'scholarships', action: 'update', description: 'Update scholarships' },
+      { name: 'scholarships:delete', module: 'scholarships', action: 'delete', description: 'Delete scholarships' },
+      { name: 'scholarships:export', module: 'scholarships', action: 'export', description: 'Export scholarships' },
+      
+      // Blog Management
+      { name: 'blogs:create', module: 'blogs', action: 'create', description: 'Create blogs' },
+      { name: 'blogs:read', module: 'blogs', action: 'read', description: 'View blogs' },
+      { name: 'blogs:update', module: 'blogs', action: 'update', description: 'Update blogs' },
+      { name: 'blogs:delete', module: 'blogs', action: 'delete', description: 'Delete blogs' },
+      { name: 'blogs:publish', module: 'blogs', action: 'publish', description: 'Publish blogs' },
+      
+      // FAQ Management
+      { name: 'faqs:create', module: 'faqs', action: 'create', description: 'Create FAQs' },
+      { name: 'faqs:read', module: 'faqs', action: 'read', description: 'View FAQs' },
+      { name: 'faqs:update', module: 'faqs', action: 'update', description: 'Update FAQs' },
+      { name: 'faqs:delete', module: 'faqs', action: 'delete', description: 'Delete FAQs' },
+      
+      // Landing Page Management
+      { name: 'landing-pages:create', module: 'landing-pages', action: 'create', description: 'Create landing pages' },
+      { name: 'landing-pages:read', module: 'landing-pages', action: 'read', description: 'View landing pages' },
+      { name: 'landing-pages:update', module: 'landing-pages', action: 'update', description: 'Update landing pages' },
+      { name: 'landing-pages:delete', module: 'landing-pages', action: 'delete', description: 'Delete landing pages' },
+      { name: 'landing-pages:publish', module: 'landing-pages', action: 'publish', description: 'Publish landing pages' },
     ];
 
     const createdPermissions = [];
     
     for (const perm of permissionsList) {
-      // Extract module and action from permission name (e.g., "users.view" -> module: "users", action: "view")
-      const [module, action] = perm.name.split('.');
-      
       const permission = await prisma.permission.upsert({
         where: {
           tenantId_name: {
@@ -216,10 +303,11 @@ export class PlatformService {
         },
         update: {},
         create: {
-          ...perm,
-          module,
-          action,
           tenantId,
+          name: perm.name,
+          module: perm.module,
+          action: perm.action,
+          description: perm.description,
         },
       });
       createdPermissions.push(permission);

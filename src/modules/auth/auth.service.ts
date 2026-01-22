@@ -126,4 +126,52 @@ export class AuthService {
       include: { role: true },
     });
   }
+
+  /**
+   * Get current user with their tenant-scoped permissions
+   */
+  async getCurrentUserWithPermissions(tenantId: string, userId: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    const user = await tenantPrisma.user.findFirst({
+      where: {
+        id: userId,
+        tenantId,
+      },
+      include: {
+        role: {
+          include: {
+            rolePermissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (user.status !== 'Active') {
+      throw new UnauthorizedException('User account is inactive');
+    }
+
+    // Extract permissions
+    const permissions = user.role.rolePermissions.map(
+      (rp) => rp.permission.name,
+    );
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role.name,
+      roleId: user.role.id,
+      tenantId: user.tenantId,
+      permissions: permissions.sort(), // Sort alphabetically for consistency
+    };
+  }
 }

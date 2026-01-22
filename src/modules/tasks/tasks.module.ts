@@ -4,8 +4,12 @@
 import { Module } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { TasksController } from './tasks.controller';
+import { TenantModule } from '../../common/tenant/tenant.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { ActivityLogsModule } from '../activity-logs/activity-logs.module';
 
 @Module({
+  imports: [TenantModule, NotificationsModule, ActivityLogsModule],
   providers: [TasksService],
   controllers: [TasksController],
   exports: [TasksService],
@@ -47,15 +51,6 @@ export class ContentModule {}
   controllers: [],
 })
 export class PaymentsModule {}
-
-// ================================
-// NOTIFICATIONS MODULE
-// ================================
-@Module({
-  providers: [],
-  controllers: [],
-})
-export class NotificationsModule {}
 
 // ================================
 // AUDIT MODULE

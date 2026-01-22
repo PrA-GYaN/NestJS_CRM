@@ -15,6 +15,7 @@ import {
   CreateUserDto,
   UpdateUserDto,
   CreateRoleDto,
+  UpdateRoleDto,
   AssignPermissionsDto,
 } from './dto/users.dto';
 import {
@@ -86,6 +87,24 @@ export class UsersController {
   @ApiOperation({ summary: 'Get all roles' })
   getAllRoles(@TenantId() tenantId: string) {
     return this.usersService.getAllRoles(tenantId);
+  }
+
+  @Put('roles/:id')
+  @RequirePermissions('users:manage-roles')
+  @ApiOperation({ summary: 'Update role' })
+  updateRole(
+    @TenantId() tenantId: string,
+    @Param() params: IdParamDto,
+    @Body() updateRoleDto: UpdateRoleDto,
+  ) {
+    return this.usersService.updateRole(tenantId, params.id, updateRoleDto);
+  }
+
+  @Delete('roles/:id')
+  @RequirePermissions('users:manage-roles')
+  @ApiOperation({ summary: 'Delete role' })
+  deleteRole(@TenantId() tenantId: string, @Param() params: IdParamDto) {
+    return this.usersService.deleteRole(tenantId, params.id);
   }
 
   @Post('roles/:id/permissions')

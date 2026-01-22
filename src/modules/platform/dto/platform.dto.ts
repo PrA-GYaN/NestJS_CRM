@@ -40,6 +40,22 @@ export class CreateTenantDto {
   @IsOptional()
   @IsEnum(['Basic', 'Advanced'])
   featurePackage?: 'Basic' | 'Advanced';
+
+  // First admin user details
+  @ApiPropertyOptional({ description: 'Email for the first admin user' })
+  @IsOptional()
+  @IsEmail()
+  adminEmail?: string;
+
+  @ApiPropertyOptional({ description: 'Name for the first admin user' })
+  @IsOptional()
+  @IsString()
+  adminName?: string;
+
+  @ApiPropertyOptional({ description: 'Password for the first admin user' })
+  @IsOptional()
+  @IsString()
+  adminPassword?: string;
 }
 
 export class UpdateTenantDto {

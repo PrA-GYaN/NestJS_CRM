@@ -15,6 +15,7 @@ import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Appointments')
@@ -27,8 +28,12 @@ export class AppointmentsController {
   @Post()
   @CanCreate('appointments')
   @ApiOperation({ summary: 'Create appointment' })
-  createAppointment(@TenantId() tenantId: string, @Body() data: any) {
-    return this.appointmentsService.createAppointment(tenantId, data);
+  createAppointment(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Body() data: any,
+  ) {
+    return this.appointmentsService.createAppointment(tenantId, data, user.id);
   }
 
   @Get()
@@ -50,16 +55,21 @@ export class AppointmentsController {
   @ApiOperation({ summary: 'Update appointment' })
   updateAppointment(
     @TenantId() tenantId: string,
+    @CurrentUser() user: any,
     @Param() params: IdParamDto,
     @Body() data: any,
   ) {
-    return this.appointmentsService.updateAppointment(tenantId, params.id, data);
+    return this.appointmentsService.updateAppointment(tenantId, params.id, data, user.id);
   }
 
   @Delete(':id')
   @CanDelete('appointments')
   @ApiOperation({ summary: 'Delete appointment' })
-  deleteAppointment(@TenantId() tenantId: string, @Param() params: IdParamDto) {
-    return this.appointmentsService.deleteAppointment(tenantId, params.id);
+  deleteAppointment(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Param() params: IdParamDto,
+  ) {
+    return this.appointmentsService.deleteAppointment(tenantId, params.id, user.id);
   }
 }

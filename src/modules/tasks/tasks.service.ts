@@ -1,16 +1,22 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { PaginationDto } from '../../common/dto/common.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { ActivityLogsService } from '../activity-logs/activity-logs.service';
+import { NotificationEntityType } from '../notifications/dto/notification.dto';
+import { ActivityAction } from '../activity-logs/dto/activity-log.dto';
 
 @Injectable()
 export class TasksService {
   constructor(
     private tenantService: TenantService,
+    private notificationsService: NotificationsService,
+    private activityLogsService: ActivityLogsService,
   ) {}
 
-  async createTask(tenantId: string, data: any) {
+  async createTask(tenantId: string, data: any, creatorId?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    return tenantPrisma.task.create({
+    const task = await tenantPrisma.task.create({
       data: {
         ...data,
         tenantId,
@@ -25,6 +31,35 @@ export class TasksService {
         },
       },
     });
+
+    // Send notification to assigned user if exists
+    if (task.assignedTo) {
+      await this.notificationsService.createNotification(tenantId, {
+        userId: task.assignedTo,
+        type: NotificationEntityType.Task,
+        message: `You have been assigned a new task: ${task.title}`,
+        metadata: {
+          taskId: task.id,
+          taskTitle: task.title,
+          priority: task.priority,
+          dueDate: task.dueDate,
+        },
+      });
+    }
+
+    // Log activity
+    await this.activityLogsService.createLog(tenantId, {
+      userId: creatorId,
+      entityType: 'Task',
+      entityId: task.id,
+      action: ActivityAction.Created,
+      metadata: {
+        taskTitle: task.title,
+        assignedTo: task.assignedTo,
+      },
+    });
+
+    return task;
   }
 
   async getAllTasks(tenantId: string, paginationDto: PaginationDto) {
@@ -82,11 +117,11 @@ export class TasksService {
     return task;
   }
 
-  async updateTask(tenantId: string, id: string, data: any) {
+  async updateTask(tenantId: string, id: string, data: any, updaterId?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    await this.getTaskById(tenantId, id);
+    const oldTask = await this.getTaskById(tenantId, id);
 
-    return tenantPrisma.task.update({
+    const updatedTask = await tenantPrisma.task.update({
       where: { id },
       data,
       include: {
@@ -99,14 +134,77 @@ export class TasksService {
         },
       },
     });
+
+    // Build notification message based on what changed
+    let notificationMessage = `Task "${updatedTask.title}" has been updated`;
+    const changes: Record<string, any> = {};
+
+    if (oldTask.status !== updatedTask.status) {
+      notificationMessage = `Task "${updatedTask.title}" status changed to ${updatedTask.status}`;
+      changes.status = { before: oldTask.status, after: updatedTask.status };
+    }
+
+    if (oldTask.assignedTo !== updatedTask.assignedTo) {
+      notificationMessage = `You have been assigned to task: ${updatedTask.title}`;
+      changes.assignedTo = { before: oldTask.assignedTo, after: updatedTask.assignedTo };
+    }
+
+    if (oldTask.priority !== updatedTask.priority) {
+      changes.priority = { before: oldTask.priority, after: updatedTask.priority };
+    }
+
+    if (oldTask.dueDate !== updatedTask.dueDate) {
+      changes.dueDate = { before: oldTask.dueDate, after: updatedTask.dueDate };
+    }
+
+    // Send notification to assigned user if exists
+    if (updatedTask.assignedTo) {
+      await this.notificationsService.createNotification(tenantId, {
+        userId: updatedTask.assignedTo,
+        type: NotificationEntityType.Task,
+        message: notificationMessage,
+        metadata: {
+          taskId: updatedTask.id,
+          taskTitle: updatedTask.title,
+          priority: updatedTask.priority,
+          status: updatedTask.status,
+          changes,
+        },
+      });
+    }
+
+    // Log activity
+    await this.activityLogsService.createLog(tenantId, {
+      userId: updaterId,
+      entityType: 'Task',
+      entityId: updatedTask.id,
+      action: oldTask.status !== updatedTask.status ? ActivityAction.StatusChanged : ActivityAction.Updated,
+      changes,
+      metadata: {
+        taskTitle: updatedTask.title,
+      },
+    });
+
+    return updatedTask;
   }
 
-  async deleteTask(tenantId: string, id: string) {
+  async deleteTask(tenantId: string, id: string, deleterId?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    await this.getTaskById(tenantId, id);
+    const task = await this.getTaskById(tenantId, id);
 
     await tenantPrisma.task.delete({
       where: { id },
+    });
+
+    // Log activity
+    await this.activityLogsService.createLog(tenantId, {
+      userId: deleterId,
+      entityType: 'Task',
+      entityId: id,
+      action: ActivityAction.Deleted,
+      metadata: {
+        taskTitle: task.title,
+      },
     });
 
     return { success: true, message: 'Task deleted successfully' };

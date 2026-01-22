@@ -28,8 +28,8 @@ export class TasksController {
   @Post()
   @CanCreate('tasks')
   @ApiOperation({ summary: 'Create task' })
-  createTask(@TenantId() tenantId: string, @Body() data: any) {
-    return this.tasksService.createTask(tenantId, data);
+  createTask(@TenantId() tenantId: string, @CurrentUser() user: any, @Body() data: any) {
+    return this.tasksService.createTask(tenantId, data, user.id);
   }
 
   @Get()
@@ -60,14 +60,23 @@ export class TasksController {
   @Put(':id')
   @CanUpdate('tasks')
   @ApiOperation({ summary: 'Update task' })
-  updateTask(@TenantId() tenantId: string, @Param() params: IdParamDto, @Body() data: any) {
-    return this.tasksService.updateTask(tenantId, params.id, data);
+  updateTask(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Param() params: IdParamDto,
+    @Body() data: any,
+  ) {
+    return this.tasksService.updateTask(tenantId, params.id, data, user.id);
   }
 
   @Delete(':id')
   @CanDelete('tasks')
   @ApiOperation({ summary: 'Delete task' })
-  deleteTask(@TenantId() tenantId: string, @Param() params: IdParamDto) {
-    return this.tasksService.deleteTask(tenantId, params.id);
+  deleteTask(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Param() params: IdParamDto,
+  ) {
+    return this.tasksService.deleteTask(tenantId, params.id, user.id);
   }
 }

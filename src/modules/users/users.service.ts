@@ -33,6 +33,20 @@ export class UsersService {
       throw new ConflictException('Email already exists');
     }
 
+    // Verify the role exists
+    const role = await tenantPrisma.role.findFirst({
+      where: { id: createUserDto.roleId, tenantId },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    // Prevent assigning SUPER_ADMIN role to new users
+    if (this.isSuperAdminRole(role.name)) {
+      throw new BadRequestException('SUPER_ADMIN role cannot be manually assigned to users. Only the first user created during tenant provisioning has this role.');
+    }
+
     const hashedPassword = await this.authService.hashPassword(createUserDto.password);
 
     return tenantPrisma.user.create({
@@ -100,7 +114,32 @@ export class UsersService {
 
   async updateUser(tenantId: string, id: string, updateUserDto: UpdateUserDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    await this.getUserById(tenantId, id);
+    const user = await this.getUserById(tenantId, id);
+
+    // If role is being changed, validate it
+    if (updateUserDto.roleId && updateUserDto.roleId !== user.roleId) {
+      const currentRole = await tenantPrisma.role.findUnique({
+        where: { id: user.roleId },
+      });
+
+      const newRole = await tenantPrisma.role.findFirst({
+        where: { id: updateUserDto.roleId, tenantId },
+      });
+
+      if (!newRole) {
+        throw new NotFoundException('New role not found');
+      }
+
+      // Prevent removing SUPER_ADMIN role from a user
+      if (currentRole && this.isSuperAdminRole(currentRole.name)) {
+        throw new BadRequestException('Cannot change role for users with SUPER_ADMIN role');
+      }
+
+      // Prevent assigning SUPER_ADMIN role to a user
+      if (this.isSuperAdminRole(newRole.name)) {
+        throw new BadRequestException('SUPER_ADMIN role cannot be manually assigned to users');
+      }
+    }
 
     return tenantPrisma.user.update({
       where: { id },
@@ -124,8 +163,20 @@ export class UsersService {
   async createRole(tenantId: string, createRoleDto: CreateRoleDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
+    // Prevent manual creation of SUPER_ADMIN role
+    if (createRoleDto.name.toUpperCase() === 'SUPER_ADMIN' || createRoleDto.name.toUpperCase().replace(/[_\s-]/g, '') === 'SUPERADMIN') {
+      throw new BadRequestException('SUPER_ADMIN role cannot be created manually. It is automatically created during tenant provisioning.');
+    }
+
+    // Check for case-insensitive duplicate role names
     const existingRole = await tenantPrisma.role.findFirst({
-      where: { tenantId, name: createRoleDto.name },
+      where: { 
+        tenantId, 
+        name: {
+          equals: createRoleDto.name,
+          mode: 'insensitive'
+        } 
+      },
     });
 
     if (existingRole) {
@@ -228,6 +279,11 @@ export class UsersService {
 
     if (!role) {
       throw new NotFoundException(`Role with ID ${roleId} not found`);
+    }
+
+    // Prevent modifying SUPER_ADMIN role permissions
+    if (this.isSuperAdminRole(role.name)) {
+      throw new BadRequestException('SUPER_ADMIN role permissions cannot be modified');
     }
 
     // Verify all permissions exist
@@ -336,6 +392,11 @@ export class UsersService {
       throw new NotFoundException(`Role with ID ${roleId} not found`);
     }
 
+    // Prevent modifying SUPER_ADMIN role permissions
+    if (this.isSuperAdminRole(role.name)) {
+      throw new BadRequestException('SUPER_ADMIN role permissions cannot be modified');
+    }
+
     // Verify all permissions exist
     const permissions = await tenantPrisma.permission.findMany({
       where: {
@@ -387,13 +448,18 @@ export class UsersService {
   ) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
-    // Verify role exists
+    // Verify role exists and is not SUPER_ADMIN
     const role = await tenantPrisma.role.findFirst({
       where: { id: roleId, tenantId },
     });
 
     if (!role) {
       throw new NotFoundException(`Role with ID ${roleId} not found`);
+    }
+
+    // Prevent modifying SUPER_ADMIN role
+    if (this.isSuperAdminRole(role.name)) {
+      throw new BadRequestException('SUPER_ADMIN role permissions cannot be modified');
     }
 
     // Delete the specified role-permission associations
@@ -410,5 +476,107 @@ export class UsersService {
       message: `${result.count} permission(s) removed from role successfully`,
       removedCount: result.count,
     };
+  }
+
+  /**
+   * Update a role's basic information (name, description)
+   */
+  async updateRole(tenantId: string, roleId: string, updateRoleDto: UpdateRoleDto) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    // Verify role exists
+    const role = await tenantPrisma.role.findFirst({
+      where: { id: roleId, tenantId },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    // Prevent updating SUPER_ADMIN role
+    if (this.isSuperAdminRole(role.name)) {
+      throw new BadRequestException('SUPER_ADMIN role cannot be modified');
+    }
+
+    // If name is being changed, check for duplicates
+    if (updateRoleDto.name && updateRoleDto.name !== role.name) {
+      // Prevent renaming to SUPER_ADMIN
+      if (this.isSuperAdminRole(updateRoleDto.name)) {
+        throw new BadRequestException('Cannot rename role to SUPER_ADMIN');
+      }
+
+      const existingRole = await tenantPrisma.role.findFirst({
+        where: { 
+          tenantId, 
+          name: {
+            equals: updateRoleDto.name,
+            mode: 'insensitive'
+          },
+          id: { not: roleId },
+        },
+      });
+
+      if (existingRole) {
+        throw new ConflictException('Role name already exists');
+      }
+    }
+
+    return tenantPrisma.role.update({
+      where: { id: roleId },
+      data: updateRoleDto,
+      include: {
+        rolePermissions: {
+          include: {
+            permission: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Delete a role
+   */
+  async deleteRole(tenantId: string, roleId: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    // Verify role exists
+    const role = await tenantPrisma.role.findFirst({
+      where: { id: roleId, tenantId },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    // Prevent deleting SUPER_ADMIN role
+    if (this.isSuperAdminRole(role.name)) {
+      throw new BadRequestException('SUPER_ADMIN role cannot be deleted');
+    }
+
+    // Check if any users are assigned to this role
+    const usersWithRole = await tenantPrisma.user.count({
+      where: { roleId, tenantId },
+    });
+
+    if (usersWithRole > 0) {
+      throw new BadRequestException(
+        `Cannot delete role. ${usersWithRole} user(s) are currently assigned to this role.`,
+      );
+    }
+
+    await tenantPrisma.role.delete({
+      where: { id: roleId },
+    });
+
+    return { success: true, message: 'Role deleted successfully' };
+  }
+
+  /**
+   * Check if a role name is SUPER_ADMIN (case-insensitive, handles variations)
+   */
+  private isSuperAdminRole(roleName: string): boolean {
+    const normalized = roleName.toUpperCase().replace(/[_\s-]/g, '');
+    return normalized === 'SUPERADMIN';
   }
 }

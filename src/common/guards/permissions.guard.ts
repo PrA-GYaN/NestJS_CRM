@@ -79,13 +79,13 @@ export class PermissionsGuard implements CanActivate {
 
       // Log to audit trail
       try {
-        await tenantPrisma.auditLog.create({
+        await tenantPrisma.activityLog.create({
           data: {
             tenantId,
             userId: user.id,
             entityType: 'Permission',
             entityId: requiredPermissions.join(','),
-            action: 'ACCESS_DENIED',
+            action: 'AccessDenied',
             metadata: {
               endpoint: request.url,
               method: request.method,

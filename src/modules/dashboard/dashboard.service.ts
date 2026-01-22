@@ -267,7 +267,7 @@ export class DashboardService {
       Promise.resolve([]),
 
       // Recent audit logs
-      tenantPrisma.auditLog.findMany({
+      tenantPrisma.activityLog.findMany({
         where: { tenantId },
         take: 20,
         orderBy: { timestamp: 'desc' },

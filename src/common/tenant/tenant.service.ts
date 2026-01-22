@@ -82,17 +82,55 @@ export class TenantService {
     try {
       // Create database and run migrations
       await this.tenantMigration.provisionTenantDatabase(dbConfig);
-// Seed permissions and roles
+      
+      // Seed permissions only (roles and users will be created in transaction)
       this.logger.log(`Seeding permissions for tenant: ${tenantId}`);
       const tenantPrisma = await this.getTenantPrisma(tenantId);
       
       await this.permissionsService.seedPermissions(tenantPrisma, tenantId);
-      // await this.permissionsService.seedDefaultRoles(tenantPrisma, tenantId);
-
       
-      this.logger.log(`✅ Tenant provisioned successfully: ${tenantId}`);
+      this.logger.log(`✅ Tenant database provisioned: ${tenantId}`);
     } catch (error) {
       this.logger.error(`Failed to provision tenant ${tenantId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Drop tenant database (used for rollback)
+   */
+  async dropTenantDatabase(tenantId: string): Promise<void> {
+    this.logger.warn(`Dropping database for tenant: ${tenantId}`);
+
+    // Fetch tenant config
+    const tenant = await this.masterPrisma.tenant.findUnique({
+      where: { id: tenantId },
+    });
+
+    if (!tenant) {
+      throw new Error(`Tenant not found: ${tenantId}`);
+    }
+
+    const decryptedPassword = this.decrypt(tenant.dbPassword);
+
+    const dbConfig: TenantDatabaseConfig = {
+      host: tenant.dbHost,
+      port: tenant.dbPort,
+      user: tenant.dbUser,
+      password: decryptedPassword,
+      database: tenant.dbName,
+    };
+
+    try {
+      // Close tenant connection if open
+      await this.closeTenantConnection(tenantId);
+      
+      // Drop the database
+      await this.tenantMigration.dropTenantDatabase(dbConfig);
+      
+      this.logger.warn(`✅ Database dropped for tenant: ${tenantId}`);
+    } catch (error) {
+      this.logger.error(`Failed to drop database for tenant ${tenantId}:`, error);
       throw error;
     }
   }

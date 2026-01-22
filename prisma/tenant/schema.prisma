@@ -39,7 +39,7 @@ model User {
   staffAppointments Appointment[]   @relation("StaffAppointments")
   instructorClasses Class[]         @relation("Instructor")
   notifications     Notification[]
-  auditLogs         AuditLog[]
+  activityLogs      ActivityLog[]
 
   @@unique([tenantId, email])
   @@index([tenantId, email])
@@ -904,24 +904,35 @@ enum NotificationType {
 
 enum NotificationStatus {
   Sent
-  Pending
-  Failed
+  Read
+  Unread
+}
+
+enum NotificationEntityType {
+  Task
+  Appointment
+  Lead
+  Student
+  Service
+  Other
 }
 
 model Notification {
-  id        String             @id @default(uuid())
+  id        String                   @id @default(uuid())
   tenantId  String
   userId    String
-  type      NotificationType
+  type      NotificationEntityType   // Task/Appointment/etc
   message   String
-  status    NotificationStatus @default(Pending)
-  sentAt    DateTime?
-  createdAt DateTime           @default(now())
+  status    NotificationStatus       @default(Sent)
+  metadata  Json?                    // Extra info: task title, appointment time, etc.
+  readAt    DateTime?
+  createdAt DateTime                 @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, userId])
-  @@index([tenantId, status])
+  @@index([tenantId, userId, status])
+  @@index([tenantId, createdAt])
   @@map("notifications")
 }
 
@@ -929,29 +940,35 @@ model Notification {
 // AUDIT & ACTIVITY MODULE
 // ============================================
 
-enum AuditAction {
-  Create
-  Update
-  Delete
+enum ActivityAction {
+  Created
+  Updated
+  Deleted
+  StatusChanged
+  Assigned
+  Completed
+  Cancelled
   Login
   Logout
-  ACCESS_DENIED
+  AccessDenied
 }
 
-model AuditLog {
-  id         String      @id @default(uuid())
+model ActivityLog {
+  id         String         @id @default(uuid())
   tenantId   String
   userId     String?
-  entityType String
+  entityType String         // Task, Appointment, Lead, Student, etc.
   entityId   String
-  action     AuditAction
-  metadata   Json?       // Additional context
-  timestamp  DateTime    @default(now())
+  action     ActivityAction
+  changes    Json?          // JSON diff of changes
+  metadata   Json?          // Additional context
+  timestamp  DateTime       @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, entityType, entityId])
   @@index([tenantId, userId])
   @@index([tenantId, timestamp])
-  @@map("audit_logs")
+  @@index([tenantId, entityType])
+  @@map("activity_logs")
 }
