@@ -27,40 +27,20 @@ export class AppointmentsService {
       },
     });
 
-    // Send notifications to staff and student
-    const notificationPromises = [];
-
+    // Send notification to staff only (students are not users and cannot receive notifications)
     if (appointment.staffId) {
-      notificationPromises.push(
-        this.notificationsService.createNotification(tenantId, {
-          userId: appointment.staffId,
-          type: NotificationEntityType.Appointment,
-          message: `New appointment scheduled for ${new Date(appointment.scheduledAt).toLocaleString()}`,
-          metadata: {
-            appointmentId: appointment.id,
-            studentId: appointment.studentId,
-            scheduledAt: appointment.scheduledAt,
-          },
-        }),
-      );
+      await this.notificationsService.createNotification(tenantId, {
+        userId: appointment.staffId,
+        type: NotificationEntityType.Appointment,
+        message: `New appointment scheduled with ${appointment.student?.firstName} ${appointment.student?.lastName} for ${new Date(appointment.scheduledAt).toLocaleString()}`,
+        metadata: {
+          appointmentId: appointment.id,
+          studentId: appointment.studentId,
+          studentName: `${appointment.student?.firstName} ${appointment.student?.lastName}`,
+          scheduledAt: appointment.scheduledAt,
+        },
+      });
     }
-
-    if (appointment.studentId) {
-      notificationPromises.push(
-        this.notificationsService.createNotification(tenantId, {
-          userId: appointment.studentId,
-          type: NotificationEntityType.Appointment,
-          message: `Your appointment has been scheduled for ${new Date(appointment.scheduledAt).toLocaleString()}`,
-          metadata: {
-            appointmentId: appointment.id,
-            staffId: appointment.staffId,
-            scheduledAt: appointment.scheduledAt,
-          },
-        }),
-      );
-    }
-
-    await Promise.all(notificationPromises);
 
     // Log activity
     await this.activityLogsService.createLog(tenantId, {
@@ -157,40 +137,21 @@ export class AppointmentsService {
       changes.staffId = { before: oldAppointment.staffId, after: updatedAppointment.staffId };
     }
 
-    // Send notifications to involved parties
-    const notificationPromises = [];
-
+    // Send notification to staff only (students are not users and cannot receive notifications)
     if (updatedAppointment.staffId) {
-      notificationPromises.push(
-        this.notificationsService.createNotification(tenantId, {
-          userId: updatedAppointment.staffId,
-          type: NotificationEntityType.Appointment,
-          message: `Appointment updated: ${notificationMessage}`,
-          metadata: {
-            appointmentId: updatedAppointment.id,
-            scheduledAt: updatedAppointment.scheduledAt,
-            changes,
-          },
-        }),
-      );
+      await this.notificationsService.createNotification(tenantId, {
+        userId: updatedAppointment.staffId,
+        type: NotificationEntityType.Appointment,
+        message: `Appointment with ${updatedAppointment.student?.firstName} ${updatedAppointment.student?.lastName} updated: ${notificationMessage}`,
+        metadata: {
+          appointmentId: updatedAppointment.id,
+          studentId: updatedAppointment.studentId,
+          studentName: `${updatedAppointment.student?.firstName} ${updatedAppointment.student?.lastName}`,
+          scheduledAt: updatedAppointment.scheduledAt,
+          changes,
+        },
+      });
     }
-
-    if (updatedAppointment.studentId) {
-      notificationPromises.push(
-        this.notificationsService.createNotification(tenantId, {
-          userId: updatedAppointment.studentId,
-          type: NotificationEntityType.Appointment,
-          message: notificationMessage,
-          metadata: {
-            appointmentId: updatedAppointment.id,
-            scheduledAt: updatedAppointment.scheduledAt,
-            changes,
-          },
-        }),
-      );
-    }
-
-    await Promise.all(notificationPromises);
 
     // Log activity
     await this.activityLogsService.createLog(tenantId, {
