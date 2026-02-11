@@ -5,6 +5,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityLogsService } from '../activity-logs/activity-logs.service';
 import { NotificationEntityType } from '../notifications/dto/notification.dto';
 import { ActivityAction } from '../activity-logs/dto/activity-log.dto';
+import { TaskStatus } from '@prisma/tenant-client';
 
 @Injectable()
 export class TasksService {
@@ -258,7 +259,7 @@ export class TasksService {
         lt: now,
       },
       status: {
-        notIn: ['Completed', 'Cancelled'],
+        notIn: [TaskStatus.Completed, TaskStatus.Cancelled],
       },
     };
 
