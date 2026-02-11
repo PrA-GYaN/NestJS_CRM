@@ -134,6 +134,10 @@ export class LeadsService {
       throw new BadRequestException('Lead already converted');
     }
 
+    if (lead.status !== 'Qualified') {
+      throw new BadRequestException('Only qualified leads can be converted to students');
+    }
+
     // Start transaction
     const result = await tenantPrisma.$transaction(async (tx: any) => {
       // Create student

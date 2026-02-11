@@ -50,6 +50,20 @@ export class TasksController {
     return this.tasksService.getTasksByUser(tenantId, user.id, paginationDto);
   }
 
+  @Get('overdue')
+  @CanRead('tasks')
+  @ApiOperation({ summary: 'Get all overdue tasks (SUPERADMIN only)' })
+  getOverdueTasks(@TenantId() tenantId: string, @Query() paginationDto: PaginationDto) {
+    return this.tasksService.findOverdueTasks(tenantId, paginationDto);
+  }
+
+  @Post('notify-overdue')
+  @CanRead('tasks')
+  @ApiOperation({ summary: 'Notify SUPERADMIN users about overdue tasks' })
+  notifyOverdueTasks(@TenantId() tenantId: string) {
+    return this.tasksService.notifySuperAdminsAboutOverdueTasks(tenantId);
+  }
+
   @Get(':id')
   @CanRead('tasks')
   @ApiOperation({ summary: 'Get task by ID' })

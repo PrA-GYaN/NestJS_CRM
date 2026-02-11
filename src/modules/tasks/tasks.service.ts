@@ -242,4 +242,166 @@ export class TasksService {
       totalPages: Math.ceil(total / limit),
     };
   }
+
+  /**
+   * Get overdue tasks (dueDate < now && status NOT IN [Completed, Cancelled])
+   */
+  async findOverdueTasks(tenantId: string, paginationDto: PaginationDto) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    const { page = 1, limit = 10, sortBy = 'dueDate', sortOrder = 'asc' } = paginationDto;
+    const skip = (page - 1) * limit;
+    const now = new Date();
+
+    const where = {
+      tenantId,
+      dueDate: {
+        lt: now,
+      },
+      status: {
+        notIn: ['Completed', 'Cancelled'],
+      },
+    };
+
+    const [tasks, total] = await Promise.all([
+      tenantPrisma.task.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { [sortBy]: sortOrder },
+        include: {
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      tenantPrisma.task.count({ where }),
+    ]);
+
+    return {
+      data: tasks,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Get all SUPERADMIN users for a tenant
+   */
+  private async getSuperAdminUsers(tenantId: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    const users = await tenantPrisma.user.findMany({
+      where: {
+        tenantId,
+        role: {
+          name: {
+            in: ['SUPER_ADMIN', 'SuperAdmin', 'Super Admin', 'super_admin'],
+          },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+
+    return users;
+  }
+
+  /**
+   * Notify superadmins about overdue tasks
+   */
+  async notifySuperAdminsAboutOverdueTasks(tenantId: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    const now = new Date();
+
+    // Get overdue tasks
+    const overdueTasks = await tenantPrisma.task.findMany({
+      where: {
+        tenantId,
+        dueDate: {
+          lt: now,
+        },
+        status: {
+          notIn: ['Completed', 'Cancelled'],
+        },
+      },
+      include: {
+        assignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (overdueTasks.length === 0) {
+      return { message: 'No overdue tasks found', notificationsSent: 0 };
+    }
+
+    // Get SUPERADMIN users
+    const superAdmins = await this.getSuperAdminUsers(tenantId);
+
+    if (superAdmins.length === 0) {
+      return { message: 'No SUPERADMIN users found', notificationsSent: 0 };
+    }
+
+    // Create notifications for each superadmin for each overdue task
+    let notificationsSent = 0;
+    for (const task of overdueTasks) {
+      for (const admin of superAdmins) {
+        // Check if notification already exists for this task + admin combination
+        const existingNotification = await tenantPrisma.notification.findFirst({
+          where: {
+            tenantId,
+            userId: admin.id,
+            type: NotificationEntityType.Task,
+            message: {
+              contains: task.id,
+            },
+          },
+        });
+
+        // Only create notification if it doesn't exist
+        if (!existingNotification) {
+          await this.notificationsService.createNotification(tenantId, {
+            userId: admin.id,
+            type: NotificationEntityType.Task,
+            message: `Overdue Task: "${task.title}" assigned to ${task.assignedUser?.name || 'Unassigned'}`,
+            metadata: {
+              taskId: task.id,
+              taskTitle: task.title,
+              assignedTo: task.assignedTo,
+              assignedUserName: task.assignedUser?.name,
+              dueDate: task.dueDate,
+              priority: task.priority,
+              status: task.status,
+            },
+          });
+          notificationsSent++;
+        }
+      }
+    }
+
+    return {
+      message: `Notifications sent for ${overdueTasks.length} overdue tasks`,
+      overdueTasks: overdueTasks.length,
+      notificationsSent,
+    };
+  }
 }

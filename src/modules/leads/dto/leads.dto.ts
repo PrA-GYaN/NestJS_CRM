@@ -86,10 +86,10 @@ export class UpdateLeadDto {
   @IsString()
   studyInterests?: string;
 
-  @ApiPropertyOptional({ enum: ['New', 'Contacted', 'Qualified', 'Converted'] })
+  @ApiPropertyOptional({ enum: ['New', 'Contacted', 'Qualified', 'Converted', 'NotInterested', 'NotReachable'] })
   @IsOptional()
-  @IsEnum(['New', 'Contacted', 'Qualified', 'Converted'])
-  status?: 'New' | 'Contacted' | 'Qualified' | 'Converted';
+  @IsEnum(['New', 'Contacted', 'Qualified', 'Converted', 'NotInterested', 'NotReachable'])
+  status?: 'New' | 'Contacted' | 'Qualified' | 'Converted' | 'NotInterested' | 'NotReachable';
 
   @ApiPropertyOptional({ enum: ['High', 'Medium', 'Low'] })
   @IsOptional()

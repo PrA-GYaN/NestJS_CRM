@@ -106,6 +106,8 @@ enum LeadStatus {
   Contacted
   Qualified
   Converted
+  NotInterested
+  NotReachable
 }
 
 enum Priority {
