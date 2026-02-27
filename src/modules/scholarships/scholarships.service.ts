@@ -64,12 +64,10 @@ export class ScholarshipsService {
 
     return {
       data: scholarships,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     };
   }
 

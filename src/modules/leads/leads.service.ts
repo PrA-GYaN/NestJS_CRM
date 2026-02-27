@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
-import { CreateLeadDto, UpdateLeadDto, ConvertLeadDto } from './dto/leads.dto';
-import { PaginationDto } from '../../common/dto/common.dto';
+import { CreateLeadDto, UpdateLeadDto, ConvertLeadDto, LeadsQueryDto } from './dto/leads.dto';
 
 @Injectable()
 export class LeadsService {
@@ -29,21 +28,40 @@ export class LeadsService {
     });
   }
 
-  async getAllLeads(tenantId: string, paginationDto: PaginationDto) {
+  async getAllLeads(tenantId: string, queryDto: LeadsQueryDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
+    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search, status, priority, assignedUserId, source } = queryDto;
     const skip = (page - 1) * limit;
 
-    const where = {
+    const where: any = {
       tenantId,
-      ...(search && {
-        OR: [
-          { firstName: { contains: search, mode: 'insensitive' as any } },
-          { lastName: { contains: search, mode: 'insensitive' as any } },
-          { email: { contains: search, mode: 'insensitive' as any } },
-        ],
-      }),
     };
+
+    // Apply filters
+    if (status) {
+      where.status = status;
+    }
+
+    if (priority) {
+      where.priority = priority;
+    }
+
+    if (assignedUserId) {
+      where.assignedUserId = assignedUserId;
+    }
+
+    if (source) {
+      where.source = { contains: source, mode: 'insensitive' as any };
+    }
+
+    // Apply search
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' as any } },
+        { lastName: { contains: search, mode: 'insensitive' as any } },
+        { email: { contains: search, mode: 'insensitive' as any } },
+      ];
+    }
 
     const [leads, total] = await Promise.all([
       tenantPrisma.lead.findMany({

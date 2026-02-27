@@ -94,6 +94,7 @@ export class AuthService {
       roleId: user.roleId,
       roleName: user.role.name,
       isPlatformAdmin: false,
+      isStudent: false,
     };
 
     return {
@@ -103,6 +104,65 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role.name,
+      },
+    };
+  }
+
+  /**
+   * Student Login (Tenant Database)
+   */
+  async studentLogin(tenantId: string, loginDto: LoginDto): Promise<AuthResponseDto> {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    const student = await tenantPrisma.student.findFirst({
+      where: {
+        tenantId,
+        email: loginDto.email,
+      },
+    });
+
+    if (!student) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!student.isActive) {
+      throw new UnauthorizedException('Student account is inactive');
+    }
+
+    // Check if student has password set
+    const passwordField = student.password || student.hashedPassword;
+    if (!passwordField) {
+      throw new UnauthorizedException('Password not set for this student account. Please contact your consultancy.');
+    }
+
+    const isPasswordValid = await this.comparePasswords(loginDto.password, passwordField);
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Update last login
+    await tenantPrisma.student.update({
+      where: { id: student.id },
+      data: { lastLogin: new Date() },
+    });
+
+    const payload = {
+      sub: student.id,
+      email: student.email,
+      tenantId: student.tenantId,
+      isPlatformAdmin: false,
+      isStudent: true,
+      studentId: student.id,
+    };
+
+    return {
+      accessToken: this.jwtService.sign(payload),
+      user: {
+        id: student.id,
+        name: `${student.firstName} ${student.lastName}`,
+        email: student.email,
+        role: 'Student',
       },
     };
   }

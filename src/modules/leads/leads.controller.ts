@@ -11,8 +11,8 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { LeadsService } from './leads.service';
-import { CreateLeadDto, UpdateLeadDto, ConvertLeadDto } from './dto/leads.dto';
-import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
+import { CreateLeadDto, UpdateLeadDto, ConvertLeadDto, LeadsQueryDto } from './dto/leads.dto';
+import { IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { CanCreate, CanRead, CanUpdate, CanDelete, RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -34,9 +34,9 @@ export class LeadsController {
 
   @Get()
   @CanRead('leads')
-  @ApiOperation({ summary: 'Get all leads' })
-  getAllLeads(@TenantId() tenantId: string, @Query() paginationDto: PaginationDto) {
-    return this.leadsService.getAllLeads(tenantId, paginationDto);
+  @ApiOperation({ summary: 'Get all leads with filtering' })
+  getAllLeads(@TenantId() tenantId: string, @Query() queryDto: LeadsQueryDto) {
+    return this.leadsService.getAllLeads(tenantId, queryDto);
   }
 
   @Get(':id')

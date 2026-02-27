@@ -12,8 +12,10 @@ import { PlatformModule } from './modules/platform/platform.module';
 import { UsersModule } from './modules/users/users.module';
 import { LeadsModule } from './modules/leads/leads.module';
 import { StudentsModule } from './modules/students/students.module';
+import { StudentPanelModule } from './modules/student-panel/student-panel.module';
 import { UniversitiesModule } from './modules/universities/universities.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
+import { WorkingHoursModule } from './modules/working-hours/working-hours.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { CountriesModule } from './modules/countries/countries.module';
 import { VisaTypesModule } from './modules/visa-types/visa-types.module';
@@ -57,8 +59,10 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     UsersModule,
     LeadsModule,
     StudentsModule,
+    StudentPanelModule,
     UniversitiesModule,
     AppointmentsModule,
+    WorkingHoursModule,
     TasksModule,
     CountriesModule,
     VisaTypesModule,

@@ -152,32 +152,42 @@ enum StudentStatus {
 }
 
 model Student {
-  id              String        @id @default(uuid())
-  tenantId        String
-  leadId          String?
-  firstName       String
-  lastName        String
-  email           String
-  phone           String?
-  academicRecords Json?         // Stores academic history
-  testScores      Json?         // Stores test scores
-  status          StudentStatus @default(Prospective)
-  priority        Priority      @default(Medium)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                  String        @id @default(uuid())
+  tenantId            String
+  leadId              String?
+  firstName           String
+  lastName            String
+  email               String
+  phone               String?
+  password            String?       // Hashed password for student login
+  hashedPassword      String?       // Alternative field name for clarity
+  isActive            Boolean       @default(true)
+  emailVerified       Boolean       @default(false)
+  lastLogin           DateTime?
+  academicRecords     Json?         // Stores academic history
+  testScores          Json?         // Stores test scores (IELTS, TOEFL, GRE, etc.)
+  identificationDocs  Json?         // Passport, National ID details
+  status              StudentStatus @default(Prospective)
+  priority            Priority      @default(Medium)
+  profileCompleteness Int?          @default(0) // 0-100%
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
-  lead             Lead?               @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  documents        StudentDocument[]
-  appointments     Appointment[]
-  classEnrollments ClassEnrollment[]
-  testAssignments  TestAssignment[]
-  visaApplications VisaApplication[]
-  payments         Payment[]
-  studentServices  StudentService[]
+  lead                Lead?                 @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  documents           StudentDocument[]
+  appointments        Appointment[]
+  classEnrollments    ClassEnrollment[]
+  testAssignments     TestAssignment[]
+  visaApplications    VisaApplication[]
+  courseApplications  CourseApplication[]
+  payments            Payment[]
+  studentServices     StudentService[]
+  studentNotifications StudentNotification[]
 
   @@index([tenantId, status])
   @@index([tenantId, email])
   @@index([tenantId, leadId])
+  @@index([tenantId, isActive])
   @@map("students")
 }
 
@@ -187,23 +197,133 @@ enum DocumentType {
   VisaForm
   Photo
   Certificate
+  OfferLetter
+  AcademicDocument
+  FinancialDocument
+  LanguageTestResult
+  RecommendationLetter
   Other
 }
 
+enum DocumentVerificationStatus {
+  Pending
+  Verified
+  Rejected
+  Expired
+}
+
 model StudentDocument {
-  id           String       @id @default(uuid())
-  tenantId     String
-  studentId    String
-  documentType DocumentType
-  filePath     String
-  uploadedAt   DateTime     @default(now())
+  id                   String                      @id @default(uuid())
+  tenantId             String
+  studentId            String
+  documentType         DocumentType
+  filePath             String
+  fileName             String?
+  fileSize             Int?                        // Size in bytes
+  version              Int                         @default(1)
+  verificationStatus   DocumentVerificationStatus  @default(Pending)
+  verifiedBy           String?                     // User ID who verified
+  verificationDate     DateTime?
+  verificationNotes    String?
+  rejectionReason      String?
+  expiryDate           DateTime?
+  uploadedAt           DateTime                    @default(now())
+  metadata             Json?                       // Additional document metadata
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([tenantId, studentId])
   @@index([studentId])
+  @@index([tenantId, verificationStatus])
   @@map("student_documents")
+}
+
+// ============================================
+// COUNTRY MODULE (TENANT-SCOPED)
+// ============================================
+
+// ============================================
+// COURSE APPLICATION MODULE
+// ============================================
+
+enum ApplicationStatus {
+  Draft
+  Submitted
+  UnderReview
+  Shortlisted
+  OfferReceived
+  Accepted
+  Rejected
+  Withdrawn
+}
+
+model CourseApplication {
+  id                String            @id @default(uuid())
+  tenantId          String
+  studentId         String
+  courseId          String
+  universityId      String
+  status            ApplicationStatus @default(Draft)
+  applicationDate   DateTime?
+  submissionDate    DateTime?
+  offerReceivedDate DateTime?
+  offerExpiryDate   DateTime?
+  decisionDate      DateTime?
+  intakePeriod      String?           // e.g., "Fall 2024", "January 2025"
+  applicationFee    Decimal?          @db.Decimal(10, 2)
+  offerDocumentPath String?           // Path to offer letter
+  rejectionReason   String?
+  notes             Json?             // Additional notes and updates
+  assignedTo        String?           // Consultant handling the application
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, studentId])
+  @@index([tenantId, status])
+  @@index([studentId, status])
+  @@map("course_applications")
+}
+
+// ============================================
+// STUDENT NOTIFICATION MODULE
+// ============================================
+
+enum StudentNotificationType {
+  Application
+  Document
+  Visa
+  Payment
+  Appointment
+  Task
+  General
+  Message
+}
+
+model StudentNotification {
+  id         String                   @id @default(uuid())
+  tenantId   String
+  studentId  String
+  type       StudentNotificationType
+  title      String
+  message    String
+  isRead     Boolean                  @default(false)
+  readAt     DateTime?
+  actionUrl  String?                  // Optional link for action
+  metadata   Json?                    // Additional context
+  createdAt  DateTime                 @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, studentId])
+  @@index([tenantId, studentId, isRead])
+  @@index([studentId, createdAt])
+  @@map("student_notifications")
 }
 
 // ============================================
@@ -242,9 +362,10 @@ model University {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  country     Country      @relation(fields: [countryId], references: [id], onDelete: Cascade)
-  courses     Course[]
-  commissions Commission[]
+  country            Country             @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  courses            Course[]
+  commissions        Commission[]
+  courseApplications CourseApplication[]
 
   @@index([tenantId])
   @@index([tenantId, countryId])
@@ -265,8 +386,9 @@ model Course {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
-  classes    Class[]
+  university         University          @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  classes            Class[]
+  courseApplications CourseApplication[]
 
   @@index([tenantId])
   @@index([tenantId, universityId])
@@ -374,30 +496,107 @@ model TestAssignment {
 // APPOINTMENT MODULE
 // ============================================
 
+enum DayOfWeek {
+  Monday
+  Tuesday
+  Wednesday
+  Thursday
+  Friday
+  Saturday
+  Sunday
+}
+
 enum AppointmentStatus {
-  Scheduled
+  Pending      // Initial status when student creates request
+  Booked       // Approved by staff
+  Rejected     // Declined by staff
+  Scheduled    // Legacy status (for backward compatibility)
   Completed
   Cancelled
   NoShow
 }
 
+enum AppointmentRequestedBy {
+  Student
+  Staff
+  System
+}
+
+model TenantWorkingHours {
+  id        String    @id @default(uuid())
+  tenantId  String
+  dayOfWeek DayOfWeek
+  isOpen    Boolean   @default(true)
+  openTime  String?   // Format: "09:00" (24-hour format), nullable when closed
+  closeTime String?   // Format: "17:00" (24-hour format), nullable when closed
+  timezone  String    // e.g., "America/New_York", "Asia/Kathmandu"
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([tenantId, dayOfWeek])
+  @@index([tenantId, isActive])
+  @@index([tenantId, dayOfWeek, isOpen])
+  @@map("tenant_working_hours")
+}
+
 model Appointment {
-  id           String            @id @default(uuid())
-  tenantId     String
-  studentId    String
-  staffId      String
-  scheduledAt  DateTime
-  status       AppointmentStatus @default(Scheduled)
-  outcomeNotes String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  id          String                  @id @default(uuid())
+  tenantId    String
+  studentId   String
+  staffId     String // Assigned staff member
+  
+  // Scheduling details
+  scheduledAt DateTime // Appointment start time (UTC)
+  duration    Int      @default(60) // Duration in minutes (max 120)
+  endTime     DateTime // Calculated: scheduledAt + duration
+  timezone    String   @default("UTC") // Timezone for display
+  
+  // Appointment details
+  purpose     String?
+  notes       String? // Additional notes from student
+  staffNotes  String? // Staff internal notes
+  
+  // Status management
+  status      AppointmentStatus       @default(Pending)
+  requestedBy AppointmentRequestedBy  @default(Student)
+  
+  // Approval workflow
+  requestedAt       DateTime  @default(now())
+  approvedAt        DateTime?
+  approvedBy        String? // Staff user ID who approved
+  rejectedAt        DateTime?
+  rejectedBy        String? // Staff user ID who rejected
+  rejectionReason   String?
+  
+  // Cancellation
+  cancelledAt       DateTime?
+  cancelledBy       String? // User ID who cancelled
+  cancellationReason String?
+  
+  // Completion
+  completedAt  DateTime?
+  outcomeNotes String? // Post-appointment notes
+  
+  // Metadata
+  version   Int      @default(1) // Optimistic locking
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Reminder tracking
+  reminder24hSent Boolean @default(false)
+  reminder1hSent  Boolean @default(false)
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   staff   User    @relation("StaffAppointments", fields: [staffId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId, status])
+  @@index([tenantId, studentId, status])
+  @@index([tenantId, staffId, status])
+  @@index([tenantId, staffId, scheduledAt])
   @@index([tenantId, scheduledAt])
-  @@index([tenantId, studentId])
-  @@index([tenantId, staffId])
+  @@index([status, scheduledAt])
+  @@index([tenantId, status, scheduledAt])
   @@map("appointments")
 }
 

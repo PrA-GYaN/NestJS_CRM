@@ -7,6 +7,44 @@ import {
   IsOptional,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PaginationDto } from '../../../common/dto/common.dto';
+
+export enum LeadStatusEnum {
+  New = 'New',
+  Contacted = 'Contacted',
+  Qualified = 'Qualified',
+  Converted = 'Converted',
+  NotInterested = 'NotInterested',
+  NotReachable = 'NotReachable',
+}
+
+export enum PriorityEnum {
+  High = 'High',
+  Medium = 'Medium',
+  Low = 'Low',
+}
+
+export class LeadsQueryDto extends PaginationDto {
+  @ApiPropertyOptional({ enum: LeadStatusEnum, description: 'Filter by lead status' })
+  @IsOptional()
+  @IsEnum(LeadStatusEnum)
+  status?: LeadStatusEnum;
+
+  @ApiPropertyOptional({ enum: PriorityEnum, description: 'Filter by priority' })
+  @IsOptional()
+  @IsEnum(PriorityEnum)
+  priority?: PriorityEnum;
+
+  @ApiPropertyOptional({ description: 'Filter by assigned user ID' })
+  @IsOptional()
+  @IsUUID()
+  assignedUserId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by source' })
+  @IsOptional()
+  @IsString()
+  source?: string;
+}
 
 export class CreateLeadDto {
   @ApiProperty()

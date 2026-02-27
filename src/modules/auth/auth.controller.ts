@@ -29,6 +29,16 @@ export class AuthController {
     return this.authService.tenantUserLogin(tenantId, loginDto);
   }
 
+  @Public()
+  @Post('student/login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Student Login' })
+  @ApiResponse({ status: 200, description: 'Login successful', type: AuthResponseDto })
+  async studentLogin(@Body() loginDto: LoginDto, @Req() req: any): Promise<AuthResponseDto> {
+    const tenantId = req.tenantId;
+    return this.authService.studentLogin(tenantId, loginDto);
+  }
+
   @Get('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user info with permissions' })
