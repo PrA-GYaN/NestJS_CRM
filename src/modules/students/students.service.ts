@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto } from './dto/students.dto';
 import { PaginationDto } from '../../common/dto/common.dto';
@@ -12,10 +13,16 @@ export class StudentsService {
   async createStudent(tenantId: string, createStudentDto: CreateStudentDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
+    // Auto-generate password as firstName@lastName (system-managed)
+    const rawPassword = `${createStudentDto.firstName}@${createStudentDto.lastName}`;
+    const hashedPassword = await bcrypt.hash(rawPassword, 10);
+
     return tenantPrisma.student.create({
       data: {
         ...createStudentDto,
         tenantId,
+        password: hashedPassword,
+        isActive: true,
       },
       include: {
         lead: true,
