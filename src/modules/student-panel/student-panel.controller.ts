@@ -12,7 +12,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery, ApiBody, ApiHeader } from '@nestjs/swagger';
 import { StudentPanelService } from './student-panel.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import {
@@ -40,6 +40,12 @@ import { TenantId } from '../../common/decorators/tenant-id.decorator';
 
 @ApiTags('Student Panel')
 @ApiBearerAuth()
+@ApiHeader({
+  name: 'X-Tenant-ID',
+  description: 'UUID of the tenant. Required for all student-panel endpoints.',
+  required: true,
+  example: '123e4567-e89b-12d3-a456-426614174000',
+})
 @UseGuards(JwtAuthGuard)
 @Controller('student-panel')
 export class StudentPanelController {
@@ -53,15 +59,24 @@ export class StudentPanelController {
   // ============================================
 
   @Get('profile')
-  @ApiOperation({ summary: 'Get my student profile' })
+  @ApiOperation({
+    summary: 'Get my student profile',
+    description: 'Returns the full student profile for the authenticated student, including academic records, test scores, and identification documents.',
+  })
   @ApiResponse({ status: 200, description: 'Student profile retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Missing or invalid student JWT' })
   getMyProfile(@TenantId() tenantId: string, @CurrentUser() user: any) {
     return this.studentPanelService.getMyProfile(tenantId, user.studentId || user.id);
   }
 
   @Put('profile')
-  @ApiOperation({ summary: 'Update my student profile' })
+  @ApiOperation({
+    summary: 'Update my student profile',
+    description: 'Updates editable profile fields. Students cannot change their email — contact a counsellor for email updates.',
+  })
+  @ApiBody({ type: UpdateStudentProfileDto })
   @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
   updateMyProfile(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,
@@ -72,8 +87,13 @@ export class StudentPanelController {
 
   @Post('profile/change-password')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Change my password' })
+  @ApiOperation({
+    summary: 'Change my password',
+    description: 'Changes the student account password. New password must be at least 8 characters and contain uppercase, lowercase, and a number or special character.',
+  })
+  @ApiBody({ type: ChangePasswordDto })
   @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({ status: 400, description: 'Current password incorrect or new password does not meet requirements' })
   changePassword(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,
@@ -87,7 +107,10 @@ export class StudentPanelController {
   // ============================================
 
   @Get('dashboard/stats')
-  @ApiOperation({ summary: 'Get dashboard statistics' })
+  @ApiOperation({
+    summary: 'Get dashboard statistics',
+    description: 'Returns aggregated KPIs for the student dashboard: application counts, pending tasks, upcoming appointments, unread notifications, and profile completeness score.',
+  })
   @ApiResponse({ status: 200, description: 'Dashboard stats retrieved successfully', type: DashboardStatsResponseDto })
   getDashboardStats(@TenantId() tenantId: string, @CurrentUser() user: any) {
     return this.studentPanelService.getDashboardStats(tenantId, user.studentId || user.id);
@@ -98,7 +121,10 @@ export class StudentPanelController {
   // ============================================
 
   @Get('documents')
-  @ApiOperation({ summary: 'Get my documents' })
+  @ApiOperation({
+    summary: 'Get my documents',
+    description: 'Lists all documents uploaded by the student. Filter by document type (Passport, Transcript, VisaForm, etc.) or verification status.',
+  })
   @ApiResponse({ status: 200, description: 'Documents retrieved successfully' })
   getMyDocuments(
     @TenantId() tenantId: string,
@@ -109,8 +135,13 @@ export class StudentPanelController {
   }
 
   @Post('documents')
-  @ApiOperation({ summary: 'Upload a document' })
+  @ApiOperation({
+    summary: 'Upload a document',
+    description: 'Registers a new document record for the student. The `filePath` should be the URL or path returned by the File Management upload endpoint.',
+  })
+  @ApiBody({ type: UploadStudentDocumentDto })
   @ApiResponse({ status: 201, description: 'Document uploaded successfully' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
   uploadDocument(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,
@@ -135,7 +166,10 @@ export class StudentPanelController {
   // ============================================
 
   @Get('applications')
-  @ApiOperation({ summary: 'Get my course applications' })
+  @ApiOperation({
+    summary: 'Get my course applications',
+    description: 'Returns a paginated list of the student\'s course applications. Filter by status (Draft, Submitted, UnderReview, Shortlisted, OfferReceived, Accepted, Rejected, Withdrawn).',
+  })
   @ApiResponse({ status: 200, description: 'Applications retrieved successfully' })
   getMyCourseApplications(
     @TenantId() tenantId: string,
@@ -146,8 +180,13 @@ export class StudentPanelController {
   }
 
   @Post('applications')
-  @ApiOperation({ summary: 'Create a new course application' })
+  @ApiOperation({
+    summary: 'Create a new course application',
+    description: 'Creates a course application in Draft status. Requires a valid `courseId` and `universityId`. Submit or update the application after creation.',
+  })
+  @ApiBody({ type: CreateCourseApplicationDto })
   @ApiResponse({ status: 201, description: 'Application created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid courseId or universityId' })
   createCourseApplication(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,

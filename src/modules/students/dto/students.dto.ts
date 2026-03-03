@@ -42,6 +42,10 @@ export class CreateStudentDto {
   @IsOptional()
   testScores?: any;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  identificationDocs?: any;
+
   @ApiPropertyOptional({ enum: ['High', 'Medium', 'Low'] })
   @IsOptional()
   @IsEnum(['High', 'Medium', 'Low'])
@@ -77,6 +81,10 @@ export class UpdateStudentDto {
   @IsOptional()
   testScores?: any;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  identificationDocs?: any;
+
   @ApiPropertyOptional({ enum: ['Prospective', 'Enrolled', 'Alumni'] })
   @IsOptional()
   @IsEnum(['Prospective', 'Enrolled', 'Alumni'])
@@ -86,6 +94,10 @@ export class UpdateStudentDto {
   @IsOptional()
   @IsEnum(['High', 'Medium', 'Low'])
   priority?: 'High' | 'Medium' | 'Low';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 export class UploadDocumentDto {

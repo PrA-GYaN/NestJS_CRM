@@ -24,6 +24,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException();
     }
 
+    // Return student-specific identity for student tokens
+    if (payload.isStudent) {
+      return {
+        id: payload.sub,
+        studentId: payload.sub,
+        email: payload.email,
+        tenantId: payload.tenantId,
+        isStudent: true,
+        isPlatformAdmin: false,
+      };
+    }
+
     return {
       id: payload.sub,
       email: payload.email,
@@ -31,6 +43,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       roleId: payload.roleId,
       roleName: payload.roleName,
       isPlatformAdmin: payload.isPlatformAdmin,
+      isStudent: false,
     };
   }
 }

@@ -181,6 +181,13 @@ export class AuthService {
       payload.tenantId,
     );
 
+    // Student tokens are validated against the Student model, not the User model
+    if (payload.isStudent) {
+      return tenantPrisma.student.findFirst({
+        where: { id: payload.sub, tenantId: payload.tenantId, isActive: true },
+      });
+    }
+
     return tenantPrisma.user.findUnique({
       where: { id: payload.sub },
       include: { role: true },

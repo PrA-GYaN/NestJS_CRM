@@ -37,16 +37,41 @@ export class FilesController {
   @ApiBody({
     schema: {
       type: 'object',
+      required: ['file', 'category'],
       properties: {
         file: {
           type: 'string',
           format: 'binary',
+          description: 'The file to upload',
         },
-        category: { type: 'string' },
-        studentId: { type: 'string' },
-        visaApplicationId: { type: 'string' },
-        courseId: { type: 'string' },
-        metadata: { type: 'object' },
+        category: {
+          type: 'string',
+          enum: ['StudentDocument', 'VisaDocument', 'CourseDocument', 'General'],
+          description: 'File category',
+        },
+        studentId: {
+          type: 'string',
+          format: 'uuid',
+          nullable: true,
+          description: '(Optional) Associate file with a specific student',
+        },
+        visaApplicationId: {
+          type: 'string',
+          format: 'uuid',
+          nullable: true,
+          description: '(Optional) Associate file with a visa application. Leave empty for general or course-specific uploads.',
+        },
+        courseId: {
+          type: 'string',
+          format: 'uuid',
+          nullable: true,
+          description: '(Optional) Associate file with a course. Leave empty for general or visa-specific uploads.',
+        },
+        metadata: {
+          type: 'object',
+          nullable: true,
+          description: '(Optional) Arbitrary JSON metadata for the file',
+        },
       },
     },
   })

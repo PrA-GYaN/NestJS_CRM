@@ -29,9 +29,10 @@ export class UploadFileDto {
   studentId?: string;
 
   @ApiProperty({
-    description: 'Visa application ID (if applicable)',
+    description: 'Visa application ID — optional. Omit when uploading general documents or course-specific files.',
     example: '123e4567-e89b-12d3-a456-426614174000',
     required: false,
+    nullable: true,
   })
   @IsString()
   @IsOptional()
@@ -39,9 +40,10 @@ export class UploadFileDto {
   visaApplicationId?: string;
 
   @ApiProperty({
-    description: 'Course ID (if applicable)',
+    description: 'Course ID — optional. Omit when uploading general documents or visa-specific files.',
     example: '123e4567-e89b-12d3-a456-426614174000',
     required: false,
+    nullable: true,
   })
   @IsString()
   @IsOptional()
