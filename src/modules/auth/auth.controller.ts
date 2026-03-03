@@ -1,5 +1,5 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, Req, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiHeader, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto, AuthResponseDto } from './dto/auth.dto';
 import { Public } from '../../common/decorators/public.decorator';
@@ -29,13 +29,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Tenant User Login',
-    description: 'Authenticates a tenant user (staff/agent). Requires the `X-Tenant-ID` header to identify the tenant. The returned JWT contains `tenantId`, `roleId`, `roleName`, and `isStudent: false`.',
-  })
-  @ApiHeader({
-    name: 'X-Tenant-ID',
-    description: 'UUID of the tenant to authenticate against',
-    required: true,
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'Authenticates a tenant user (staff/agent). The tenant is resolved from the subdomain. The returned JWT contains `tenantId`, `roleId`, `roleName`, and `isStudent: false`.',
   })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login successful', type: AuthResponseDto })
@@ -50,13 +44,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Student Login',
-    description: 'Authenticates a student for the self-service Student Panel. Requires the `X-Tenant-ID` header. The returned JWT contains `isStudent: true` and `studentId` — use this token exclusively with `/student-panel/*` endpoints.',
-  })
-  @ApiHeader({
-    name: 'X-Tenant-ID',
-    description: 'UUID of the tenant the student belongs to',
-    required: true,
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'Authenticates a student for the self-service Student Panel. The tenant is resolved from the subdomain. The returned JWT contains `isStudent: true` and `studentId` — use this token exclusively with `/student-panel/*` endpoints.',
   })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login successful — token contains isStudent: true', type: AuthResponseDto })

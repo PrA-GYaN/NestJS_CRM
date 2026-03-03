@@ -12,7 +12,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery, ApiBody, ApiHeader } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { StudentPanelService } from './student-panel.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import {
@@ -40,12 +40,6 @@ import { TenantId } from '../../common/decorators/tenant-id.decorator';
 
 @ApiTags('Student Panel')
 @ApiBearerAuth()
-@ApiHeader({
-  name: 'X-Tenant-ID',
-  description: 'UUID of the tenant. Required for all student-panel endpoints.',
-  required: true,
-  example: '123e4567-e89b-12d3-a456-426614174000',
-})
 @UseGuards(JwtAuthGuard)
 @Controller('student-panel')
 export class StudentPanelController {

@@ -9,7 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiBody, ApiHeader, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { StudentsService } from './students.service';
 import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto } from './dto/students.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
@@ -20,12 +20,6 @@ import { TenantId } from '../../common/decorators/tenant-id.decorator';
 
 @ApiTags('Student Management')
 @ApiBearerAuth()
-@ApiHeader({
-  name: 'X-Tenant-ID',
-  description: 'UUID of the tenant. Required for all student management endpoints.',
-  required: true,
-  example: '123e4567-e89b-12d3-a456-426614174000',
-})
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('students')
 export class StudentsController {
