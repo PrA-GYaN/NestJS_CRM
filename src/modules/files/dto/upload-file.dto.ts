@@ -19,14 +19,14 @@ export class UploadFileDto {
   category!: FileCategory;
 
   @ApiProperty({
-    description: 'Student ID (if applicable)',
+    description: 'Student ID — required. Associates the uploaded file with a specific student.',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    required: false,
+    required: true,
   })
   @IsString()
-  @IsOptional()
+  @IsNotEmpty()
   @IsUUID()
-  studentId?: string;
+  studentId!: string;
 
   @ApiProperty({
     description: 'Visa application ID — optional. Omit when uploading general documents or course-specific files.',

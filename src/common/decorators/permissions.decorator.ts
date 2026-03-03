@@ -21,6 +21,7 @@ export const CanUpdate = (module: string) => RequirePermissions(`${module}:updat
 export const CanDelete = (module: string) => RequirePermissions(`${module}:delete`);
 export const CanExport = (module: string) => RequirePermissions(`${module}:export`);
 
+
 /**
  * Decorator to mark routes that require admin access
  */

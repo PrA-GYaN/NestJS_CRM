@@ -5,6 +5,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { Multer } from 'multer';
+import { PaginationDto } from '../../common/dto/common.dto';
 
 @Injectable()
 export class FilesService {
@@ -147,9 +148,9 @@ export class FilesService {
   }
 
   /**
-   * Get files for a student
+   * Get files for a student (paginated)
    */
-  async getStudentFiles(tenantId: string, studentId: string) {
+  async getStudentFiles(tenantId: string, studentId: string, paginationDto: PaginationDto = {}) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     // Verify student exists
@@ -161,13 +162,28 @@ export class FilesService {
       throw new NotFoundException('Student not found');
     }
 
-    return tenantPrisma.fileUpload.findMany({
-      where: {
-        tenantId,
-        studentId,
-      },
-      orderBy: { uploadedAt: 'desc' },
-    });
+    const { page = 1, limit = 10, sortOrder = 'desc' } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const where = { tenantId, studentId };
+
+    const [files, total] = await Promise.all([
+      tenantPrisma.fileUpload.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { uploadedAt: sortOrder as any },
+      }),
+      tenantPrisma.fileUpload.count({ where }),
+    ]);
+
+    return {
+      data: files,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   /**

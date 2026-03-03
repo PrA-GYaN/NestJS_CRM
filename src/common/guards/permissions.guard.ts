@@ -34,6 +34,44 @@ export class PermissionsGuard implements CanActivate {
     // Get tenant-specific Prisma client
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
+    // --- Student path ---
+    // Students authenticate against the Student model, not the User model.
+    // Look up the student record and grant permissions for the defined student-allowed set.
+    if (user.isStudent) {
+      const student = await tenantPrisma.student.findFirst({
+        where: { id: user.id, tenantId, isActive: true },
+      });
+
+      if (!student) {
+        this.logger.warn(`Permission check failed: Active student not found - ${user.id}`);
+        throw new ForbiddenException('Student not found or inactive');
+      }
+
+      // Permissions that students are allowed to exercise on their own behalf
+      const STUDENT_ALLOWED_PERMISSIONS = [
+        'documents:upload',
+        'documents:read',
+        'documents:download',
+      ];
+
+      const hasPermission = requiredPermissions.every((p) =>
+        STUDENT_ALLOWED_PERMISSIONS.includes(p),
+      );
+
+      if (!hasPermission) {
+        this.logger.warn(
+          `Student permission denied for ${user.id}: Required [${requiredPermissions.join(', ')}]`,
+        );
+        throw new ForbiddenException(
+          `Insufficient permissions. Required: ${requiredPermissions.join(', ')}`,
+        );
+      }
+
+      this.logger.debug(`Student permission granted for user: ${user.id}`);
+      return true;
+    }
+
+    // --- Regular user path ---
     // Fetch user's role and permissions
     const userWithRole = await tenantPrisma.user.findUnique({
       where: { id: user.id },

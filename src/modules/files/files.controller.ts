@@ -4,12 +4,15 @@ import {
   Get,
   Delete,
   Param,
+  Query,
   UseInterceptors,
   UploadedFile,
   Body,
   UseGuards,
   Res,
   StreamableFile,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody, ApiResponse } from '@nestjs/swagger';
@@ -22,6 +25,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions, CanRead } from '../../common/decorators/permissions.decorator';
+import { PaginationDto } from '../../common/dto/common.dto';
 
 @ApiTags('File Management')
 @ApiBearerAuth()
@@ -37,23 +41,22 @@ export class FilesController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['file', 'category'],
+      required: ['file', 'category', 'studentId'],
       properties: {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'The file to upload',
+          description: 'The file to upload (required)',
         },
         category: {
           type: 'string',
           enum: ['StudentDocument', 'VisaDocument', 'CourseDocument', 'General'],
-          description: 'File category',
+          description: 'File category (required)',
         },
         studentId: {
           type: 'string',
           format: 'uuid',
-          nullable: true,
-          description: '(Optional) Associate file with a specific student',
+          description: 'Student ID — required. Associates the file with a specific student.',
         },
         visaApplicationId: {
           type: 'string',
@@ -76,7 +79,8 @@ export class FilesController {
     },
   })
   @ApiResponse({ status: 201, description: 'File uploaded successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid file or file size exceeded' })
+  @ApiResponse({ status: 400, description: 'Invalid file, missing required field, or file size exceeded' })
+  @ApiResponse({ status: 403, description: 'Students may only upload documents for their own studentId' })
   @UseInterceptors(FileInterceptor('file'))
   uploadFile(
     @TenantId() tenantId: string,
@@ -84,6 +88,16 @@ export class FilesController {
     @UploadedFile() file: Express.Multer.File,
     @Body() uploadDto: UploadFileDto,
   ) {
+    // Students may only upload documents tied to their own studentId
+    if (user?.isStudent) {
+      if (!uploadDto.studentId) {
+        throw new BadRequestException('studentId is required');
+      }
+      if (uploadDto.studentId !== (user.studentId || user.id)) {
+        throw new ForbiddenException('Students can only upload documents for their own student record');
+      }
+    }
+
     return this.filesService.uploadFile(tenantId, file, {
       ...uploadDto,
       uploadedBy: user?.id,
@@ -93,10 +107,14 @@ export class FilesController {
   @Get('student/:studentId')
   @CanRead('documents')
   @ApiOperation({ summary: 'Get all files for a student' })
-  @ApiResponse({ status: 200, description: 'Returns list of files' })
+  @ApiResponse({ status: 200, description: 'Returns paginated list of files' })
   @ApiResponse({ status: 404, description: 'Student not found' })
-  getStudentFiles(@TenantId() tenantId: string, @Param('studentId') studentId: string) {
-    return this.filesService.getStudentFiles(tenantId, studentId);
+  getStudentFiles(
+    @TenantId() tenantId: string,
+    @Param('studentId') studentId: string,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return this.filesService.getStudentFiles(tenantId, studentId, paginationDto);
   }
 
   @Get('download/:fileId')
