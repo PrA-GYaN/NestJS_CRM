@@ -8,7 +8,7 @@ import { PaginationDto } from '../../common/dto/common.dto';
 export class StudentsService {
   constructor(
     private tenantService: TenantService,
-  ) {}
+  ) { }
 
   async createStudent(tenantId: string, createStudentDto: CreateStudentDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { CreateLeadDto, UpdateLeadDto, ConvertLeadDto, LeadsQueryDto } from './dto/leads.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class LeadsService {
@@ -155,6 +156,9 @@ export class LeadsService {
     if (lead.status !== 'Qualified') {
       throw new BadRequestException('Only qualified leads can be converted to students');
     }
+    // Auto-generate password as firstName@lastName (system-managed)
+        const rawPassword = `${lead.firstName}@${lead.lastName}`;
+        const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
     // Start transaction
     const result = await tenantPrisma.$transaction(async (tx: any) => {
@@ -165,6 +169,8 @@ export class LeadsService {
           leadId: lead.id,
           firstName: lead.firstName,
           lastName: lead.lastName,
+          password: hashedPassword,
+          isActive: true,
           email: lead.email,
           phone: lead.phone,
           academicRecords: convertDto.academicRecords || {},
