@@ -33,12 +33,12 @@ export class PermissionsService {
     },
     {
       module: 'leads',
-      actions: ['create', 'read', 'update', 'delete', 'export', 'assign-counselor', 'convert'],
+      actions: ['create', 'read', 'update', 'delete', 'export', 'convert'],
       description: 'Lead management permissions',
     },
     {
       module: 'students',
-      actions: ['create', 'read', 'update', 'delete', 'export',''],
+      actions: ['create', 'read', 'update', 'delete', 'export','assign-counselor'],
       description: 'Student management permissions',
     },
     {
