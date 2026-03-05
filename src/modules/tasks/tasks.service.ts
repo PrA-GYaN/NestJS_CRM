@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { PaginationDto } from '../../common/dto/common.dto';
+import { TaskQueryDto } from './dto/task.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityLogsService } from '../activity-logs/activity-logs.service';
 import { NotificationEntityType } from '../notifications/dto/notification.dto';
@@ -63,14 +64,36 @@ export class TasksService {
     return task;
   }
 
-  async getAllTasks(tenantId: string, paginationDto: PaginationDto) {
+  async getAllTasks(tenantId: string, queryDto: TaskQueryDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = paginationDto;
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      status,
+      assignedTo,
+      relatedEntityType,
+      relatedEntityId,
+      search,
+    } = queryDto;
     const skip = (page - 1) * limit;
+
+    const where: Record<string, any> = { tenantId };
+    if (status) where.status = status;
+    if (assignedTo) where.assignedTo = assignedTo;
+    if (relatedEntityType) where.relatedEntityType = relatedEntityType;
+    if (relatedEntityId) where.relatedEntityId = relatedEntityId;
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
+    }
 
     const [tasks, total] = await Promise.all([
       tenantPrisma.task.findMany({
-        where: { tenantId },
+        where,
         skip,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
@@ -84,7 +107,7 @@ export class TasksService {
           },
         },
       }),
-      tenantPrisma.task.count({ where: { tenantId } }),
+      tenantPrisma.task.count({ where }),
     ]);
 
     return {
@@ -211,14 +234,34 @@ export class TasksService {
     return { success: true, message: 'Task deleted successfully' };
   }
 
-  async getTasksByUser(tenantId: string, userId: string, paginationDto: PaginationDto) {
+  async getTasksByUser(tenantId: string, userId: string, queryDto: TaskQueryDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = paginationDto;
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      status,
+      relatedEntityType,
+      relatedEntityId,
+      search,
+    } = queryDto;
     const skip = (page - 1) * limit;
+
+    const where: Record<string, any> = { tenantId, assignedTo: userId };
+    if (status) where.status = status;
+    if (relatedEntityType) where.relatedEntityType = relatedEntityType;
+    if (relatedEntityId) where.relatedEntityId = relatedEntityId;
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
+    }
 
     const [tasks, total] = await Promise.all([
       tenantPrisma.task.findMany({
-        where: { tenantId, assignedTo: userId },
+        where,
         skip,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
@@ -232,7 +275,7 @@ export class TasksService {
           },
         },
       }),
-      tenantPrisma.task.count({ where: { tenantId, assignedTo: userId } }),
+      tenantPrisma.task.count({ where }),
     ]);
 
     return {

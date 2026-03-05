@@ -129,3 +129,29 @@ export class UploadDocumentDto {
   @IsNotEmpty()
   filePath!: string;
 }
+
+export class AssignVisaTypeDto {
+  @ApiProperty({
+    description: 'ID of the VisaType to assign to the student',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsUUID()
+  @IsNotEmpty()
+  visaTypeId!: string;
+
+  @ApiProperty({
+    description: 'Destination country name (kept for compatibility)',
+    example: 'United Kingdom',
+  })
+  @IsString()
+  @IsNotEmpty()
+  destinationCountry!: string;
+
+  @ApiPropertyOptional({
+    description: 'Additional notes about the visa application',
+    example: 'Student applying for Tier 4 visa',
+  })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}

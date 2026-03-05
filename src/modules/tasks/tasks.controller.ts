@@ -9,9 +9,10 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
+import { TaskQueryDto } from './dto/task.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
@@ -34,20 +35,20 @@ export class TasksController {
 
   @Get()
   @CanRead('tasks')
-  @ApiOperation({ summary: 'Get all tasks' })
-  getAllTasks(@TenantId() tenantId: string, @Query() paginationDto: PaginationDto) {
-    return this.tasksService.getAllTasks(tenantId, paginationDto);
+  @ApiOperation({ summary: 'Get all tasks with optional filters (status, assignedTo, relatedEntityType, relatedEntityId, search)' })
+  getAllTasks(@TenantId() tenantId: string, @Query() queryDto: TaskQueryDto) {
+    return this.tasksService.getAllTasks(tenantId, queryDto);
   }
 
   @Get('my-tasks')
   @CanRead('tasks')
-  @ApiOperation({ summary: 'Get tasks assigned to current user' })
+  @ApiOperation({ summary: 'Get tasks assigned to current user (supports status/search filters)' })
   getMyTasks(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,
-    @Query() paginationDto: PaginationDto,
+    @Query() queryDto: TaskQueryDto,
   ) {
-    return this.tasksService.getTasksByUser(tenantId, user.id, paginationDto);
+    return this.tasksService.getTasksByUser(tenantId, user.id, queryDto);
   }
 
   @Get('overdue')

@@ -23,6 +23,7 @@ import { WorkflowsModule } from './modules/workflows/workflows.module';
 import { FilesModule } from './modules/files/files.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ServicesModule } from './modules/services/services.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 // CMS modules
 import { BlogsModule } from './modules/blogs/blogs.module';
@@ -70,6 +71,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     FilesModule,
     DashboardModule,
     ServicesModule,
+    PaymentsModule,
     // CMS Modules
     BlogsModule,
     FaqsModule,

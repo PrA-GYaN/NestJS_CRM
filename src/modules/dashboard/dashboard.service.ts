@@ -246,7 +246,7 @@ export class DashboardService {
         where: { tenantId },
         _count: true,
         _sum: {
-          amount: true,
+          paidAmount: true,
         },
       }),
       tenantPrisma.payment.findMany({
@@ -355,12 +355,12 @@ export class DashboardService {
     // @ts-ignore
     const totalRevenue = paymentsByStatus
       .filter((p: any) => p.status === 'Completed')
-      .reduce((sum: number, p: any) => sum + Number(p._sum.amount || 0), 0);
+      .reduce((sum: number, p: any) => sum + Number(p._sum.paidAmount || 0), 0);
 
     // @ts-ignore
     const pendingRevenue = paymentsByStatus
       .filter((p: any) => p.status === 'Pending')
-      .reduce((sum: number, p: any) => sum + Number(p._sum.amount || 0), 0);
+      .reduce((sum: number, p: any) => sum + Number(p._sum.paidAmount || 0), 0);
 
     // @ts-ignore - Complex Prisma groupBy return type
     return {
@@ -428,7 +428,7 @@ export class DashboardService {
         byStatus: paymentsByStatus.map((item: any) => ({
           status: item.status,
           count: item._count,
-          amount: Number(item._sum.amount || 0),
+          amount: Number(item._sum.paidAmount || 0),
         })),
         recent: recentPayments,
         revenue: {
@@ -511,7 +511,7 @@ export class DashboardService {
           createdAt: { gte: startDate, lte: endDate },
         },
         _sum: {
-          amount: true,
+          paidAmount: true,
         },
         _count: true,
       }),
@@ -527,7 +527,7 @@ export class DashboardService {
       visasCreated,
       paymentsReceived: {
         count: paymentsReceived._count,
-        total: Number(paymentsReceived._sum.amount || 0),
+        total: Number(paymentsReceived._sum?.paidAmount || 0),
       },
     };
   }

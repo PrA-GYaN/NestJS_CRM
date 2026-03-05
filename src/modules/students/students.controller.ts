@@ -8,7 +8,6 @@ import {
   Param,
   Query,
   UseGuards,
-  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { StudentsService } from './students.service';
@@ -18,7 +17,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { CanCreate, CanRead, CanUpdate, CanDelete, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Student Management')
 @ApiBearerAuth()
@@ -126,27 +124,24 @@ export class StudentsController {
   }
 
   @Put(':id/assign-counselor')
-  @CanUpdate('students')
+  @RequirePermissions('students:assign-counselor')
   @ApiOperation({
     summary: 'Assign a Counselor to a student',
     description:
-      'Assigns a staff member with the Counselor role to a student. Only Admin users can call this endpoint.',
+      'Assigns a staff member with the Counselor role to a student. ' +
+      'Requires the `students:assign-counselor` permission. ' +
+      'Grant this permission to any role via the Role & Permission management API — no code changes needed.',
   })
   @ApiBody({ type: AssignCounselorDto })
   @ApiResponse({ status: 200, description: 'Counselor assigned successfully' })
   @ApiResponse({ status: 400, description: 'Staff member does not have Counselor role' })
-  @ApiResponse({ status: 403, description: 'Only Admin users can assign counselors' })
+  @ApiResponse({ status: 403, description: 'Insufficient permissions — requires students:assign-counselor' })
   @ApiResponse({ status: 404, description: 'Student or staff member not found' })
   assignCounselor(
     @TenantId() tenantId: string,
-    @CurrentUser() user: any,
     @Param() params: IdParamDto,
     @Body() dto: AssignCounselorDto,
   ) {
-    // Only Admin users may assign or change a student's counselor
-    if (!user?.isAdmin && user?.roleName !== 'Admin') {
-      throw new ForbiddenException('Only Admin users can assign a counselor to a student');
-    }
     return this.studentsService.assignCounselor(tenantId, params.id, dto);
   }
 }
