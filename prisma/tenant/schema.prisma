@@ -39,6 +39,7 @@ model User {
   assignedTasks     Task[]          @relation("AssignedUser")
   staffAppointments Appointment[]   @relation("StaffAppointments")
   instructorClasses Class[]         @relation("Instructor")
+  counselorStudents Student[]       @relation("AssignedCounselor")
   notifications     Notification[]
   activityLogs      ActivityLog[]
 
@@ -175,6 +176,9 @@ model Student {
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
+  assignedCounselorId String?               // Staff user with Counselor role
+  assignedCounselor   User?                 @relation("AssignedCounselor", fields: [assignedCounselorId], references: [id], onDelete: SetNull)
+
   lead                Lead?                 @relation(fields: [leadId], references: [id], onDelete: SetNull)
   documents           StudentDocument[]
   appointments        Appointment[]
@@ -190,6 +194,7 @@ model Student {
   @@index([tenantId, email])
   @@index([tenantId, leadId])
   @@index([tenantId, isActive])
+  @@index([tenantId, assignedCounselorId])
   @@map("students")
 }
 
@@ -765,10 +770,17 @@ model VisaDocument {
 // ============================================
 
 enum FileCategory {
-  StudentDocument
-  VisaDocument
-  CourseDocument
-  General
+  Passport
+  Transcript
+  VisaForm
+  Photo
+  Certificate
+  OfferLetter
+  AcademicDocument
+  FinancialDocument
+  LanguageTestResult
+  RecommendationLetter
+  Other
 }
 
 model FileUpload {

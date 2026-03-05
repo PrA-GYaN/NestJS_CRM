@@ -34,6 +34,13 @@ export class CreateStudentDto {
   @IsUUID()
   leadId?: string;
 
+  @ApiPropertyOptional({
+    description: 'ID of the staff member with Counselor role to assign to this student',
+  })
+  @IsOptional()
+  @IsUUID()
+  assignedCounselorId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   academicRecords?: any;
@@ -100,10 +107,22 @@ export class UpdateStudentDto {
   isActive?: boolean;
 }
 
+export class AssignCounselorDto {
+  @ApiProperty({
+    description: 'ID of the staff member with Counselor role to assign',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsNotEmpty()
+  @IsUUID()
+  counselorId!: string;
+}
+
 export class UploadDocumentDto {
-  @ApiProperty({ enum: ['Passport', 'Transcript', 'VisaForm', 'Photo', 'Certificate', 'Other'] })
-  @IsEnum(['Passport', 'Transcript', 'VisaForm', 'Photo', 'Certificate', 'Other'])
-  documentType!: 'Passport' | 'Transcript' | 'VisaForm' | 'Photo' | 'Certificate' | 'Other';
+  @ApiProperty({
+    enum: ['Passport', 'Transcript', 'VisaForm', 'Photo', 'Certificate', 'OfferLetter', 'AcademicDocument', 'FinancialDocument', 'LanguageTestResult', 'RecommendationLetter', 'Other'],
+  })
+  @IsEnum(['Passport', 'Transcript', 'VisaForm', 'Photo', 'Certificate', 'OfferLetter', 'AcademicDocument', 'FinancialDocument', 'LanguageTestResult', 'RecommendationLetter', 'Other'])
+  documentType!: string;
 
   @ApiProperty()
   @IsString()

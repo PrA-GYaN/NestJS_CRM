@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { TenantService } from '../../common/tenant/tenant.service';
-import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto } from './dto/students.dto';
+import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto, AssignCounselorDto } from './dto/students.dto';
 import { PaginationDto } from '../../common/dto/common.dto';
+import { DocumentType } from '@prisma/tenant-client';
 
 @Injectable()
 export class StudentsService {
@@ -17,6 +18,11 @@ export class StudentsService {
     const rawPassword = `${createStudentDto.firstName}@${createStudentDto.lastName}`;
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
+    // Validate assigned counselor if provided
+    if (createStudentDto.assignedCounselorId) {
+      await this.validateCounselor(tenantPrisma, tenantId, createStudentDto.assignedCounselorId);
+    }
+
     return tenantPrisma.student.create({
       data: {
         ...createStudentDto,
@@ -26,6 +32,9 @@ export class StudentsService {
       },
       include: {
         lead: true,
+        assignedCounselor: {
+          select: { id: true, name: true, email: true },
+        },
       },
     });
   }
@@ -90,6 +99,9 @@ export class StudentsService {
         },
         visaApplications: true,
         payments: true,
+        assignedCounselor: {
+          select: { id: true, name: true, email: true },
+        },
       },
     });
 
@@ -110,6 +122,9 @@ export class StudentsService {
       include: {
         lead: true,
         documents: true,
+        assignedCounselor: {
+          select: { id: true, name: true, email: true },
+        },
       },
     });
   }
@@ -133,7 +148,8 @@ export class StudentsService {
       data: {
         tenantId,
         studentId,
-        ...uploadDocumentDto,
+        documentType: uploadDocumentDto.documentType as DocumentType,
+        filePath: uploadDocumentDto.filePath,
       },
     });
   }
@@ -146,5 +162,44 @@ export class StudentsService {
       where: { studentId },
       orderBy: { uploadedAt: 'desc' },
     });
+  }
+
+  /**
+   * Assign a Counselor-role staff member to a student.
+   * Only Admin users are permitted to call this (enforced at controller level).
+   */
+  async assignCounselor(tenantId: string, studentId: string, dto: AssignCounselorDto) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    await this.getStudentById(tenantId, studentId);
+    await this.validateCounselor(tenantPrisma, tenantId, dto.counselorId);
+
+    return tenantPrisma.student.update({
+      where: { id: studentId },
+      data: { assignedCounselorId: dto.counselorId },
+      include: {
+        lead: true,
+        assignedCounselor: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+  }
+
+  /**
+   * Verify that a user exists, belongs to the tenant, and has the Counselor role.
+   */
+  private async validateCounselor(tenantPrisma: any, tenantId: string, counselorId: string) {
+    const staff = await tenantPrisma.user.findFirst({
+      where: { id: counselorId, tenantId },
+      include: { role: true },
+    });
+
+    if (!staff) {
+      throw new NotFoundException('Staff member not found');
+    }
+
+    if (staff.role.name !== 'Counselor') {
+      throw new BadRequestException('Only staff members with the Counselor role can be assigned to students');
+    }
   }
 }

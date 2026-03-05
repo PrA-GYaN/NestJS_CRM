@@ -176,6 +176,49 @@ export class CompleteAppointmentDto {
   outcomeNotes?: string;
 }
 
+// ===== Booked Slots =====
+export class BookedSlotsQueryDto {
+  @ApiProperty({
+    description: 'Staff member ID to get booked slots for',
+  })
+  @IsNotEmpty()
+  @IsUUID()
+  staffId!: string;
+
+  @ApiProperty({
+    description: 'Start of the date range to query (ISO 8601)',
+    example: '2026-03-01T00:00:00Z',
+  })
+  @IsNotEmpty()
+  @IsDateString()
+  from!: string;
+
+  @ApiProperty({
+    description: 'End of the date range to query (ISO 8601)',
+    example: '2026-03-31T23:59:59Z',
+  })
+  @IsNotEmpty()
+  @IsDateString()
+  to!: string;
+}
+
+export class BookedSlotDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  scheduledAt!: Date;
+
+  @ApiProperty()
+  endTime!: Date;
+
+  @ApiProperty()
+  duration!: number;
+
+  @ApiProperty({ enum: AppointmentStatusEnum })
+  status!: AppointmentStatusEnum;
+}
+
 // ===== Availability Check =====
 export class CheckAvailabilityDto {
   @ApiProperty({

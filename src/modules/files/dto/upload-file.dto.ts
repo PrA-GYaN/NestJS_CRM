@@ -2,17 +2,24 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, IsUUID, IsEnum } from 'class-validator';
 
 export enum FileCategory {
-  StudentDocument = 'StudentDocument',
-  VisaDocument = 'VisaDocument',
-  CourseDocument = 'CourseDocument',
-  General = 'General',
+  Passport = 'Passport',
+  Transcript = 'Transcript',
+  VisaForm = 'VisaForm',
+  Photo = 'Photo',
+  Certificate = 'Certificate',
+  OfferLetter = 'OfferLetter',
+  AcademicDocument = 'AcademicDocument',
+  FinancialDocument = 'FinancialDocument',
+  LanguageTestResult = 'LanguageTestResult',
+  RecommendationLetter = 'RecommendationLetter',
+  Other = 'Other',
 }
 
 export class UploadFileDto {
   @ApiProperty({
     description: 'File category',
     enum: FileCategory,
-    example: FileCategory.StudentDocument,
+    example: FileCategory.Passport,
   })
   @IsEnum(FileCategory)
   @IsNotEmpty()

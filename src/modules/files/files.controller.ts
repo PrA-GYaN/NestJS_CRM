@@ -50,7 +50,11 @@ export class FilesController {
         },
         category: {
           type: 'string',
-          enum: ['StudentDocument', 'VisaDocument', 'CourseDocument', 'General'],
+          enum: [
+            'Passport', 'Transcript', 'VisaForm', 'Photo', 'Certificate',
+            'OfferLetter', 'AcademicDocument', 'FinancialDocument',
+            'LanguageTestResult', 'RecommendationLetter', 'Other',
+          ],
           description: 'File category (required)',
         },
         studentId: {

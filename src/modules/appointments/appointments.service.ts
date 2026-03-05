@@ -19,6 +19,7 @@ import {
   RejectAppointmentDto,
   CompleteAppointmentDto,
   CheckAvailabilityDto,
+  BookedSlotsQueryDto,
   AppointmentStatusEnum,
   AppointmentRequestedByEnum,
 } from './dto/appointment.dto';
@@ -1107,6 +1108,45 @@ export class AppointmentsService {
   }
 
   // Legacy method for backward compatibility
+
+  /**
+   * Get all booked (occupied) time slots for a staff member within a date range.
+   * Returns slots with status Pending or Booked — both block new bookings from a UX perspective.
+   */
+  async getBookedSlots(tenantId: string, queryDto: BookedSlotsQueryDto) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    const from = new Date(queryDto.from);
+    const to = new Date(queryDto.to);
+
+    if (from >= to) {
+      throw new BadRequestException('`from` must be earlier than `to`');
+    }
+
+    const slots = await tenantPrisma.appointment.findMany({
+      where: {
+        tenantId,
+        staffId: queryDto.staffId,
+        status: {
+          in: [AppointmentStatusEnum.Booked, AppointmentStatusEnum.Pending],
+        },
+        scheduledAt: {
+          gte: from,
+          lte: to,
+        },
+      },
+      select: {
+        id: true,
+        scheduledAt: true,
+        endTime: true,
+        duration: true,
+        status: true,
+      },
+      orderBy: { scheduledAt: 'asc' },
+    });
+
+    return { data: slots, total: slots.length };
+  }
 
   // Legacy method for backward compatibility
   async updateAppointment(tenantId: string, id: string, data: any, updaterId?: string) {

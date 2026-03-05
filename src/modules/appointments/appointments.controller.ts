@@ -22,6 +22,7 @@ import {
   RejectAppointmentDto,
   CompleteAppointmentDto,
   CheckAvailabilityDto,
+  BookedSlotsQueryDto,
   PaginatedAppointmentsResponseDto,
   AppointmentResponseDto,
   AvailabilityResponseDto,
@@ -111,6 +112,24 @@ export class AppointmentsController {
     @Body() checkDto: CheckAvailabilityDto,
   ) {
     return this.appointmentsService.checkAvailability(tenantId, checkDto);
+  }
+
+  @Post('booked-slots')
+  @CanRead('appointments')
+  @ApiOperation({
+    summary: 'Get all booked time slots for a staff member',
+    description:
+      'Returns all Pending and Booked appointments for the specified staff member within the given date range. Use this to display unavailable/occupied slots on the booking calendar.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Booked slots retrieved successfully',
+  })
+  getBookedSlots(
+    @TenantId() tenantId: string,
+    @Body() queryDto: BookedSlotsQueryDto,
+  ) {
+    return this.appointmentsService.getBookedSlots(tenantId, queryDto);
   }
 
   @Post(':id/approve')
