@@ -11,7 +11,10 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { StudentPanelService } from './student-panel.service';
 import { AppointmentsService } from '../appointments/appointments.service';
@@ -302,15 +305,35 @@ export class StudentPanelController {
   // ============================================
 
   @Get('tasks')
-  @ApiOperation({ summary: 'Get my tasks' })
-  @ApiQuery({ name: 'pending', required: false, type: Boolean })
+  @ApiOperation({
+    summary: 'Get my tasks',
+    description: 'Returns tasks assigned to the student. Pass `pending=true` to show only Pending/InProgress tasks. Omit or pass `pending=false` to see all tasks.',
+  })
+  @ApiQuery({ name: 'pending', required: false, type: Boolean, description: 'true = only pending/in-progress; omit or false = all tasks' })
   @ApiResponse({ status: 200, description: 'Tasks retrieved successfully' })
   getMyTasks(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,
     @Query('pending') pending?: boolean,
   ) {
-    return this.studentPanelService.getMyTasks(tenantId, user.studentId || user.id, pending !== false);
+    return this.studentPanelService.getMyTasks(tenantId, user.studentId || user.id, pending === true);
+  }
+
+  @Patch('tasks/:id/complete')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Mark a task as completed',
+    description: 'Allows the assigned student to mark a task as Completed. Only the student the task is assigned to can perform this action.',
+  })
+  @ApiResponse({ status: 200, description: 'Task marked as completed' })
+  @ApiResponse({ status: 403, description: 'You are not the assigned student for this task' })
+  @ApiResponse({ status: 404, description: 'Task not found' })
+  completeMyTask(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Param() params: IdParamDto,
+  ) {
+    return this.studentPanelService.completeMyTask(tenantId, user.studentId || user.id, params.id);
   }
 
   // ============================================
@@ -386,6 +409,53 @@ export class StudentPanelController {
   @ApiResponse({ status: 200, description: 'All notifications marked as read' })
   markAllNotificationsAsRead(@TenantId() tenantId: string, @CurrentUser() user: any) {
     return this.studentPanelService.markAllNotificationsAsRead(tenantId, user.studentId || user.id);
+  }
+
+  @Get('notifications/stream')
+  @ApiOperation({
+    summary: 'Real-time notification stream (SSE)',
+    description:
+      'Server-Sent Events endpoint. Keep this connection open to receive student notifications in real-time without polling.',
+  })
+  @ApiResponse({ status: 200, description: 'SSE stream established' })
+  streamStudentNotifications(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Req() req: any,
+    @Res() res: Response,
+  ) {
+    const studentId = user.studentId || user.id;
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    res.write(`data: ${JSON.stringify({ type: 'connected', message: 'SSE connection established' })}\n\n`);
+
+    const keepAliveInterval = setInterval(() => {
+      res.write(':ping\n\n');
+    }, 30000);
+
+    const subscription = this.studentPanelService
+      .getNotificationStream()
+      .subscribe({
+        next: (event) => {
+          if (event.tenantId === tenantId && event.studentId === studentId) {
+            res.write(`data: ${JSON.stringify(event.data)}\n\n`);
+          }
+        },
+        error: () => {
+          clearInterval(keepAliveInterval);
+          res.end();
+        },
+      });
+
+    req.on('close', () => {
+      clearInterval(keepAliveInterval);
+      subscription.unsubscribe();
+      res.end();
+    });
   }
 
   // ============================================

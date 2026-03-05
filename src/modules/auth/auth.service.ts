@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { randomUUID } from 'crypto';
 import { MasterPrismaService } from '../../common/prisma/master-prisma.service';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { LoginDto, AuthResponseDto } from './dto/auth.dto';
@@ -87,6 +88,13 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Generate a new session token, invalidating any previous session on another device
+    const sessionToken = randomUUID();
+    await tenantPrisma.user.update({
+      where: { id: user.id },
+      data: { currentSessionToken: sessionToken },
+    });
+
     const payload = {
       sub: user.id,
       email: user.email,
@@ -95,6 +103,7 @@ export class AuthService {
       roleName: user.role.name,
       isPlatformAdmin: false,
       isStudent: false,
+      sessionToken,
     };
 
     return {
@@ -142,9 +151,10 @@ export class AuthService {
     }
 
     // Update last login
+    const sessionToken = randomUUID();
     await tenantPrisma.student.update({
       where: { id: student.id },
-      data: { lastLogin: new Date() },
+      data: { lastLogin: new Date(), currentSessionToken: sessionToken },
     });
 
     const payload = {
@@ -154,6 +164,7 @@ export class AuthService {
       isPlatformAdmin: false,
       isStudent: true,
       studentId: student.id,
+      sessionToken,
     };
 
     return {
@@ -169,6 +180,8 @@ export class AuthService {
 
   /**
    * Validate JWT Payload
+   * Also enforces single-device sessions by comparing the sessionToken in the
+   * JWT against the currentSessionToken stored in the database.
    */
   async validateUser(payload: any) {
     if (payload.isPlatformAdmin) {
@@ -183,15 +196,41 @@ export class AuthService {
 
     // Student tokens are validated against the Student model, not the User model
     if (payload.isStudent) {
-      return tenantPrisma.student.findFirst({
+      const student = await tenantPrisma.student.findFirst({
         where: { id: payload.sub, tenantId: payload.tenantId, isActive: true },
       });
+
+      if (!student) {
+        return null;
+      }
+
+      // Enforce single-device login: reject if session token has been superseded
+      if (payload.sessionToken && student.currentSessionToken !== payload.sessionToken) {
+        throw new UnauthorizedException(
+          'Session expired. Your account was signed in on another device.',
+        );
+      }
+
+      return student;
     }
 
-    return tenantPrisma.user.findUnique({
+    const user = await tenantPrisma.user.findUnique({
       where: { id: payload.sub },
       include: { role: true },
     });
+
+    if (!user) {
+      return null;
+    }
+
+    // Enforce single-device login: reject if session token has been superseded
+    if (payload.sessionToken && user.currentSessionToken !== payload.sessionToken) {
+      throw new UnauthorizedException(
+        'Session expired. Your account was signed in on another device.',
+      );
+    }
+
+    return user;
   }
 
   /**

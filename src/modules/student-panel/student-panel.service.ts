@@ -1,6 +1,13 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import * as bcrypt from 'bcrypt';
+import { Subject } from 'rxjs';
+
+interface StudentNotificationEvent {
+  tenantId: string;
+  studentId: string;
+  data: any;
+}
 import {
   UpdateStudentProfileDto,
   ChangePasswordDto,
@@ -16,7 +23,16 @@ import {
 
 @Injectable()
 export class StudentPanelService {
+  private notificationSubject = new Subject<StudentNotificationEvent>();
+
   constructor(private tenantService: TenantService) {}
+
+  /**
+   * Returns the student notification stream observable for SSE.
+   */
+  getNotificationStream() {
+    return this.notificationSubject.asObservable();
+  }
 
   // ============================================
   // PROFILE MANAGEMENT
@@ -603,7 +619,7 @@ export class StudentPanelService {
   // TASKS
   // ============================================
 
-  async getMyTasks(tenantId: string, studentId: string, pending: boolean = true) {
+  async getMyTasks(tenantId: string, studentId: string, pendingOnly: boolean = false) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     const where: any = {
@@ -612,7 +628,8 @@ export class StudentPanelService {
       relatedEntityId: studentId,
     };
 
-    if (pending) {
+    // Only apply the pending filter when explicitly requested
+    if (pendingOnly === true) {
       where.status = { in: ['Pending', 'InProgress'] };
     }
 
@@ -631,6 +648,58 @@ export class StudentPanelService {
     });
 
     return tasks;
+  }
+
+  async completeMyTask(tenantId: string, studentId: string, taskId: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    // Find the task and ensure it belongs to this student
+    const task = await tenantPrisma.task.findFirst({
+      where: {
+        id: taskId,
+        tenantId,
+        relatedEntityType: 'Student',
+        relatedEntityId: studentId,
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found or not assigned to you');
+    }
+
+    if (task.status === 'Completed') {
+      throw new BadRequestException('Task is already marked as completed');
+    }
+
+    if (task.status === 'Cancelled') {
+      throw new BadRequestException('Cancelled tasks cannot be marked as completed');
+    }
+
+    const updatedTask = await tenantPrisma.task.update({
+      where: { id: taskId },
+      data: {
+        status: 'Completed',
+        updatedAt: new Date(),
+      },
+      include: {
+        assignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Notify the student of the completion
+    await this.createNotification(tenantId, studentId, {
+      type: 'Task',
+      title: 'Task Completed',
+      message: `You marked the task "${task.title}" as completed.`,
+    });
+
+    return updatedTask;
   }
 
   // ============================================
@@ -1025,7 +1094,7 @@ export class StudentPanelService {
   }) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
-    return tenantPrisma.studentNotification.create({
+    const notification = await tenantPrisma.studentNotification.create({
       data: {
         tenantId,
         studentId,
@@ -1036,5 +1105,14 @@ export class StudentPanelService {
         metadata: data.metadata,
       },
     });
+
+    // Emit to the SSE stream so connected students receive it in real-time
+    this.notificationSubject.next({
+      tenantId,
+      studentId,
+      data: notification,
+    });
+
+    return notification;
   }
 }

@@ -23,15 +23,16 @@ enum UserStatus {
 }
 
 model User {
-  id        String     @id @default(uuid())
-  tenantId  String
-  name      String
-  email     String
-  password  String     // Hashed
-  roleId    String
-  status    UserStatus @default(Active)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id                   String     @id @default(uuid())
+  tenantId             String
+  name                 String
+  email                String
+  password             String     // Hashed
+  roleId               String
+  status               UserStatus @default(Active)
+  currentSessionToken  String?    // Active session token; replaced on each new login
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
 
   role              Role            @relation(fields: [roleId], references: [id], onDelete: Cascade)
   assignedLeads     Lead[]          @relation("AssignedUser")
@@ -164,6 +165,7 @@ model Student {
   isActive            Boolean       @default(true)
   emailVerified       Boolean       @default(false)
   lastLogin           DateTime?
+  currentSessionToken String?       // Active session token; replaced on each new login
   academicRecords     Json?         // Stores academic history
   testScores          Json?         // Stores test scores (IELTS, TOEFL, GRE, etc.)
   identificationDocs  Json?         // Passport, National ID details
