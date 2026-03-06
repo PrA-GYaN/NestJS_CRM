@@ -1091,8 +1091,10 @@ enum PaymentStatus {
   Failed
   Refunded
   PartiallyPaid
+  Overdue
 }
 
+/// How the payment was made
 enum PaymentMethod {
   Cash
   BankTransfer
@@ -1102,10 +1104,15 @@ enum PaymentMethod {
   Other
 }
 
+/// The purpose / structural type of this payment instalment
 enum PaymentType {
+  /// Full single payment covering the entire outstanding amount
   Full
+  /// Initial deposit before service begins
   Advance
+  /// Mid-way instalment
   Partial
+  /// Final instalment that clears remaining balance
   Balance
 }
 
@@ -1114,18 +1121,27 @@ model Payment {
   tenantId             String
   studentId            String
   serviceId            String?
-  totalAmount          Decimal       @db.Decimal(10, 2)
-  paidAmount           Decimal       @db.Decimal(10, 2)
-  remainingAmount      Decimal       @db.Decimal(10, 2)
+  processedBy          String?       // User ID of staff who recorded the payment
+
+  // ----- Monetary fields -----
   currency             String        @default("USD")
-  status               PaymentStatus @default(Pending)
+  totalAmount          Decimal       @db.Decimal(10, 2)   // Total fee / invoice amount
+  paidAmount           Decimal       @db.Decimal(10, 2)   // Amount paid in THIS transaction
+  remainingAmount      Decimal       @db.Decimal(10, 2)   // Balance still outstanding after this payment
+
+  // ----- Classification -----
   paymentType          PaymentType   @default(Full)
   paymentMethod        PaymentMethod @default(Cash)
-  invoiceNumber        String?
-  transactionReference String?
-  notes                String?
-  paymentDate          DateTime?
-  dueDate              DateTime?
+  status               PaymentStatus @default(Pending)
+
+  // ----- Reference / tracking -----
+  invoiceNumber        String?       // Human-readable invoice reference, e.g. INV-2024-001
+  transactionReference String?       // Gateway / bank reference number
+  notes                String?       @db.Text
+
+  // ----- Dates -----
+  paymentDate          DateTime?     // Date the payment was actually received / processed
+  dueDate              DateTime?     // Due date for this instalment
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
