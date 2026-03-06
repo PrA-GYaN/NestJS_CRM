@@ -60,14 +60,6 @@ export class CreateAppointmentRequestDto {
   @Max(120)
   duration!: number;
 
-  @ApiProperty({
-    description: 'Timezone for display purposes',
-    example: 'America/New_York',
-  })
-  @IsNotEmpty()
-  @IsString()
-  timezone!: string;
-
   @ApiPropertyOptional({
     description: 'Purpose/reason for the appointment',
     example: 'University Application Discussion',
@@ -75,6 +67,14 @@ export class CreateAppointmentRequestDto {
   @IsOptional()
   @IsString()
   purpose?: string;
+
+  @ApiPropertyOptional({
+    description: 'General note about the appointment',
+    example: 'Bring all required documents',
+  })
+  @IsOptional()
+  @IsString()
+  note?: string;
 
   @ApiPropertyOptional({
     description: 'Additional notes from student',
@@ -127,15 +127,6 @@ export class CreateAppointmentCrmDto {
   @Max(120)
   duration!: number;
 
-  @ApiProperty({
-    description:
-      'IANA timezone name used for display and working-hours validation.',
-    example: 'Asia/Kathmandu',
-  })
-  @IsNotEmpty()
-  @IsString()
-  timezone!: string;
-
   @ApiPropertyOptional({
     description: 'Purpose or reason for the appointment.',
     example: 'Initial counseling session – university shortlisting',
@@ -143,6 +134,14 @@ export class CreateAppointmentCrmDto {
   @IsOptional()
   @IsString()
   purpose?: string;
+
+  @ApiPropertyOptional({
+    description: 'General note about the appointment.',
+    example: 'Bring all required documents for verification.',
+  })
+  @IsOptional()
+  @IsString()
+  note?: string;
 
   @ApiPropertyOptional({
     description: 'General notes visible to both staff and student.',
@@ -324,13 +323,6 @@ export class CheckAvailabilityDto {
   @Max(120)
   duration!: number;
 
-  @ApiProperty({
-    description: 'Timezone for validation',
-    example: 'America/New_York',
-  })
-  @IsNotEmpty()
-  @IsString()
-  timezone!: string;
 }
 
 // ===== Response DTOs =====
@@ -378,11 +370,11 @@ export class AppointmentResponseDto {
   @ApiProperty()
   endTime!: Date;
 
-  @ApiProperty()
-  timezone!: string;
-
   @ApiPropertyOptional()
   purpose?: string;
+
+  @ApiPropertyOptional()
+  note?: string;
 
   @ApiPropertyOptional()
   notes?: string;

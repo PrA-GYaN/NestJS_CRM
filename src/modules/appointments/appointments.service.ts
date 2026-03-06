@@ -48,29 +48,16 @@ export class AppointmentsService {
       'Friday',
       'Saturday',
     ];
-    return days[date.getDay()] as DayOfWeekEnum;
+    return days[date.getUTCDay()] as DayOfWeekEnum;
   }
 
   /**
    * Get time in HH:MM format from date
    */
   private getTimeOfDay(date: Date): string {
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const hours = date.getUTCHours().toString().padStart(2, '0');
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
     return `${hours}:${minutes}`;
-  }
-
-  /**
-   * Convert UTC date to tenant timezone
-   */
-  private convertToTenantTimezone(utcDate: Date, timezone: string): Date {
-    // Note: In production, use a library like date-fns-tz or moment-timezone
-    // This is a simplified implementation
-    const utcString = utcDate.toISOString();
-    const localDate = new Date(
-      new Date(utcString).toLocaleString('en-US', { timeZone: timezone }),
-    );
-    return localDate;
   }
 
   /**
@@ -81,18 +68,16 @@ export class AppointmentsService {
   }
 
   /**
-   * Check if appointment time is within working hours
+   * Check if appointment time is within working hours (UTC)
    */
   private async validateWorkingHours(
     tenantId: string,
     scheduledAt: Date,
     duration: number,
-    timezone: string,
   ): Promise<void> {
-    // Convert to tenant timezone
-    const localDate = this.convertToTenantTimezone(scheduledAt, timezone);
-    const dayOfWeek = this.getDayOfWeek(localDate);
-    const timeOfDay = this.getTimeOfDay(localDate);
+    // Use UTC day and time for working-hours validation
+    const dayOfWeek = this.getDayOfWeek(scheduledAt);
+    const timeOfDay = this.getTimeOfDay(scheduledAt);
 
     // Check working hours
     const { isWithin, workingHours } =
@@ -109,7 +94,7 @@ export class AppointmentsService {
     }
 
     // Check if appointment ends within working hours
-    const endTime = this.addMinutes(localDate, duration);
+    const endTime = this.addMinutes(scheduledAt, duration);
     const endTimeOfDay = this.getTimeOfDay(endTime);
 
     if (endTimeOfDay > workingHours.closeTime) {
@@ -251,7 +236,6 @@ export class AppointmentsService {
       tenantId,
       scheduledAt,
       createDto.duration,
-      createDto.timezone,
     );
 
     // Check for conflicts with booked appointments (pending don't block)
@@ -278,8 +262,8 @@ export class AppointmentsService {
         scheduledAt,
         duration: createDto.duration,
         endTime,
-        timezone: createDto.timezone,
         purpose: createDto.purpose,
+        note: createDto.note,
         notes: createDto.notes,
         status: AppointmentStatusEnum.Pending,
         requestedBy: AppointmentRequestedByEnum.Student,
@@ -382,7 +366,6 @@ export class AppointmentsService {
       tenantId,
       scheduledAt,
       createDto.duration,
-      createDto.timezone,
     );
 
     // Check for conflicts with Booked appointments
@@ -408,8 +391,8 @@ export class AppointmentsService {
         scheduledAt,
         duration: createDto.duration,
         endTime,
-        timezone: createDto.timezone,
         purpose: createDto.purpose,
+        note: createDto.note,
         notes: createDto.notes,
         staffNotes: createDto.staffNotes,
         status: AppointmentStatusEnum.Booked,
@@ -1068,15 +1051,10 @@ export class AppointmentsService {
         tenantId,
         scheduledAt,
         checkDto.duration,
-        checkDto.timezone,
       );
 
       // Get working hours info
-      const localDate = this.convertToTenantTimezone(
-        scheduledAt,
-        checkDto.timezone,
-      );
-      const dayOfWeek = this.getDayOfWeek(localDate);
+      const dayOfWeek = this.getDayOfWeek(scheduledAt);
       const result = await this.workingHoursService.findByDay(
         tenantId,
         dayOfWeek,

@@ -536,7 +536,6 @@ model TenantWorkingHours {
   isOpen    Boolean   @default(true)
   openTime  String?   // Format: "09:00" (24-hour format), nullable when closed
   closeTime String?   // Format: "17:00" (24-hour format), nullable when closed
-  timezone  String    // e.g., "America/New_York", "Asia/Kathmandu"
   isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -557,10 +556,10 @@ model Appointment {
   scheduledAt DateTime // Appointment start time (UTC)
   duration    Int      @default(60) // Duration in minutes (max 120)
   endTime     DateTime // Calculated: scheduledAt + duration
-  timezone    String   @default("UTC") // Timezone for display
   
   // Appointment details
   purpose     String?
+  note        String? // General note about the appointment
   notes       String? // Additional notes from student
   staffNotes  String? // Staff internal notes
   

@@ -57,14 +57,6 @@ export class CreateWorkingHoursDto {
     message: 'closeTime must be in HH:MM format (24-hour)',
   })
   closeTime?: string;
-
-  @ApiProperty({
-    description: 'IANA timezone identifier',
-    example: 'America/New_York',
-  })
-  @IsNotEmpty()
-  @IsString()
-  timezone!: string;
 }
 
 export class UpdateWorkingHoursDto {
@@ -106,13 +98,6 @@ export class UpdateWorkingHoursDto {
   closeTime?: string;
 
   @ApiPropertyOptional({
-    description: 'IANA timezone identifier',
-  })
-  @IsOptional()
-  @IsString()
-  timezone?: string;
-
-  @ApiPropertyOptional({
     description: 'Whether this working hours configuration is active',
   })
   @IsOptional()
@@ -122,19 +107,11 @@ export class UpdateWorkingHoursDto {
 
 export class BulkWorkingHoursDto {
   @ApiProperty({
-    description: 'IANA timezone identifier for all schedule entries',
-    example: 'America/New_York',
-  })
-  @IsNotEmpty()
-  @IsString()
-  timezone!: string;
-
-  @ApiProperty({
     description: 'Array of working hours for each day',
     type: [CreateWorkingHoursDto],
   })
   @IsNotEmpty()
-  schedule!: Omit<CreateWorkingHoursDto, 'timezone'>[];
+  schedule!: CreateWorkingHoursDto[];
 }
 
 export class WorkingHoursQueryDto {
@@ -172,9 +149,6 @@ export class WorkingHoursResponseDto {
 
   @ApiProperty()
   closeTime!: string;
-
-  @ApiProperty()
-  timezone!: string;
 
   @ApiProperty()
   isActive!: boolean;

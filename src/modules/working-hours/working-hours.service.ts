@@ -59,7 +59,6 @@ export class WorkingHoursService {
         isOpen: createDto.isOpen,
         openTime: createDto.openTime ?? undefined,
         closeTime: createDto.closeTime ?? undefined,
-        timezone: createDto.timezone,
       },
     });
   }
@@ -222,7 +221,6 @@ export class WorkingHoursService {
             where: { id: existing.id },
             data: {
               ...scheduleItem,
-              timezone: bulkDto.timezone,
             },
           });
           results.updated++;
@@ -235,7 +233,6 @@ export class WorkingHoursService {
               isOpen: scheduleItem.isOpen,
               openTime: scheduleItem.openTime ?? undefined,
               closeTime: scheduleItem.closeTime ?? undefined,
-              timezone: bulkDto.timezone,
             },
           });
           results.created++;
@@ -269,9 +266,8 @@ export class WorkingHoursService {
   /**
    * Check if a given time is within working hours
    * @param tenantId Tenant ID
-   * @param date Date to check (in tenant's timezone)
-   * @param time Time to check in HH:MM format
-   * @param dayOfWeek Day of week
+   * @param dayOfWeek Day of week (UTC)
+   * @param time Time to check in HH:MM format (UTC)
    * @returns boolean indicating if time is within working hours
    */
   async isWithinWorkingHours(
@@ -297,22 +293,9 @@ export class WorkingHoursService {
   }
 
   /**
-   * Get timezone for tenant
+   * Get timezone for tenant (all times are UTC)
    */
   async getTenantTimezone(tenantId: string): Promise<string> {
-    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-
-    // Get timezone from any working hours record (they should all be the same)
-    const workingHours = await tenantPrisma.tenantWorkingHours.findFirst({
-      where: {
-        tenantId,
-        isActive: true,
-      },
-      select: {
-        timezone: true,
-      },
-    });
-
-    return workingHours?.timezone || 'UTC';
+    return 'UTC';
   }
 }
