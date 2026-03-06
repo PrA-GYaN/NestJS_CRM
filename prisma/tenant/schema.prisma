@@ -1090,24 +1090,53 @@ enum PaymentStatus {
   Completed
   Failed
   Refunded
+  PartiallyPaid
+}
+
+enum PaymentMethod {
+  Cash
+  BankTransfer
+  Card
+  Cheque
+  Online
+  Other
+}
+
+enum PaymentType {
+  Full
+  Advance
+  Partial
+  Balance
 }
 
 model Payment {
-  id          String        @id @default(uuid())
-  tenantId    String
-  studentId   String
-  serviceId   String?
-  amount      Decimal       @db.Decimal(10, 2)
-  status      PaymentStatus @default(Pending)
-  paymentDate DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id                   String        @id @default(uuid())
+  tenantId             String
+  studentId            String
+  serviceId            String?
+  totalAmount          Decimal       @db.Decimal(10, 2)
+  paidAmount           Decimal       @db.Decimal(10, 2)
+  remainingAmount      Decimal       @db.Decimal(10, 2)
+  currency             String        @default("USD")
+  status               PaymentStatus @default(Pending)
+  paymentType          PaymentType   @default(Full)
+  paymentMethod        PaymentMethod @default(Cash)
+  invoiceNumber        String?
+  transactionReference String?
+  notes                String?
+  paymentDate          DateTime?
+  dueDate              DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   student Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   service Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, studentId])
   @@index([tenantId, status])
+  @@index([tenantId, paymentType])
+  @@index([tenantId, dueDate])
+  @@index([tenantId, invoiceNumber])
   @@map("payments")
 }
 
