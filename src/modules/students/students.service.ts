@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { TenantService } from '../../common/tenant/tenant.service';
-import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto, AssignCounselorDto, AssignVisaTypeDto } from './dto/students.dto';
+import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto, AssignCounselorDto } from './dto/students.dto';
 import { PaginationDto } from '../../common/dto/common.dto';
 import { DocumentType } from '@prisma/tenant-client';
 
@@ -89,12 +89,7 @@ export class StudentsService {
         appointments: true,
         classEnrollments: {
           include: {
-            class: {
-              include: {
-                course: { select: { id: true, name: true } },
-                instructor: { select: { id: true, name: true, email: true } },
-              },
-            },
+            class: true,
           },
         },
         testAssignments: {
@@ -102,28 +97,7 @@ export class StudentsService {
             test: true,
           },
         },
-        visaApplications: {
-          include: {
-            visaType: {
-              select: { id: true, name: true, description: true },
-            },
-          },
-        },
-        courseApplications: {
-          include: {
-            course: { select: { id: true, name: true, fees: true, duration: true } },
-            university: { select: { id: true, name: true, ranking: true } },
-          },
-          orderBy: { createdAt: 'desc' },
-        },
-        studentServices: {
-          include: {
-            service: {
-              select: { id: true, name: true, description: true, price: true },
-            },
-          },
-          orderBy: { assignedAt: 'desc' },
-        },
+        visaApplications: true,
         payments: true,
         assignedCounselor: {
           select: { id: true, name: true, email: true },
@@ -206,41 +180,6 @@ export class StudentsService {
         lead: true,
         assignedCounselor: {
           select: { id: true, name: true, email: true },
-        },
-      },
-    });
-  }
-
-  /**
-   * Assign a visa type to a student by creating a VisaApplication.
-   */
-  async assignVisaType(tenantId: string, studentId: string, dto: AssignVisaTypeDto) {
-    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    await this.getStudentById(tenantId, studentId);
-
-    // Verify visa type exists
-    const visaType = await tenantPrisma.visaType.findFirst({
-      where: { id: dto.visaTypeId, tenantId },
-    });
-    if (!visaType) {
-      throw new NotFoundException('Visa type not found');
-    }
-
-    return tenantPrisma.visaApplication.create({
-      data: {
-        tenantId,
-        studentId,
-        visaTypeId: dto.visaTypeId,
-        destinationCountry: dto.destinationCountry,
-        notes: dto.notes,
-        status: 'Pending',
-      },
-      include: {
-        visaType: {
-          select: { id: true, name: true, description: true },
-        },
-        student: {
-          select: { id: true, firstName: true, lastName: true, email: true },
         },
       },
     });
