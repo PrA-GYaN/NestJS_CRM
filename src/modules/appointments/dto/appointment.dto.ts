@@ -85,6 +85,82 @@ export class CreateAppointmentRequestDto {
   notes?: string;
 }
 
+// ===== CRM Staff Direct Appointment Creation =====
+export class CreateAppointmentCrmDto {
+  @ApiProperty({
+    description:
+      'ID of the student for whom the appointment is being created. Must belong to the same tenant.',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @IsNotEmpty()
+  @IsUUID()
+  studentId!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Staff member ID to assign the appointment to. Defaults to the currently authenticated staff member if omitted.',
+    example: '660e8400-e29b-41d4-a716-446655440001',
+  })
+  @IsOptional()
+  @IsUUID()
+  staffId?: string;
+
+  @ApiProperty({
+    description:
+      'Appointment start time in ISO 8601 UTC format. Must be at least 15 minutes in the future.',
+    example: '2026-03-10T09:00:00Z',
+  })
+  @IsNotEmpty()
+  @IsDateString()
+  scheduledAt!: string;
+
+  @ApiProperty({
+    description:
+      'Duration in minutes. Must be between 15 and 120 and a multiple of 15.',
+    example: 60,
+    minimum: 15,
+    maximum: 120,
+  })
+  @IsNotEmpty()
+  @IsInt()
+  @Min(15)
+  @Max(120)
+  duration!: number;
+
+  @ApiProperty({
+    description:
+      'IANA timezone name used for display and working-hours validation.',
+    example: 'Asia/Kathmandu',
+  })
+  @IsNotEmpty()
+  @IsString()
+  timezone!: string;
+
+  @ApiPropertyOptional({
+    description: 'Purpose or reason for the appointment.',
+    example: 'Initial counseling session – university shortlisting',
+  })
+  @IsOptional()
+  @IsString()
+  purpose?: string;
+
+  @ApiPropertyOptional({
+    description: 'General notes visible to both staff and student.',
+    example: 'Student is applying to UK universities for September 2026 intake.',
+  })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ApiPropertyOptional({
+    description: 'Internal staff notes (not visible to the student).',
+    example: 'Review IELTS score before meeting.',
+  })
+  @IsOptional()
+  @IsString()
+  staffNotes?: string;
+}
+
 // ===== Query DTOs =====
 export class AppointmentsQueryDto extends PaginationDto {
   @ApiPropertyOptional({

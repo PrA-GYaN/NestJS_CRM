@@ -231,12 +231,78 @@ export class StudentPanelController {
   // APPOINTMENTS
   // ============================================
 
+  /**
+   * Student requests a new appointment.
+   *
+   * Workflow:
+   *   1. Student submits this request → status = Pending
+   *   2. Staff receives a notification and reviews the request in the CRM.
+   *   3. Staff approves (POST /appointments/:id/approve) → Booked
+   *      OR rejects (POST /appointments/:id/reject) → Rejected.
+   *   4. After the meeting, staff marks it Completed or NoShow.
+   *
+   * Validation rules:
+   *   - scheduledAt must be at least 1 hour in the future.
+   *   - duration must be 15–120 minutes and a multiple of 15.
+   *   - scheduledAt and endTime must fall within the tenant's working hours.
+   *   - No Booked appointment may overlap the slot for the selected staff member.
+   *   - If staffId is omitted, the system auto-assigns an available staff member.
+   */
   @Post('appointments/request')
-  @ApiOperation({ summary: 'Request a new appointment' })
-  @ApiBody({ type: CreateAppointmentRequestDto })
-  @ApiResponse({ status: 201, description: 'Appointment request created successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid request data or time slot not available' })
-  @ApiResponse({ status: 409, description: 'Time slot conflict with existing appointment' })
+  @ApiOperation({
+    summary: 'Request a new appointment (Student Panel)',
+    description:
+      'Allows an authenticated student to submit an appointment request to a staff/counselor. ' +
+      'The appointment is created with status **Pending** and the assigned staff member receives a notification. ' +
+      'Staff must then **approve** or **reject** the request from the CRM.\n\n' +
+      '**Status flow:** Pending → Booked (staff approves) | Rejected (staff rejects) | Cancelled (student/staff cancels)',
+  })
+  @ApiBody({
+    type: CreateAppointmentRequestDto,
+    examples: {
+      minimal: {
+        summary: 'Minimal (auto-assign staff)',
+        value: {
+          scheduledAt: '2026-03-15T10:00:00Z',
+          duration: 60,
+          timezone: 'Asia/Kathmandu',
+        },
+      },
+      full: {
+        summary: 'Full example with preferred staff',
+        value: {
+          staffId: '660e8400-e29b-41d4-a716-446655440001',
+          scheduledAt: '2026-03-15T10:00:00Z',
+          duration: 60,
+          timezone: 'Asia/Kathmandu',
+          purpose: 'University Application Discussion',
+          notes: 'I need help with my Stanford application and visa process.',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Appointment request created with status Pending. Staff will review and approve or reject.',
+    schema: {
+      example: {
+        id: 'uuid',
+        studentId: 'student-uuid',
+        staffId: 'staff-uuid',
+        scheduledAt: '2026-03-15T10:00:00Z',
+        endTime: '2026-03-15T11:00:00Z',
+        duration: 60,
+        timezone: 'Asia/Kathmandu',
+        purpose: 'University Application Discussion',
+        status: 'Pending',
+        requestedBy: 'Student',
+        requestedAt: '2026-03-06T08:00:00Z',
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Validation error – invalid duration, time in the past, or outside working hours.' })
+  @ApiResponse({ status: 404, description: 'Specified staff member not found.' })
+  @ApiResponse({ status: 409, description: 'Time slot conflict – the staff already has a Booked appointment overlapping this slot.' })
   async requestAppointment(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,
@@ -250,11 +316,19 @@ export class StudentPanelController {
   }
 
   @Get('appointments')
-  @ApiOperation({ summary: 'Get my appointments with filtering' })
-  @ApiQuery({ name: 'status', required: false, enum: ['Pending', 'Booked', 'Rejected', 'Scheduled', 'Completed', 'Cancelled', 'NoShow'] })
-  @ApiQuery({ name: 'from', required: false, type: String, description: 'ISO date string' })
-  @ApiQuery({ name: 'to', required: false, type: String, description: 'ISO date string' })
-  @ApiResponse({ status: 200, description: 'Appointments retrieved successfully' })
+  @ApiOperation({
+    summary: 'Get my appointments',
+    description:
+      'Returns the authenticated student\'s appointments. ' +
+      'Supports filtering by status and date range. ' +
+      'Results are paginated and ordered by scheduledAt descending.',
+  })
+  @ApiQuery({ name: 'status', required: false, enum: ['Pending', 'Booked', 'Rejected', 'Scheduled', 'Completed', 'Cancelled', 'NoShow'], description: 'Filter by status' })
+  @ApiQuery({ name: 'from', required: false, type: String, description: 'Range start (ISO 8601), e.g. 2026-03-01T00:00:00Z' })
+  @ApiQuery({ name: 'to', required: false, type: String, description: 'Range end (ISO 8601), e.g. 2026-03-31T23:59:59Z' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
+  @ApiResponse({ status: 200, description: 'Paginated list of the student\'s appointments.' })
   async getMyAppointments(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,
@@ -268,11 +342,27 @@ export class StudentPanelController {
   }
 
   @Post('appointments/:id/cancel')
-  @ApiOperation({ summary: 'Cancel my appointment' })
-  @ApiBody({ type: CancelAppointmentDto })
-  @ApiResponse({ status: 200, description: 'Appointment cancelled successfully' })
-  @ApiResponse({ status: 404, description: 'Appointment not found' })
-  @ApiResponse({ status: 400, description: 'Appointment cannot be cancelled' })
+  @ApiOperation({
+    summary: 'Cancel my appointment',
+    description:
+      'Allows the student to cancel their own **Pending** or **Booked** appointment. ' +
+      'A `cancellationReason` is required. ' +
+      'Appointments in Completed, Rejected, Cancelled, or NoShow status cannot be cancelled. ' +
+      'Staff are notified when a student cancels.',
+  })
+  @ApiBody({
+    type: CancelAppointmentDto,
+    examples: {
+      example: {
+        summary: 'Cancel with reason',
+        value: { cancellationReason: 'Schedule conflict – need to reschedule.' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Appointment cancelled. Status is now Cancelled.' })
+  @ApiResponse({ status: 400, description: 'Bad Request – appointment cannot be cancelled from its current status.' })
+  @ApiResponse({ status: 403, description: 'Forbidden – you can only cancel your own appointments.' })
+  @ApiResponse({ status: 404, description: 'Appointment not found.' })
   async cancelMyAppointment(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,
@@ -289,10 +379,60 @@ export class StudentPanelController {
   }
 
   @Post('appointments/check-availability')
-  @ApiOperation({ summary: 'Check if a time slot is available' })
-  @ApiBody({ type: CheckAvailabilityDto })
-  @ApiResponse({ status: 200, description: 'Availability checked successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid request data' })
+  @ApiOperation({
+    summary: 'Check if a time slot is available',
+    description:
+      'Call this before submitting an appointment request to verify that the selected staff member ' +
+      'is free and the time slot falls within working hours. ' +
+      'Returns `available: true` if both checks pass, or a `reason` code when unavailable:\n' +
+      '- `OUTSIDE_WORKING_HOURS` – the slot is outside tenant office hours.\n' +
+      '- `STAFF_CONFLICT` – the staff already has a Booked appointment overlapping the slot.',
+  })
+  @ApiBody({
+    type: CheckAvailabilityDto,
+    examples: {
+      example: {
+        summary: 'Check a 60-minute slot',
+        value: {
+          staffId: '660e8400-e29b-41d4-a716-446655440001',
+          scheduledAt: '2026-03-15T10:00:00Z',
+          duration: 60,
+          timezone: 'Asia/Kathmandu',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Availability result.',
+    schema: {
+      examples: {
+        available: {
+          summary: 'Slot available',
+          value: {
+            available: true,
+            scheduledAt: '2026-03-15T10:00:00Z',
+            duration: 60,
+            endTime: '2026-03-15T11:00:00Z',
+            withinWorkingHours: true,
+            conflicts: [],
+          },
+        },
+        unavailable: {
+          summary: 'Outside working hours',
+          value: {
+            available: false,
+            scheduledAt: '2026-03-15T20:00:00Z',
+            duration: 60,
+            endTime: '2026-03-15T21:00:00Z',
+            withinWorkingHours: false,
+            reason: 'OUTSIDE_WORKING_HOURS',
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid request data.' })
   async checkAppointmentAvailability(
     @TenantId() tenantId: string,
     @Body() dto: CheckAvailabilityDto,

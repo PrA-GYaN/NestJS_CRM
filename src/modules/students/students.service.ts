@@ -198,8 +198,10 @@ export class StudentsService {
       throw new NotFoundException('Staff member not found');
     }
 
-    if (staff.role.name !== 'Counselor') {
-      throw new BadRequestException('Only staff members with the Counselor role can be assigned to students');
+    if (staff.role.name.toLowerCase() !== 'counselor') {
+      throw new BadRequestException(
+        'Only staff members with the Counselor role can be assigned to students',
+      );
     }
   }
 }

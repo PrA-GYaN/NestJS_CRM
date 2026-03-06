@@ -13,6 +13,7 @@ import { ActivityAction } from '../activity-logs/dto/activity-log.dto';
 import { WorkingHoursService } from '../working-hours/working-hours.service';
 import {
   CreateAppointmentRequestDto,
+  CreateAppointmentCrmDto,
   AppointmentsQueryDto,
   CancelAppointmentDto,
   ApproveAppointmentDto,
@@ -315,6 +316,143 @@ export class AppointmentsService {
       metadata: {
         status: AppointmentStatusEnum.Pending,
         scheduledAt,
+      },
+    });
+
+    return appointment;
+  }
+
+  /**
+   * Staff creates an appointment directly from the CRM (no approval step required).
+   * The appointment is created with status Booked and requestedBy Staff.
+   */
+  async createAppointmentByCrm(
+    tenantId: string,
+    createDto: CreateAppointmentCrmDto,
+    staffUserId: string,
+  ) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    // Validate duration
+    if (createDto.duration < 15 || createDto.duration > 120) {
+      throw new BadRequestException(
+        'Appointment duration must be between 15 and 120 minutes',
+      );
+    }
+
+    if (createDto.duration % 15 !== 0) {
+      throw new BadRequestException(
+        'Appointment duration must be in 15-minute increments',
+      );
+    }
+
+    const scheduledAt = new Date(createDto.scheduledAt);
+    const endTime = this.addMinutes(scheduledAt, createDto.duration);
+
+    // Validate appointment is at least 15 minutes in the future
+    const now = new Date();
+    const fifteenMinsFromNow = this.addMinutes(now, 15);
+    if (scheduledAt < fifteenMinsFromNow) {
+      throw new BadRequestException(
+        'Appointments must be scheduled at least 15 minutes in advance',
+      );
+    }
+
+    // Validate student exists and belongs to tenant
+    const student = await tenantPrisma.student.findFirst({
+      where: { id: createDto.studentId, tenantId },
+    });
+    if (!student) {
+      throw new NotFoundException('Student not found');
+    }
+
+    // Determine the assigned staff (default to CRM actor)
+    const assignedStaffId = createDto.staffId ?? staffUserId;
+
+    // Verify assigned staff exists and is active
+    const staff = await tenantPrisma.user.findFirst({
+      where: { id: assignedStaffId, tenantId, status: 'Active' },
+    });
+    if (!staff) {
+      throw new NotFoundException('Staff member not found or inactive');
+    }
+
+    // Validate working hours
+    await this.validateWorkingHours(
+      tenantId,
+      scheduledAt,
+      createDto.duration,
+      createDto.timezone,
+    );
+
+    // Check for conflicts with Booked appointments
+    const conflicts = await this.checkConflicts(
+      tenantId,
+      assignedStaffId,
+      scheduledAt,
+      endTime,
+    );
+    if (conflicts.length > 0) {
+      throw new ConflictException({
+        message: 'Staff already has a booked appointment during this time',
+        conflictingAppointment: conflicts[0],
+      });
+    }
+
+    // Create appointment as Booked (no approval step)
+    const appointment = await tenantPrisma.appointment.create({
+      data: {
+        tenantId,
+        studentId: createDto.studentId,
+        staffId: assignedStaffId,
+        scheduledAt,
+        duration: createDto.duration,
+        endTime,
+        timezone: createDto.timezone,
+        purpose: createDto.purpose,
+        notes: createDto.notes,
+        staffNotes: createDto.staffNotes,
+        status: AppointmentStatusEnum.Booked,
+        requestedBy: AppointmentRequestedByEnum.Staff,
+        approvedAt: new Date(),
+        approvedBy: staffUserId,
+      },
+      include: {
+        student: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        staff: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    // Notify the assigned staff member when they differ from the creator
+    if (assignedStaffId !== staffUserId) {
+      const studentName = `${appointment.student.firstName} ${appointment.student.lastName}`;
+      await this.notificationsService.createNotification(tenantId, {
+        userId: assignedStaffId,
+        type: NotificationEntityType.Appointment,
+        message: `New appointment assigned with ${studentName} for ${new Date(appointment.scheduledAt).toLocaleString()}`,
+        metadata: {
+          appointmentId: appointment.id,
+          studentId: createDto.studentId,
+          scheduledAt,
+        },
+      });
+    }
+
+    // Log activity
+    await this.activityLogsService.createLog(tenantId, {
+      userId: staffUserId,
+      entityType: 'Appointment',
+      entityId: appointment.id,
+      action: ActivityAction.Created,
+      metadata: {
+        status: AppointmentStatusEnum.Booked,
+        requestedBy: AppointmentRequestedByEnum.Staff,
+        scheduledAt,
+        studentId: createDto.studentId,
       },
     });
 
