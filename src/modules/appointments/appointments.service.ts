@@ -306,13 +306,14 @@ export class AppointmentsService {
 
     // Log activity
     await this.activityLogsService.createLog(tenantId, {
-      userId: studentId,
+      userId: undefined, // studentId is not a user FK — stored in metadata instead
       entityType: 'Appointment',
       entityId: appointment.id,
       action: ActivityAction.Created,
       metadata: {
         status: AppointmentStatusEnum.Pending,
         scheduledAt,
+        studentId,
       },
     });
 
