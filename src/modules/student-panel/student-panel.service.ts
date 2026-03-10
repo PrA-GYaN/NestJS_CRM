@@ -59,6 +59,12 @@ export class StudentPanelService {
         lastLogin: true,
         createdAt: true,
         updatedAt: true,
+        assignedCounselor: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 

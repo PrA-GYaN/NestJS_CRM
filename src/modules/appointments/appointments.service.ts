@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { ActivityLogsService} from '../activity-logs/activity-logs.service';
+import { ActivityLogsService } from '../activity-logs/activity-logs.service';
 import { NotificationEntityType } from '../notifications/dto/notification.dto';
 import { ActivityAction } from '../activity-logs/dto/activity-log.dto';
 import { WorkingHoursService } from '../working-hours/working-hours.service';
@@ -21,6 +21,7 @@ import {
   CompleteAppointmentDto,
   CheckAvailabilityDto,
   BookedSlotsQueryDto,
+  StudentBookedSlotsQueryDto,
   AppointmentStatusEnum,
   AppointmentRequestedByEnum,
 } from './dto/appointment.dto';
@@ -33,7 +34,7 @@ export class AppointmentsService {
     private notificationsService: NotificationsService,
     private activityLogsService: ActivityLogsService,
     private workingHoursService: WorkingHoursService,
-  ) {}
+  ) { }
 
   /**
    * Convert date to day of week enum
@@ -200,22 +201,34 @@ export class AppointmentsService {
     // Determine staff assignment
     let assignedStaffId = createDto.staffId;
     if (!assignedStaffId) {
-      // Auto-assign staff (placeholder logic - assign to first available staff)
-      const staff = await tenantPrisma.user.findFirst({
+      // Require the student to have an assigned counselor — no auto-assign fallback
+      const student = await tenantPrisma.student.findFirst({
+        where: { id: studentId, tenantId },
+        select: { assignedCounselorId: true },
+      });
+
+      if (!student?.assignedCounselorId) {
+        throw new BadRequestException(
+          'Request Admin to assign you a counselor',
+        );
+      }
+
+      // Verify the counselor is still active
+      const counselor = await tenantPrisma.user.findFirst({
         where: {
+          id: student.assignedCounselorId,
           tenantId,
           status: 'Active',
-          role: {
-            name: { in: ['Admin', 'Staff', 'Counselor'] },
-          },
         },
       });
 
-      if (!staff) {
-        throw new NotFoundException('No staff members available');
+      if (!counselor) {
+        throw new BadRequestException(
+          'Request Admin to assign you a counselor',
+        );
       }
 
-      assignedStaffId = staff.id;
+      assignedStaffId = counselor.id;
     } else {
       // Verify staff exists and belongs to tenant
       const staff = await tenantPrisma.user.findFirst({
@@ -1262,6 +1275,46 @@ export class AppointmentsService {
     });
 
     return { data: slots, total: slots.length };
+  }
+
+  /**
+   * Get booked/pending slots for the student's assigned counselor.
+   * Used by the student panel to show unavailable times when booking.
+   */
+  async getBookedSlotsForStudent(
+    tenantId: string,
+    studentId: string,
+    queryDto: StudentBookedSlotsQueryDto,
+  ) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    // Resolve student's assigned counselor
+    const student = await tenantPrisma.student.findFirst({
+      where: { id: studentId, tenantId },
+      select: { assignedCounselorId: true },
+    });
+
+    if (!student) {
+      throw new NotFoundException('Student not found');
+    }
+
+    if (!student.assignedCounselorId) {
+      // No counselor assigned – return empty result so the UI can still render
+      return {
+        data: [],
+        total: 0,
+        counselorId: null,
+        message: 'No assigned counselor – any available staff will be matched at booking time',
+      };
+    }
+
+    const slots = await this.getBookedSlots(tenantId, {
+      staffId: student.assignedCounselorId,
+      from: queryDto.from,
+      to: queryDto.to,
+    });
+
+    return { ...slots, counselorId: student.assignedCounselorId };
   }
 
   // Legacy method for backward compatibility

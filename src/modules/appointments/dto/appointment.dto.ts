@@ -294,6 +294,25 @@ export class BookedSlotDto {
   status!: AppointmentStatusEnum;
 }
 
+// ===== Student-facing Booked Slots Query (no staffId – inferred from assignedCounselor) =====
+export class StudentBookedSlotsQueryDto {
+  @ApiProperty({
+    description: 'Start of the date range to query (ISO 8601)',
+    example: '2026-03-01T00:00:00Z',
+  })
+  @IsNotEmpty()
+  @IsDateString()
+  from!: string;
+
+  @ApiProperty({
+    description: 'End of the date range to query (ISO 8601)',
+    example: '2026-03-31T23:59:59Z',
+  })
+  @IsNotEmpty()
+  @IsDateString()
+  to!: string;
+}
+
 // ===== Availability Check =====
 export class CheckAvailabilityDto {
   @ApiProperty({

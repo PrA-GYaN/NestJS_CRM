@@ -18,6 +18,7 @@ import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { StudentPanelService } from './student-panel.service';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { WorkingHoursService } from '../working-hours/working-hours.service';
 import {
   UpdateStudentProfileDto,
   ChangePasswordDto,
@@ -35,6 +36,7 @@ import {
   CancelAppointmentDto,
   CheckAvailabilityDto,
   AppointmentsQueryDto,
+  StudentBookedSlotsQueryDto,
 } from '../appointments/dto/appointment.dto';
 import { IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -49,6 +51,7 @@ export class StudentPanelController {
   constructor(
     private studentPanelService: StudentPanelService,
     private appointmentsService: AppointmentsService,
+    private workingHoursService: WorkingHoursService,
   ) {}
 
   // ============================================
@@ -97,6 +100,31 @@ export class StudentPanelController {
     @Body() changePasswordDto: ChangePasswordDto,
   ) {
     return this.studentPanelService.changePassword(tenantId, user.studentId || user.id, changePasswordDto);
+  }
+
+  // ============================================
+  // WORKING HOURS
+  // ============================================
+
+  @Get('working-hours')
+  @ApiOperation({
+    summary: 'Get tenant working hours',
+    description:
+      'Returns the office working hours for every day of the week for this tenant. ' +
+      'Use this to render the available booking window in the appointment scheduler.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Working hours retrieved successfully.',
+    schema: {
+      example: [
+        { dayOfWeek: 'Monday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+        { dayOfWeek: 'Sunday', isOpen: false, openTime: null, closeTime: null },
+      ],
+    },
+  })
+  getWorkingHours(@TenantId() tenantId: string) {
+    return this.workingHoursService.findAll(tenantId);
   }
 
   // ============================================
@@ -335,6 +363,50 @@ export class StudentPanelController {
     @Query() query: AppointmentsQueryDto,
   ) {
     return this.appointmentsService.getStudentAppointments(
+      tenantId,
+      user.studentId || user.id,
+      query,
+    );
+  }
+
+  @Get('appointments/booked-slots')
+  @ApiOperation({
+    summary: 'Get booked slots for assigned counselor (Student Panel)',
+    description:
+      'Returns all **Booked** and **Pending** time slots for the student\'s assigned counselor ' +
+      'within the given date range. ' +
+      'Use this endpoint to render a calendar showing unavailable times before submitting an appointment request.\n\n' +
+      'If the student has no assigned counselor, the response returns an empty `data` array with `counselorId: null`.\n\n' +
+      '**Required query params:** `from` and `to` (ISO 8601 UTC).',
+  })
+  @ApiQuery({ name: 'from', required: true, type: String, description: 'Range start (ISO 8601), e.g. 2026-03-01T00:00:00Z' })
+  @ApiQuery({ name: 'to', required: true, type: String, description: 'Range end (ISO 8601), e.g. 2026-03-31T23:59:59Z' })
+  @ApiResponse({
+    status: 200,
+    description: 'Booked slots for the assigned counselor.',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 'uuid',
+            scheduledAt: '2026-03-15T10:00:00.000Z',
+            endTime: '2026-03-15T11:00:00.000Z',
+            duration: 60,
+            status: 'Booked',
+          },
+        ],
+        total: 1,
+        counselorId: 'staff-uuid',
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Student not found.' })
+  async getBookedSlots(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Query() query: StudentBookedSlotsQueryDto,
+  ) {
+    return this.appointmentsService.getBookedSlotsForStudent(
       tenantId,
       user.studentId || user.id,
       query,
