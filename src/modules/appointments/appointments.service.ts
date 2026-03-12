@@ -723,8 +723,10 @@ export class AppointmentsService {
     });
 
     // Log activity
+    // Students are stored in the `students` table, not `users`, so we cannot
+    // use a student's ID as the userId FK. Store it in metadata instead.
     await this.activityLogsService.createLog(tenantId, {
-      userId,
+      userId: userRole === 'student' ? undefined : userId,
       entityType: 'Appointment',
       entityId: appointmentId,
       action: ActivityAction.StatusChanged,
@@ -732,6 +734,8 @@ export class AppointmentsService {
         oldStatus: appointment.status,
         newStatus: AppointmentStatusEnum.Cancelled,
         cancellationReason: cancelDto.cancellationReason,
+        cancelledBy: userRole,
+        ...(userRole === 'student' && { cancelledByStudentId: userId }),
       },
     });
 
