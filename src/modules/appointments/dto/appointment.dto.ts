@@ -223,6 +223,15 @@ export class CancelAppointmentDto {
 // ===== Staff Actions =====
 export class ApproveAppointmentDto {
   @ApiPropertyOptional({
+    description:
+      'Optional updated appointment start time (ISO 8601 UTC). Only time can change; date must remain unchanged.',
+    example: '2026-03-10T11:30:00Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  scheduledAt?: string;
+
+  @ApiPropertyOptional({
     description: 'Internal staff notes (not visible to student)',
     example: 'Confirmed - will prepare Stanford application materials',
   })

@@ -1,12 +1,236 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { PaginationDto } from '../../common/dto/common.dto';
-import { CreateServiceDto, UpdateServiceDto, AssignStudentToServiceDto, AssignMultipleStudentsDto } from './dto/service.dto';
+import {
+  CreateServiceDto,
+  UpdateServiceDto,
+  AssignStudentToServiceDto,
+  AssignMultipleStudentsDto,
+  CreateServiceBookingRequestDto,
+} from './dto/service.dto';
 import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class ServicesService {
   constructor(private tenantService: TenantService) {}
+
+  async requestServiceBooking(
+    tenantId: string,
+    serviceId: string,
+    studentId: string,
+    dto: CreateServiceBookingRequestDto,
+  ) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    await this.getServiceById(tenantId, serviceId);
+
+    const student = await tenantPrisma.student.findFirst({
+      where: { id: studentId, tenantId, isActive: true },
+      select: { id: true },
+    });
+
+    if (!student) {
+      throw new NotFoundException('Student not found');
+    }
+
+    const alreadyAssigned = await tenantPrisma.studentService.findFirst({
+      where: { tenantId, serviceId, studentId },
+      select: { id: true },
+    });
+
+    if (alreadyAssigned) {
+      throw new ConflictException('Student is already assigned to this service');
+    }
+
+    const existingPending = await tenantPrisma.serviceBookingRequest.findFirst({
+      where: {
+        tenantId,
+        serviceId,
+        studentId,
+        status: 'Pending',
+      },
+      select: { id: true },
+    });
+
+    if (existingPending) {
+      throw new ConflictException('A pending request already exists for this service');
+    }
+
+    return tenantPrisma.serviceBookingRequest.create({
+      data: {
+        tenantId,
+        serviceId,
+        studentId,
+        status: 'Pending',
+        notes: dto.notes,
+      },
+      include: {
+        service: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            price: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getServiceBookingRequests(tenantId: string, serviceId: string, paginationDto: PaginationDto) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    const { page = 1, limit = 10, sortBy = 'requestedAt', sortOrder = 'desc' } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    await this.getServiceById(tenantId, serviceId);
+
+    const [data, total] = await Promise.all([
+      tenantPrisma.serviceBookingRequest.findMany({
+        where: { tenantId, serviceId },
+        skip,
+        take: limit,
+        orderBy: { [sortBy]: sortOrder },
+        include: {
+          student: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              status: true,
+            },
+          },
+        },
+      }),
+      tenantPrisma.serviceBookingRequest.count({ where: { tenantId, serviceId } }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async approveServiceBookingRequest(tenantId: string, requestId: string, approverId: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    return tenantPrisma.$transaction(async (tx) => {
+      const request = await tx.serviceBookingRequest.findFirst({
+        where: { id: requestId, tenantId },
+      });
+
+      if (!request) {
+        throw new NotFoundException('Service booking request not found');
+      }
+
+      if (request.status !== 'Pending') {
+        throw new BadRequestException('Only pending requests can be approved');
+      }
+
+      const existingAssignment = await tx.studentService.findFirst({
+        where: {
+          tenantId,
+          serviceId: request.serviceId,
+          studentId: request.studentId,
+        },
+      });
+
+      if (!existingAssignment) {
+        await tx.studentService.create({
+          data: {
+            tenantId,
+            serviceId: request.serviceId,
+            studentId: request.studentId,
+            notes: request.notes || 'Assigned via approved service booking request',
+          },
+        });
+      }
+
+      return tx.serviceBookingRequest.update({
+        where: { id: request.id },
+        data: {
+          status: 'Approved',
+          approvedAt: new Date(),
+          approvedBy: approverId,
+          rejectedAt: null,
+          rejectedBy: null,
+          rejectionReason: null,
+        },
+        include: {
+          student: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          service: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              price: true,
+            },
+          },
+        },
+      });
+    });
+  }
+
+  async rejectServiceBookingRequest(
+    tenantId: string,
+    requestId: string,
+    rejectedBy: string,
+    reason?: string,
+  ) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    const request = await tenantPrisma.serviceBookingRequest.findFirst({
+      where: { id: requestId, tenantId },
+      select: { id: true, status: true },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Service booking request not found');
+    }
+
+    if (request.status !== 'Pending') {
+      throw new BadRequestException('Only pending requests can be rejected');
+    }
+
+    return tenantPrisma.serviceBookingRequest.update({
+      where: { id: request.id },
+      data: {
+        status: 'Rejected',
+        rejectedAt: new Date(),
+        rejectedBy,
+        rejectionReason: reason,
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        service: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            price: true,
+          },
+        },
+      },
+    });
+  }
 
   /**
    * Create a new service

@@ -18,12 +18,14 @@ import {
   UpdateClassDto,
   EnrollStudentInClassDto,
   UpdateEnrollmentStatusDto,
+  RejectClassBookingRequestDto,
 } from './dto/class.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
-import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { CanCreate, CanRead, CanUpdate, CanDelete, RequirePermissions } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Services')
 @ApiBearerAuth()
@@ -143,5 +145,50 @@ export class ClassesController {
     @Query() paginationDto: PaginationDto,
   ) {
     return this.classesService.getClassStudents(tenantId, params.id, paginationDto);
+  }
+
+  @Get(':id/booking-requests')
+  @CanRead('services')
+  @ApiOperation({ summary: 'Get booking requests for a class' })
+  @ApiParam({ name: 'id', description: 'Class ID' })
+  @ApiResponse({ status: 200, description: 'Class booking requests retrieved successfully' })
+  getClassBookingRequests(
+    @TenantId() tenantId: string,
+    @Param() params: IdParamDto,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return this.classesService.getClassBookingRequests(tenantId, params.id, paginationDto);
+  }
+
+  @Post('booking-requests/:requestId/approve')
+  @RequirePermissions('classes:approve')
+  @ApiOperation({ summary: 'Approve a class booking request' })
+  @ApiParam({ name: 'requestId', description: 'Class booking request ID' })
+  @ApiResponse({ status: 200, description: 'Class booking request approved and student enrolled successfully' })
+  approveClassBookingRequest(
+    @TenantId() tenantId: string,
+    @Param('requestId') requestId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.classesService.approveClassBookingRequest(tenantId, requestId, user.id);
+  }
+
+  @Post('booking-requests/:requestId/reject')
+  @RequirePermissions('classes:approve')
+  @ApiOperation({ summary: 'Reject a class booking request' })
+  @ApiParam({ name: 'requestId', description: 'Class booking request ID' })
+  @ApiResponse({ status: 200, description: 'Class booking request rejected successfully' })
+  rejectClassBookingRequest(
+    @TenantId() tenantId: string,
+    @Param('requestId') requestId: string,
+    @Body() dto: RejectClassBookingRequestDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.classesService.rejectClassBookingRequest(
+      tenantId,
+      requestId,
+      user.id,
+      dto.reason,
+    );
   }
 }

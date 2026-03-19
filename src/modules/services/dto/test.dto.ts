@@ -5,6 +5,7 @@ import {
   IsNotEmpty,
   IsUUID,
   IsNumber,
+  IsInt,
   Min,
   Max,
 } from 'class-validator';
@@ -35,6 +36,16 @@ export class CreateTestDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiProperty({
+    description: 'Maximum number of students allowed for this test',
+    example: 100,
+    minimum: 1,
+  })
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  studentCapacity!: number;
 }
 
 export class UpdateTestDto {
@@ -52,6 +63,17 @@ export class UpdateTestDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional({
+    description: 'Maximum number of students allowed for this test',
+    example: 150,
+    minimum: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  studentCapacity?: number;
 }
 
 export class AssignTestToStudentDto {

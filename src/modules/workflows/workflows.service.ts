@@ -292,18 +292,25 @@ export class WorkflowsService {
     // Verify workflow exists
     await this.getWorkflowById(tenantId, workflowId);
 
+    // Validate duplicate step IDs in the request body
+    const uniqueStepIds = new Set(stepOrders.map((so) => so.id));
+    if (uniqueStepIds.size !== stepOrders.length) {
+      throw new BadRequestException('Duplicate step IDs provided in the request');
+    }
+
     // Verify all steps belong to this workflow
     const steps = await tenantPrisma.visaWorkflowStep.findMany({
       where: {
         workflowId,
         tenantId,
       },
+      select: {
+        id: true,
+      },
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stepIds = steps.map((s: any) => s.id);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const invalidSteps = stepOrders.filter((so: any) => !stepIds.includes(so.id));
+    const validStepIds = new Set(steps.map((s) => s.id));
+    const invalidSteps = stepOrders.filter((so) => !validStepIds.has(so.id));
 
     if (invalidSteps.length > 0) {
       throw new BadRequestException('Some steps do not belong to this workflow');

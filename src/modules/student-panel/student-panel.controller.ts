@@ -19,6 +19,10 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery, ApiBody } 
 import { StudentPanelService } from './student-panel.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { WorkingHoursService } from '../working-hours/working-hours.service';
+import { ServicesService } from '../services/services.service';
+import { ClassesService } from '../services/classes.service';
+import { CreateServiceBookingRequestDto } from '../services/dto/service.dto';
+import { CreateClassBookingRequestDto } from '../services/dto/class.dto';
 import {
   UpdateStudentProfileDto,
   ChangePasswordDto,
@@ -52,6 +56,8 @@ export class StudentPanelController {
     private studentPanelService: StudentPanelService,
     private appointmentsService: AppointmentsService,
     private workingHoursService: WorkingHoursService,
+    private servicesService: ServicesService,
+    private classesService: ClassesService,
   ) {}
 
   // ============================================
@@ -588,6 +594,42 @@ export class StudentPanelController {
     return this.studentPanelService.getMyServices(tenantId, user.studentId || user.id);
   }
 
+  @Post('services/:id/request')
+  @ApiOperation({ summary: 'Request a service from student panel' })
+  @ApiResponse({ status: 201, description: 'Service request created successfully' })
+  @ApiResponse({ status: 409, description: 'Request already exists or service already assigned' })
+  requestService(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Param() params: IdParamDto,
+    @Body() dto: CreateServiceBookingRequestDto,
+  ) {
+    return this.servicesService.requestServiceBooking(
+      tenantId,
+      params.id,
+      user.studentId || user.id,
+      dto,
+    );
+  }
+
+  @Post('classes/:id/request')
+  @ApiOperation({ summary: 'Request a class seat from student panel' })
+  @ApiResponse({ status: 201, description: 'Class booking request created and seat reserved temporarily' })
+  @ApiResponse({ status: 409, description: 'Class is full or an active request already exists' })
+  requestClass(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Param() params: IdParamDto,
+    @Body() dto: CreateClassBookingRequestDto,
+  ) {
+    return this.classesService.requestClassBooking(
+      tenantId,
+      params.id,
+      user.studentId || user.id,
+      dto,
+    );
+  }
+
   // ============================================
   // NOTIFICATIONS
   // ============================================
@@ -652,7 +694,7 @@ export class StudentPanelController {
     const subscription = this.studentPanelService
       .getNotificationStream()
       .subscribe({
-        next: (event) => {
+        next: (event: any) => {
           if (event.tenantId === tenantId && event.studentId === studentId) {
             res.write(`data: ${JSON.stringify(event.data)}\n\n`);
           }

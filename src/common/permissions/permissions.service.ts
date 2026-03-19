@@ -83,8 +83,13 @@ export class PermissionsService {
     },
     {
       module: 'services',
-      actions: ['create', 'read', 'update', 'delete', 'assign'],
+      actions: ['create', 'read', 'update', 'delete', 'assign', 'request', 'approve'],
       description: 'Service management permissions',
+    },
+    {
+      module: 'classes',
+      actions: ['create', 'read', 'update', 'delete', 'request', 'approve'],
+      description: 'Class management permissions',
     },
     {
       module: 'visa-types',
@@ -213,7 +218,7 @@ export class PermissionsService {
     });
 
     // Assign all permissions to SUPER_ADMIN
-    const rolePermissions = allPermissions.map((permission) => ({
+    const rolePermissions = allPermissions.map((permission: any) => ({
       tenantId,
       roleId: superAdminRole.id,
       permissionId: permission.id,
@@ -267,7 +272,7 @@ export class PermissionsService {
 
     // Check if user has the specific permission
     const userPermissions = user.role.rolePermissions.map(
-      (rp) => rp.permission.name,
+      (rp: any) => rp.permission.name,
     );
 
     return userPermissions.includes(permissionName);
@@ -304,10 +309,10 @@ export class PermissionsService {
       const allPermissions = await tenantPrisma.permission.findMany({
         select: { name: true },
       });
-      return allPermissions.map((p) => p.name);
+      return allPermissions.map((p: any) => p.name);
     }
 
-    return user.role.rolePermissions.map((rp) => rp.permission.name);
+    return user.role.rolePermissions.map((rp: any) => rp.permission.name);
   }
 
   /**
@@ -315,5 +320,133 @@ export class PermissionsService {
    */
   getModuleDefinitions(): ModulePermissions[] {
     return this.MODULE_DEFINITIONS;
+  }
+
+  /**
+   * Ensure required permissions exist and auto-assign them to appropriate roles.
+   * This is used at runtime for newly introduced permissions in existing tenants.
+   */
+  async ensurePermissionsExistAndAssign(
+    tenantPrisma: TenantPrismaClient,
+    tenantId: string,
+    permissionNames: string[],
+  ): Promise<void> {
+    const normalized = [...new Set(permissionNames.filter(Boolean))];
+    if (normalized.length === 0) {
+      return;
+    }
+
+    const existing = await tenantPrisma.permission.findMany({
+      where: {
+        tenantId,
+        name: { in: normalized },
+      },
+      select: { id: true, name: true, module: true },
+    });
+
+    const existingNames = new Set(existing.map((permission: any) => permission.name));
+    const missing = normalized.filter((name) => !existingNames.has(name));
+
+    for (const name of missing) {
+      const [moduleName, action] = name.split(':');
+
+      if (!moduleName || !action) {
+        continue;
+      }
+
+      await tenantPrisma.permission.upsert({
+        where: {
+          tenantId_name: {
+            tenantId,
+            name,
+          },
+        },
+        create: {
+          tenantId,
+          name,
+          module: moduleName,
+          action,
+          description: `${action.charAt(0).toUpperCase() + action.slice(1)} ${moduleName}`,
+        },
+        update: {
+          module: moduleName,
+          action,
+          description: `${action.charAt(0).toUpperCase() + action.slice(1)} ${moduleName}`,
+        },
+      });
+    }
+
+    const allRequiredPermissions = await tenantPrisma.permission.findMany({
+      where: {
+        tenantId,
+        name: { in: normalized },
+      },
+      select: { id: true, name: true, module: true },
+    });
+
+    const modules = [...new Set(allRequiredPermissions.map((permission: any) => permission.module))];
+    const expandedModules = new Set(modules);
+
+    if (expandedModules.has('classes')) {
+      expandedModules.add('services');
+    }
+
+    const relatedPermissions = await tenantPrisma.permission.findMany({
+      where: {
+        tenantId,
+        module: { in: [...expandedModules] },
+      },
+      select: { id: true },
+    });
+
+    const relatedPermissionIds = relatedPermissions.map((permission: any) => permission.id);
+
+    const [adminRoles, relatedRolePermissions] = await Promise.all([
+      tenantPrisma.role.findMany({
+        where: {
+          tenantId,
+          OR: [
+            { isAdmin: true },
+            {
+              name: {
+                in: ['SUPER_ADMIN', 'Super Admin', 'SUPERADMIN', 'ADMIN', 'Admin'],
+              },
+            },
+          ],
+        },
+        select: { id: true },
+      }),
+      relatedPermissionIds.length > 0
+        ? tenantPrisma.rolePermission.findMany({
+            where: {
+              tenantId,
+              permissionId: { in: relatedPermissionIds },
+            },
+            select: { roleId: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const roleIds = new Set<string>([
+      ...adminRoles.map((role: any) => role.id),
+      ...relatedRolePermissions.map((rolePermission: any) => rolePermission.roleId),
+    ]);
+
+    if (roleIds.size === 0 || allRequiredPermissions.length === 0) {
+      return;
+    }
+
+    const rows = Array.from(roleIds).flatMap((roleId) =>
+      allRequiredPermissions.map((permission: any) => ({
+        tenantId,
+        roleId,
+        permissionId: permission.id,
+      })),
+    );
+
+    await tenantPrisma.rolePermission.createMany({
+      data: rows,
+      skipDuplicates: true,
+    });
   }
 }

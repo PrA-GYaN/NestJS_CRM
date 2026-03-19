@@ -19,11 +19,13 @@ import {
   AssignStudentToServiceDto, 
   AssignMultipleStudentsDto,
   UnassignStudentFromServiceDto,
+  RejectServiceBookingRequestDto,
 } from './dto/service.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CanCreate, CanRead, CanUpdate, CanDelete, RequirePermissions } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Services')
@@ -86,6 +88,7 @@ export class ServicesController {
   }
 
   @Post(':id/students')
+  @RequirePermissions('services:assign')
   @ApiOperation({ summary: 'Assign a student to a service' })
   @ApiParam({ name: 'id', description: 'Service ID' })
   @ApiResponse({ status: 201, description: 'Student assigned successfully' })
@@ -100,6 +103,7 @@ export class ServicesController {
   }
 
   @Post(':id/students/bulk')
+  @RequirePermissions('services:assign')
   @ApiOperation({ summary: 'Assign multiple students to a service' })
   @ApiParam({ name: 'id', description: 'Service ID' })
   @ApiResponse({ status: 201, description: 'Students assigned successfully' })
@@ -114,6 +118,7 @@ export class ServicesController {
   }
 
   @Delete(':id/students/:studentId')
+  @RequirePermissions('services:assign')
   @ApiOperation({ summary: 'Unassign a student from a service' })
   @ApiParam({ name: 'id', description: 'Service ID' })
   @ApiParam({ name: 'studentId', description: 'Student ID' })
@@ -151,5 +156,50 @@ export class ServicesController {
     @Param('studentId') studentId: string,
   ) {
     return this.servicesService.getStudentServices(tenantId, studentId);
+  }
+
+  @Get(':id/booking-requests')
+  @CanRead('services')
+  @ApiOperation({ summary: 'Get booking requests for a service' })
+  @ApiParam({ name: 'id', description: 'Service ID' })
+  @ApiResponse({ status: 200, description: 'Booking requests retrieved successfully' })
+  getServiceBookingRequests(
+    @TenantId() tenantId: string,
+    @Param() params: IdParamDto,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return this.servicesService.getServiceBookingRequests(tenantId, params.id, paginationDto);
+  }
+
+  @Post('booking-requests/:requestId/approve')
+  @RequirePermissions('services:approve')
+  @ApiOperation({ summary: 'Approve a service booking request' })
+  @ApiParam({ name: 'requestId', description: 'Service booking request ID' })
+  @ApiResponse({ status: 200, description: 'Booking request approved and service assigned successfully' })
+  approveServiceBookingRequest(
+    @TenantId() tenantId: string,
+    @Param('requestId') requestId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.servicesService.approveServiceBookingRequest(tenantId, requestId, user.id);
+  }
+
+  @Post('booking-requests/:requestId/reject')
+  @RequirePermissions('services:approve')
+  @ApiOperation({ summary: 'Reject a service booking request' })
+  @ApiParam({ name: 'requestId', description: 'Service booking request ID' })
+  @ApiResponse({ status: 200, description: 'Booking request rejected successfully' })
+  rejectServiceBookingRequest(
+    @TenantId() tenantId: string,
+    @Param('requestId') requestId: string,
+    @Body() dto: RejectServiceBookingRequestDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.servicesService.rejectServiceBookingRequest(
+      tenantId,
+      requestId,
+      user.id,
+      dto.reason,
+    );
   }
 }

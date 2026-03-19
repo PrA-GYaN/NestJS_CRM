@@ -183,11 +183,13 @@ model Student {
   documents           StudentDocument[]
   appointments        Appointment[]
   classEnrollments    ClassEnrollment[]
+  classBookingRequests   ClassBookingRequest[]
   testAssignments     TestAssignment[]
   visaApplications    VisaApplication[]
   courseApplications  CourseApplication[]
   payments            Payment[]
   studentServices     StudentService[]
+  serviceBookingRequests ServiceBookingRequest[]
   studentNotifications StudentNotification[]
 
   @@index([tenantId, status])
@@ -407,18 +409,14 @@ model Course {
 // CLASS & TEST MODULE
 // ============================================
 
-enum ClassLevel {
-  Beginner
-  Intermediate
-  Advanced
-}
-
 model Class {
   id           String     @id @default(uuid())
   tenantId     String
   courseId     String?
-  level        ClassLevel
+  name         String
+  description  String?
   schedule     Json       // Class schedule with dates and times
+  studentCapacity Int     @default(1)
   instructorId String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
@@ -426,6 +424,7 @@ model Class {
   course      Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
   instructor  User?             @relation("Instructor", fields: [instructorId], references: [id], onDelete: SetNull)
   enrollments ClassEnrollment[]
+  bookingRequests ClassBookingRequest[]
 
   @@index([tenantId])
   @@index([tenantId, instructorId])
@@ -436,6 +435,21 @@ enum EnrollmentStatus {
   Active
   Completed
   Dropped
+}
+
+enum ServiceBookingRequestStatus {
+  Pending
+  Approved
+  Rejected
+  Cancelled
+}
+
+enum ClassBookingRequestStatus {
+  Pending
+  Approved
+  Rejected
+  Cancelled
+  Expired
 }
 
 model ClassEnrollment {
@@ -454,6 +468,58 @@ model ClassEnrollment {
   @@map("class_enrollments")
 }
 
+model ServiceBookingRequest {
+  id              String                      @id @default(uuid())
+  tenantId        String
+  serviceId       String
+  studentId       String
+  status          ServiceBookingRequestStatus @default(Pending)
+  notes           String?
+  requestedAt     DateTime                    @default(now())
+  approvedAt      DateTime?
+  approvedBy      String?
+  rejectedAt      DateTime?
+  rejectedBy      String?
+  rejectionReason String?
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, serviceId, status])
+  @@index([tenantId, studentId, status])
+  @@index([tenantId, requestedAt])
+  @@map("service_booking_requests")
+}
+
+model ClassBookingRequest {
+  id                   String                    @id @default(uuid())
+  tenantId             String
+  classId              String
+  studentId            String
+  status               ClassBookingRequestStatus @default(Pending)
+  notes                String?
+  requestedAt          DateTime                  @default(now())
+  reservationExpiresAt DateTime?
+  approvedAt           DateTime?
+  approvedBy           String?
+  rejectedAt           DateTime?
+  rejectedBy           String?
+  rejectionReason      String?
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, classId, status])
+  @@index([tenantId, studentId, status])
+  @@index([tenantId, reservationExpiresAt])
+  @@index([tenantId, requestedAt])
+  @@map("class_booking_requests")
+}
+
 enum TestType {
   IELTS
   TOEFL
@@ -468,6 +534,7 @@ model Test {
   name        String
   type        TestType
   description String?
+  studentCapacity Int   @default(1)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -821,6 +888,7 @@ model Service {
   commissions     Commission[]
   payments        Payment[]
   studentServices StudentService[]
+  bookingRequests ServiceBookingRequest[]
 
   @@index([tenantId])
   @@map("services")

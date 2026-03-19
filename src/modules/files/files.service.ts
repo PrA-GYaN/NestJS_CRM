@@ -78,7 +78,7 @@ export class FilesService {
         throw new NotFoundException('Course not found');
       }
     }
-
+    
     // Generate secure filename
     const fileExt = path.extname(file.originalname);
     const fileHash = crypto.randomBytes(16).toString('hex');

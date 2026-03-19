@@ -69,6 +69,29 @@ export class AppointmentsService {
   }
 
   /**
+   * Ensure two timestamps fall on the same UTC calendar date.
+   */
+  private assertSameUtcDate(original: Date, updated: Date): void {
+    const originalYear = original.getUTCFullYear();
+    const originalMonth = original.getUTCMonth();
+    const originalDay = original.getUTCDate();
+
+    const updatedYear = updated.getUTCFullYear();
+    const updatedMonth = updated.getUTCMonth();
+    const updatedDay = updated.getUTCDate();
+
+    if (
+      originalYear !== updatedYear ||
+      originalMonth !== updatedMonth ||
+      originalDay !== updatedDay
+    ) {
+      throw new BadRequestException(
+        'Appointment date cannot be changed; only appointment time can be modified',
+      );
+    }
+  }
+
+  /**
    * Check if appointment time is within working hours (UTC)
    */
   private async validateWorkingHours(
@@ -769,12 +792,38 @@ export class AppointmentsService {
           );
         }
 
+        // Only the assigned staff can approve and optionally modify time
+        if (appointment.staffId !== staffUserId) {
+          throw new ForbiddenException(
+            'Only the assigned staff member can approve this appointment',
+          );
+        }
+
+        const updatedScheduledAt = approveDto.scheduledAt
+          ? new Date(approveDto.scheduledAt)
+          : appointment.scheduledAt;
+
+        if (approveDto.scheduledAt) {
+          this.assertSameUtcDate(appointment.scheduledAt, updatedScheduledAt);
+        }
+
+        const updatedEndTime = this.addMinutes(
+          updatedScheduledAt,
+          appointment.duration,
+        );
+
+        await this.validateWorkingHours(
+          tenantId,
+          updatedScheduledAt,
+          appointment.duration,
+        );
+
         // Re-check for conflicts (race condition protection)
         const conflicts = await this.checkConflicts(
           tenantId,
           appointment.staffId,
-          appointment.scheduledAt,
-          appointment.endTime,
+          updatedScheduledAt,
+          updatedEndTime,
           appointmentId,
         );
 
@@ -798,6 +847,8 @@ export class AppointmentsService {
             status: AppointmentStatusEnum.Booked,
             approvedAt: new Date(),
             approvedBy: staffUserId,
+            scheduledAt: updatedScheduledAt,
+            endTime: updatedEndTime,
             staffNotes: approveDto.staffNotes,
             version: { increment: 1 },
           },
@@ -831,6 +882,18 @@ export class AppointmentsService {
           entityType: 'Appointment',
           entityId: appointmentId,
           action: ActivityAction.StatusChanged,
+          changes: approveDto.scheduledAt
+            ? {
+                scheduledAt: {
+                  before: appointment.scheduledAt,
+                  after: updatedScheduledAt,
+                },
+                endTime: {
+                  before: appointment.endTime,
+                  after: updatedEndTime,
+                },
+              }
+            : undefined,
           metadata: {
             oldStatus: AppointmentStatusEnum.Pending,
             newStatus: AppointmentStatusEnum.Booked,
@@ -872,6 +935,12 @@ export class AppointmentsService {
     if (appointment.status !== AppointmentStatusEnum.Pending) {
       throw new BadRequestException(
         `Cannot reject appointment with status: ${appointment.status}`,
+      );
+    }
+
+    if (appointment.staffId !== staffUserId) {
+      throw new ForbiddenException(
+        'Only the assigned staff member can reject this appointment',
       );
     }
 
@@ -1327,9 +1396,95 @@ export class AppointmentsService {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const oldAppointment = await this.getAppointmentById(tenantId, id);
 
+    if (
+      [AppointmentStatusEnum.Rejected, AppointmentStatusEnum.Cancelled].includes(
+        oldAppointment.status as AppointmentStatusEnum,
+      )
+    ) {
+      throw new BadRequestException(
+        `Cannot edit appointment with status: ${oldAppointment.status}`,
+      );
+    }
+
+    const allowedNoteFields = ['note', 'notes', 'staffNotes', 'outcomeNotes'];
+    const hasScheduledAtUpdate = Object.prototype.hasOwnProperty.call(
+      data,
+      'scheduledAt',
+    );
+    const requestedFields = Object.keys(data ?? {});
+    const disallowedFields = requestedFields.filter(
+      (field) => field !== 'scheduledAt' && !allowedNoteFields.includes(field),
+    );
+
+    if (disallowedFields.length > 0) {
+      throw new BadRequestException(
+        `Only note fields can be edited (${allowedNoteFields.join(', ')})`,
+      );
+    }
+
+    const updateData: any = {};
+
+    for (const field of allowedNoteFields) {
+      if (Object.prototype.hasOwnProperty.call(data, field)) {
+        updateData[field] = data[field];
+      }
+    }
+
+    if (hasScheduledAtUpdate) {
+      if (!updaterId) {
+        throw new ForbiddenException(
+          'Only the assigned staff member can modify appointment time',
+        );
+      }
+
+      if (oldAppointment.staffId !== updaterId) {
+        throw new ForbiddenException(
+          'Only the assigned staff member can modify appointment time',
+        );
+      }
+
+      const updatedScheduledAt = new Date(data.scheduledAt);
+      this.assertSameUtcDate(oldAppointment.scheduledAt, updatedScheduledAt);
+
+      await this.validateWorkingHours(
+        tenantId,
+        updatedScheduledAt,
+        oldAppointment.duration,
+      );
+
+      const updatedEndTime = this.addMinutes(
+        updatedScheduledAt,
+        oldAppointment.duration,
+      );
+
+      const conflicts = await this.checkConflicts(
+        tenantId,
+        oldAppointment.staffId,
+        updatedScheduledAt,
+        updatedEndTime,
+        id,
+      );
+
+      if (conflicts.length > 0) {
+        throw new ConflictException({
+          message: 'Staff already has a booked appointment during this time',
+          conflictingAppointment: conflicts[0],
+        });
+      }
+
+      updateData.scheduledAt = updatedScheduledAt;
+      updateData.endTime = updatedEndTime;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      throw new BadRequestException(
+        'No editable fields provided. Allowed fields: scheduledAt, note, notes, staffNotes, outcomeNotes',
+      );
+    }
+
     const updatedAppointment = await tenantPrisma.appointment.update({
       where: { id },
-      data,
+      data: updateData,
       include: {
         student: true,
         staff: true,

@@ -2,6 +2,7 @@ import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Logger }
 import { Reflector } from '@nestjs/core';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 import { TenantService } from '../tenant/tenant.service';
+import { PermissionsService } from '../permissions/permissions.service';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -10,6 +11,7 @@ export class PermissionsGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     private tenantService: TenantService,
+    private permissionsService: PermissionsService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -34,6 +36,12 @@ export class PermissionsGuard implements CanActivate {
     // Get tenant-specific Prisma client
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
+    await this.permissionsService.ensurePermissionsExistAndAssign(
+      tenantPrisma,
+      tenantId,
+      requiredPermissions,
+    );
+
     // --- Student path ---
     // Students authenticate against the Student model, not the User model.
     // Look up the student record and grant permissions for the defined student-allowed set.
@@ -54,7 +62,7 @@ export class PermissionsGuard implements CanActivate {
         'documents:download',
       ];
 
-      const hasPermission = requiredPermissions.every((p) =>
+      const hasPermission = requiredPermissions.every((p: string) =>
         STUDENT_ALLOWED_PERMISSIONS.includes(p),
       );
 
@@ -103,7 +111,7 @@ export class PermissionsGuard implements CanActivate {
       (rp: any) => rp.permission.name,
     );
 
-    const hasPermission = requiredPermissions.every((permission) => 
+    const hasPermission = requiredPermissions.every((permission: string) => 
       userPermissions.includes(permission)
     );
 

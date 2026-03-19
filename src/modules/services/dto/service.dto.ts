@@ -68,3 +68,23 @@ export class UnassignStudentFromServiceDto {
   @IsUUID()
   studentId!: string;
 }
+
+export class CreateServiceBookingRequestDto {
+  @ApiPropertyOptional({
+    description: 'Optional note from the student while requesting the service',
+    example: 'I need help with September intake applications.',
+  })
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
+
+export class RejectServiceBookingRequestDto {
+  @ApiPropertyOptional({
+    description: 'Optional reason for rejecting the service booking request',
+    example: 'Please complete missing profile documents first.',
+  })
+  @IsString()
+  @IsOptional()
+  reason?: string;
+}

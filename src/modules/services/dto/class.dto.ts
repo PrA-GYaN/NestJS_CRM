@@ -1,32 +1,91 @@
 import {
-  IsString,
   IsOptional,
   IsEnum,
   IsNotEmpty,
   IsUUID,
-  IsObject,
+  IsArray,
+  ValidateNested,
+  Matches,
+  IsInt,
+  Min,
+  ArrayMinSize,
+  IsString,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
-export enum ClassLevel {
-  Beginner = 'Beginner',
-  Intermediate = 'Intermediate',
-  Advanced = 'Advanced',
+export enum ClassDayOfWeek {
+  Monday = 'Monday',
+  Tuesday = 'Tuesday',
+  Wednesday = 'Wednesday',
+  Thursday = 'Thursday',
+  Friday = 'Friday',
+  Saturday = 'Saturday',
+  Sunday = 'Sunday',
+}
+
+export class ClassDayTimingDto {
+  @ApiProperty({ enum: ClassDayOfWeek, description: 'Day of week for this class timing' })
+  @IsEnum(ClassDayOfWeek)
+  @IsNotEmpty()
+  day!: ClassDayOfWeek;
+
+  @ApiProperty({
+    description: 'Class start time in UTC, 24-hour HH:MM format',
+    example: '10:00',
+  })
+  @Matches(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, {
+    message: 'startTime must be in HH:MM format (24-hour UTC)',
+  })
+  @IsNotEmpty()
+  startTime!: string;
+
+  @ApiProperty({
+    description: 'Class end time in UTC, 24-hour HH:MM format',
+    example: '11:30',
+  })
+  @Matches(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, {
+    message: 'endTime must be in HH:MM format (24-hour UTC)',
+  })
+  @IsNotEmpty()
+  endTime!: string;
 }
 
 export class CreateClassDto {
-  @ApiProperty({ enum: ClassLevel, description: 'Class difficulty level' })
-  @IsEnum(ClassLevel)
+  @ApiProperty({ description: 'Class name', example: 'IELTS Morning Batch' })
+  @IsString()
   @IsNotEmpty()
-  level!: ClassLevel;
+  name!: string;
+
+  @ApiPropertyOptional({ description: 'Class description', example: 'Weekday class for IELTS preparation.' })
+  @IsOptional()
+  @IsString()
+  description?: string;
 
   @ApiProperty({
-    description: 'Class schedule (dates, times, frequency)',
-    example: { days: ['Monday', 'Wednesday'], time: '10:00', timezone: 'UTC' },
+    description: 'Class schedule as array of day-wise timings in UTC',
+    type: [ClassDayTimingDto],
+    example: [
+      { day: 'Monday', startTime: '10:00', endTime: '11:30' },
+      { day: 'Wednesday', startTime: '14:00', endTime: '15:30' },
+    ],
   })
-  @IsObject()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => ClassDayTimingDto)
   @IsNotEmpty()
-  schedule!: Record<string, any>;
+  schedule!: ClassDayTimingDto[];
+
+  @ApiProperty({
+    description: 'Maximum number of students allowed in this class',
+    example: 25,
+    minimum: 1,
+  })
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  studentCapacity!: number;
 
   @ApiPropertyOptional({ description: 'Course ID to link this class to' })
   @IsOptional()
@@ -40,18 +99,41 @@ export class CreateClassDto {
 }
 
 export class UpdateClassDto {
-  @ApiPropertyOptional({ enum: ClassLevel, description: 'Class difficulty level' })
+  @ApiPropertyOptional({ description: 'Class name', example: 'IELTS Evening Batch' })
   @IsOptional()
-  @IsEnum(ClassLevel)
-  level?: ClassLevel;
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'Class description' })
+  @IsOptional()
+  @IsString()
+  description?: string;
 
   @ApiPropertyOptional({
-    description: 'Class schedule (dates, times, frequency)',
-    example: { days: ['Tuesday', 'Thursday'], time: '14:00', timezone: 'UTC' },
+    description: 'Class schedule as array of day-wise timings in UTC',
+    type: [ClassDayTimingDto],
+    example: [
+      { day: 'Tuesday', startTime: '09:00', endTime: '10:30' },
+      { day: 'Thursday', startTime: '16:00', endTime: '17:30' },
+    ],
   })
   @IsOptional()
-  @IsObject()
-  schedule?: Record<string, any>;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => ClassDayTimingDto)
+  schedule?: ClassDayTimingDto[];
+
+  @ApiPropertyOptional({
+    description: 'Maximum number of students allowed in this class',
+    example: 30,
+    minimum: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  studentCapacity?: number;
 
   @ApiPropertyOptional({ description: 'Course ID to link this class to' })
   @IsOptional()
@@ -76,4 +158,24 @@ export class UpdateEnrollmentStatusDto {
   @IsEnum(['Active', 'Completed', 'Dropped'])
   @IsNotEmpty()
   status!: 'Active' | 'Completed' | 'Dropped';
+}
+
+export class CreateClassBookingRequestDto {
+  @ApiPropertyOptional({
+    description: 'Optional note from the student while requesting the class',
+    example: 'Prefer weekday morning batch.',
+  })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class RejectClassBookingRequestDto {
+  @ApiPropertyOptional({
+    description: 'Optional rejection reason from approver',
+    example: 'Class prerequisites are not met yet.',
+  })
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }

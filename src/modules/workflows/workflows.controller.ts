@@ -8,10 +8,12 @@ import {
   Param,
   Query,
   UseGuards,
+  ParseArrayPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { WorkflowsService } from './workflows.service';
 import { CreateWorkflowDto, UpdateWorkflowDto, CreateWorkflowStepDto, UpdateWorkflowStepDto } from './dto';
+import { ReorderStepItemDto } from './dto/reorder-workflow-steps.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -163,7 +165,7 @@ export class WorkflowsController {
   reorderWorkflowSteps(
     @TenantId() tenantId: string,
     @Param('workflowId') workflowId: string,
-    @Body() stepOrders: { id: string; order: number }[],
+    @Body(new ParseArrayPipe({ items: ReorderStepItemDto })) stepOrders: ReorderStepItemDto[],
   ) {
     return this.workflowsService.reorderWorkflowSteps(tenantId, workflowId, stepOrders);
   }

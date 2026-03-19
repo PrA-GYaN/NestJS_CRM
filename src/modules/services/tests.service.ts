@@ -19,6 +19,7 @@ export class TestsService {
         name: dto.name,
         type: dto.type,
         description: dto.description,
+        studentCapacity: dto.studentCapacity,
       },
       include: {
         _count: { select: { assignments: true } },
@@ -96,6 +97,7 @@ export class TestsService {
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.type !== undefined && { type: dto.type }),
         ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.studentCapacity !== undefined && { studentCapacity: dto.studentCapacity }),
       },
       include: {
         _count: { select: { assignments: true } },
