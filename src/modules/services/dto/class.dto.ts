@@ -87,11 +87,6 @@ export class CreateClassDto {
   @Type(() => Number)
   studentCapacity!: number;
 
-  @ApiPropertyOptional({ description: 'Course ID to link this class to' })
-  @IsOptional()
-  @IsUUID()
-  courseId?: string;
-
   @ApiPropertyOptional({ description: 'Instructor user ID' })
   @IsOptional()
   @IsUUID()
@@ -134,11 +129,6 @@ export class UpdateClassDto {
   @Min(1)
   @Type(() => Number)
   studentCapacity?: number;
-
-  @ApiPropertyOptional({ description: 'Course ID to link this class to' })
-  @IsOptional()
-  @IsUUID()
-  courseId?: string;
 
   @ApiPropertyOptional({ description: 'Instructor user ID' })
   @IsOptional()

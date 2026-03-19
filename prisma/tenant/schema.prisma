@@ -396,7 +396,6 @@ model Course {
   updatedAt     DateTime @updatedAt
 
   university         University          @relation(fields: [universityId], references: [id], onDelete: Cascade)
-  classes            Class[]
   courseApplications CourseApplication[]
 
   @@index([tenantId])
@@ -412,7 +411,6 @@ model Course {
 model Class {
   id           String     @id @default(uuid())
   tenantId     String
-  courseId     String?
   name         String
   description  String?
   schedule     Json       // Class schedule with dates and times
@@ -421,7 +419,6 @@ model Class {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  course      Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
   instructor  User?             @relation("Instructor", fields: [instructorId], references: [id], onDelete: SetNull)
   enrollments ClassEnrollment[]
   bookingRequests ClassBookingRequest[]

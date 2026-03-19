@@ -69,14 +69,12 @@ export class ClassesService {
       description: dto.description,
       schedule: this.normalizeSchedule(dto.schedule),
       studentCapacity: dto.studentCapacity,
-      ...(dto.courseId && { course: { connect: { id: dto.courseId } } }),
       ...(dto.instructorId && { instructor: { connect: { id: dto.instructorId } } }),
     };
 
     return prisma.class.create({
       data,
       include: {
-        course: { select: { id: true, name: true } },
         instructor: { select: { id: true, name: true, email: true } },
         _count: { select: { enrollments: true } },
       },
@@ -98,7 +96,6 @@ export class ClassesService {
         take: limit,
         orderBy: { [sortBy]: sortOrder },
         include: {
-          course: { select: { id: true, name: true } },
           instructor: { select: { id: true, name: true, email: true } },
           _count: { select: { enrollments: true } },
         },
@@ -124,7 +121,6 @@ export class ClassesService {
     const cls = await prisma.class.findFirst({
       where: { id, tenantId },
       include: {
-        course: { select: { id: true, name: true, fees: true, duration: true } },
         instructor: { select: { id: true, name: true, email: true } },
         enrollments: {
           include: {
@@ -157,7 +153,6 @@ export class ClassesService {
       ...(dto.description !== undefined && { description: dto.description }),
       ...(dto.schedule !== undefined && { schedule: this.normalizeSchedule(dto.schedule) }),
       ...(dto.studentCapacity !== undefined && { studentCapacity: dto.studentCapacity }),
-      ...(dto.courseId !== undefined && { course: { connect: { id: dto.courseId } } }),
       ...(dto.instructorId !== undefined && { instructor: { connect: { id: dto.instructorId } } }),
     };
 
@@ -165,7 +160,6 @@ export class ClassesService {
       where: { id },
       data,
       include: {
-        course: { select: { id: true, name: true } },
         instructor: { select: { id: true, name: true, email: true } },
         _count: { select: { enrollments: true } },
       },

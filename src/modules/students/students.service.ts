@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto, AssignCounselorDto } from './dto/students.dto';
@@ -61,16 +61,41 @@ export class StudentsService {
         skip,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
-        include: {
-          lead: true,
-          documents: true,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          leadId: true,
+          updatedAt: true,
+          assignedCounselor: {
+            select: {
+              name: true,
+              role: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
         },
       }),
       tenantPrisma.student.count({ where }),
     ]);
 
+    const optimizedApplicants = students.map((student: any) => ({
+      id: student.id,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      leadId: student.leadId,
+      updatedAt: student.updatedAt,
+      assignedCounselor:
+        student.assignedCounselor?.role?.name?.toLowerCase() === 'counselor'
+          ? { name: student.assignedCounselor.name }
+          : null,
+    }));
+
     return {
-      data: students,
+      data: optimizedApplicants,
       total,
       page,
       limit,
@@ -84,23 +109,127 @@ export class StudentsService {
     const student = await tenantPrisma.student.findFirst({
       where: { id, tenantId },
       include: {
-        lead: true,
+        lead: {
+          include: {
+            assignedUser: {
+              include: {
+                role: true,
+              },
+            },
+          },
+        },
         documents: true,
-        appointments: true,
+        appointments: {
+          include: {
+            staff: {
+              include: {
+                role: true,
+              },
+            },
+          },
+          orderBy: { scheduledAt: 'desc' },
+        },
         classEnrollments: {
           include: {
-            class: true,
+            class: {
+              include: {
+                instructor: {
+                  include: {
+                    role: true,
+                  },
+                },
+                _count: {
+                  select: {
+                    enrollments: true,
+                    bookingRequests: true,
+                  },
+                },
+              },
+            },
           },
+          orderBy: { createdAt: 'desc' },
+        },
+        classBookingRequests: {
+          include: {
+            class: {
+              include: {
+                instructor: {
+                  include: {
+                    role: true,
+                  },
+                },
+                _count: {
+                  select: {
+                    enrollments: true,
+                    bookingRequests: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { requestedAt: 'desc' },
         },
         testAssignments: {
           include: {
             test: true,
           },
+          orderBy: { createdAt: 'desc' },
         },
-        visaApplications: true,
-        payments: true,
+        visaApplications: {
+          include: {
+            visaType: {
+              include: {
+                country: true,
+              },
+            },
+            documents: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        courseApplications: {
+          include: {
+            course: {
+              include: {
+                university: {
+                  include: {
+                    country: true,
+                  },
+                },
+              },
+            },
+            university: {
+              include: {
+                country: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        payments: {
+          include: {
+            service: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        studentServices: {
+          include: {
+            service: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        serviceBookingRequests: {
+          include: {
+            service: true,
+          },
+          orderBy: { requestedAt: 'desc' },
+        },
+        studentNotifications: {
+          orderBy: { createdAt: 'desc' },
+        },
         assignedCounselor: {
-          select: { id: true, name: true, email: true },
+          include: {
+            role: true,
+          },
         },
       },
     });
