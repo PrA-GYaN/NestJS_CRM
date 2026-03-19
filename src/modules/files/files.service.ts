@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs/promises';
@@ -12,6 +12,7 @@ export class FilesService {
   private readonly rootPath: string;
   private readonly maxFileSize: number;
   private readonly allowedMimeTypes: string[];
+  private readonly logger = new Logger(FilesService.name);
 
   constructor(
     private tenantService: TenantService,
@@ -94,6 +95,11 @@ export class FilesService {
     // Save file
     const filePath = path.join(fullPath, storedFileName);
     await fs.writeFile(filePath, file.buffer);
+    
+    // Log file storage path
+    this.logger.log(
+      `File stored at path: ${filePath} (Relative: ${path.join(folderPath, storedFileName)}) | Original: ${file.originalname} | Size: ${file.size} bytes | Tenant: ${tenantId}`,
+    );
 
     // Store metadata in database
     const fileRecord = await tenantPrisma.fileUpload.create({
@@ -134,6 +140,9 @@ export class FilesService {
     // Check if user has permission to access this file
 
     const fullPath = path.join(this.rootPath, fileRecord.filePath);
+    this.logger.log(
+      `Downloading file from path: ${fullPath} | File ID: ${fileId} | Original name: ${fileRecord.originalFileName} | Tenant: ${tenantId}`,
+    );
 
     try {
       const fileBuffer = await fs.readFile(fullPath);
@@ -202,6 +211,9 @@ export class FilesService {
 
     // Delete from disk
     const fullPath = path.join(this.rootPath, fileRecord.filePath);
+    this.logger.log(
+      `Deleting file from path: ${fullPath} | File ID: ${fileId} | Original name: ${fileRecord.originalFileName} | Tenant: ${tenantId}`,
+    );
     try {
       await fs.unlink(fullPath);
     } catch (error) {
@@ -240,6 +252,7 @@ export class FilesService {
       throw new BadRequestException('Invalid folder path');
     }
 
+    this.logger.debug(`Folder path constructed: ${normalized} | Tenant: ${tenantId}`);
     return normalized;
   }
 
