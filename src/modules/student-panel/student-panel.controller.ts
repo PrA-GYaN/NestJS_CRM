@@ -192,6 +192,23 @@ export class StudentPanelController {
     return this.studentPanelService.getDocumentById(tenantId, user.studentId || user.id, params.id);
   }
 
+  @Delete('documents/:id')
+  @ApiOperation({
+    summary: 'Delete my document',
+    description:
+      'Deletes the document end-to-end by removing the document record, linked file records, and physical file(s) from storage.',
+  })
+  @ApiResponse({ status: 200, description: 'Document deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Document not found' })
+  @ApiResponse({ status: 500, description: 'Document records deleted but storage cleanup failed' })
+  deleteDocument(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Param() params: IdParamDto,
+  ) {
+    return this.studentPanelService.deleteDocument(tenantId, user.studentId || user.id, params.id);
+  }
+
   // ============================================
   // COURSE APPLICATIONS
   // ============================================

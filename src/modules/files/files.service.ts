@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs/promises';
@@ -6,6 +13,7 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import { Multer } from 'multer';
 import { PaginationDto } from '../../common/dto/common.dto';
+import { UpdateFileDto } from './dto';
 
 @Injectable()
 export class FilesService {
@@ -226,6 +234,188 @@ export class FilesService {
     });
 
     return { success: true, message: 'File deleted successfully' };
+  }
+
+  /**
+   * Update stored file record metadata/associations (partial or full)
+   */
+  async updateFileRecord(
+    tenantId: string,
+    fileId: string,
+    updateDto: UpdateFileDto,
+    user?: any,
+  ) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    const existingFile = await tenantPrisma.fileUpload.findFirst({
+      where: { id: fileId, tenantId },
+    });
+
+    if (!existingFile) {
+      throw new NotFoundException('File not found');
+    }
+
+    if (user?.isStudent) {
+      const allowedStudentId = user.studentId || user.id;
+      if (!existingFile.studentId || existingFile.studentId !== allowedStudentId) {
+        throw new ForbiddenException('Students can only update their own document records');
+      }
+
+      if (updateDto.studentId && updateDto.studentId !== allowedStudentId) {
+        throw new ForbiddenException('Students can only keep document records on their own student profile');
+      }
+    }
+
+    const hasUpdates =
+      updateDto.category !== undefined ||
+      updateDto.studentId !== undefined ||
+      updateDto.visaApplicationId !== undefined ||
+      updateDto.courseId !== undefined ||
+      updateDto.originalFileName !== undefined ||
+      updateDto.metadata !== undefined;
+
+    if (!hasUpdates) {
+      throw new BadRequestException('At least one updatable field is required');
+    }
+
+    if (updateDto.studentId !== undefined) {
+      const student = await tenantPrisma.student.findFirst({
+        where: { id: updateDto.studentId, tenantId },
+      });
+      if (!student) {
+        throw new NotFoundException('Student not found');
+      }
+    }
+
+    if (updateDto.visaApplicationId !== undefined) {
+      const visa = await tenantPrisma.visaApplication.findFirst({
+        where: { id: updateDto.visaApplicationId, tenantId },
+      });
+      if (!visa) {
+        throw new NotFoundException('Visa application not found');
+      }
+    }
+
+    if (updateDto.courseId !== undefined) {
+      const course = await tenantPrisma.course.findFirst({
+        where: { id: updateDto.courseId, tenantId },
+      });
+      if (!course) {
+        throw new NotFoundException('Course not found');
+      }
+    }
+
+    const data: any = {};
+
+    if (updateDto.category !== undefined) {
+      data.category = updateDto.category as any;
+    }
+
+    if (updateDto.studentId !== undefined) {
+      data.studentId = updateDto.studentId;
+    }
+
+    if (updateDto.visaApplicationId !== undefined) {
+      data.visaApplicationId = updateDto.visaApplicationId;
+    }
+
+    if (updateDto.courseId !== undefined) {
+      data.courseId = updateDto.courseId;
+    }
+
+    if (updateDto.originalFileName !== undefined) {
+      data.originalFileName = updateDto.originalFileName;
+    }
+
+    if (updateDto.metadata !== undefined) {
+      data.metadata = updateDto.metadata;
+    }
+
+    return tenantPrisma.fileUpload.update({
+      where: { id: fileId },
+      data,
+    });
+  }
+
+  /**
+   * Delete a student document and all associated file records/files.
+   * Used by both CRM and student panel to keep behavior consistent.
+   */
+  async deleteStudentDocument(tenantId: string, studentId: string, documentId: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    const document = await tenantPrisma.studentDocument.findFirst({
+      where: {
+        id: documentId,
+        tenantId,
+        studentId,
+      },
+    });
+
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    const linkedFileRecords = await tenantPrisma.fileUpload.findMany({
+      where: {
+        tenantId,
+        studentId,
+        filePath: document.filePath,
+      },
+      select: {
+        id: true,
+        filePath: true,
+      },
+    });
+
+    await tenantPrisma.$transaction([
+      tenantPrisma.studentDocument.delete({
+        where: { id: document.id },
+      }),
+      tenantPrisma.fileUpload.deleteMany({
+        where: {
+          tenantId,
+          studentId,
+          filePath: document.filePath,
+        },
+      }),
+    ]);
+
+    const diskPaths = new Set<string>();
+    diskPaths.add(document.filePath);
+    linkedFileRecords.forEach((record: { filePath: string }) => diskPaths.add(record.filePath));
+
+    const failedPaths: string[] = [];
+
+    for (const relativePath of diskPaths) {
+      const fullPath = path.join(this.rootPath, relativePath);
+      try {
+        await fs.unlink(fullPath);
+      } catch (error: any) {
+        if (error?.code !== 'ENOENT') {
+          failedPaths.push(relativePath);
+          this.logger.error(
+            `Failed to delete file from disk: ${fullPath} | Tenant: ${tenantId} | Student: ${studentId} | Document: ${documentId} | Error: ${error?.message}`,
+          );
+        }
+      }
+    }
+
+    if (failedPaths.length > 0) {
+      throw new InternalServerErrorException(
+        `Document records deleted, but failed to remove ${failedPaths.length} file(s) from storage`,
+      );
+    }
+
+    return {
+      success: true,
+      message: 'Document and associated files deleted successfully',
+      deleted: {
+        documentId,
+        fileRecords: linkedFileRecords.length,
+        filePaths: Array.from(diskPaths),
+      },
+    };
   }
 
   /**

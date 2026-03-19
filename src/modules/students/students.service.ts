@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto, AssignCounselorDto } from './dto/students.dto';
@@ -10,6 +10,27 @@ export class StudentsService {
   constructor(
     private tenantService: TenantService,
   ) { }
+
+  private sanitizeApplicantResponse(student: any) {
+    const counselorRoleName = student.assignedCounselor?.role?.name?.toLowerCase();
+
+    return {
+      ...student,
+      name: undefined,
+      email: undefined,
+      phone: undefined,
+      isActive: undefined,
+      emailVerified: undefined,
+      status: undefined,
+      priority: undefined,
+      createdDate: undefined,
+      createdAt: undefined,
+      assignedCounselor:
+        counselorRoleName === 'counselor'
+          ? { name: student.assignedCounselor?.name ?? null }
+          : null,
+    };
+  }
 
   async createStudent(tenantId: string, createStudentDto: CreateStudentDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
@@ -61,12 +82,9 @@ export class StudentsService {
         skip,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          leadId: true,
-          updatedAt: true,
+        include: {
+          lead: true,
+          documents: true,
           assignedCounselor: {
             select: {
               name: true,
@@ -82,20 +100,8 @@ export class StudentsService {
       tenantPrisma.student.count({ where }),
     ]);
 
-    const optimizedApplicants = students.map((student: any) => ({
-      id: student.id,
-      firstName: student.firstName,
-      lastName: student.lastName,
-      leadId: student.leadId,
-      updatedAt: student.updatedAt,
-      assignedCounselor:
-        student.assignedCounselor?.role?.name?.toLowerCase() === 'counselor'
-          ? { name: student.assignedCounselor.name }
-          : null,
-    }));
-
     return {
-      data: optimizedApplicants,
+      data: students.map((student: any) => this.sanitizeApplicantResponse(student)),
       total,
       page,
       limit,
@@ -109,126 +115,66 @@ export class StudentsService {
     const student = await tenantPrisma.student.findFirst({
       where: { id, tenantId },
       include: {
-        lead: {
-          include: {
-            assignedUser: {
-              include: {
-                role: true,
-              },
-            },
-          },
-        },
+        lead: true,
         documents: true,
         appointments: {
           include: {
             staff: {
-              include: {
-                role: true,
-              },
+              select: { id: true, name: true, email: true },
             },
           },
-          orderBy: { scheduledAt: 'desc' },
         },
         classEnrollments: {
           include: {
-            class: {
-              include: {
-                instructor: {
-                  include: {
-                    role: true,
-                  },
-                },
-                _count: {
-                  select: {
-                    enrollments: true,
-                    bookingRequests: true,
-                  },
-                },
-              },
-            },
+            class: true,
           },
-          orderBy: { createdAt: 'desc' },
         },
         classBookingRequests: {
           include: {
-            class: {
-              include: {
-                instructor: {
-                  include: {
-                    role: true,
-                  },
-                },
-                _count: {
-                  select: {
-                    enrollments: true,
-                    bookingRequests: true,
-                  },
-                },
-              },
-            },
+            class: true,
           },
-          orderBy: { requestedAt: 'desc' },
         },
         testAssignments: {
           include: {
             test: true,
           },
-          orderBy: { createdAt: 'desc' },
         },
         visaApplications: {
           include: {
-            visaType: {
-              include: {
-                country: true,
-              },
-            },
+            visaType: true,
             documents: true,
           },
-          orderBy: { createdAt: 'desc' },
-        },
-        courseApplications: {
-          include: {
-            course: {
-              include: {
-                university: {
-                  include: {
-                    country: true,
-                  },
-                },
-              },
-            },
-            university: {
-              include: {
-                country: true,
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
         },
         payments: {
           include: {
             service: true,
           },
-          orderBy: { createdAt: 'desc' },
+        },
+        courseApplications: {
+          include: {
+            course: true,
+            university: true,
+          },
         },
         studentServices: {
           include: {
             service: true,
           },
-          orderBy: { createdAt: 'desc' },
         },
         serviceBookingRequests: {
           include: {
             service: true,
           },
-          orderBy: { requestedAt: 'desc' },
         },
-        studentNotifications: {
-          orderBy: { createdAt: 'desc' },
-        },
+        studentNotifications: true,
         assignedCounselor: {
-          include: {
-            role: true,
+          select: {
+            name: true,
+            role: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -238,7 +184,7 @@ export class StudentsService {
       throw new NotFoundException('Student not found');
     }
 
-    return student;
+    return this.sanitizeApplicantResponse(student);
   }
 
   async updateStudent(tenantId: string, id: string, updateStudentDto: UpdateStudentDto) {

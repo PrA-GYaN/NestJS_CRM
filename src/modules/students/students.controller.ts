@@ -123,6 +123,24 @@ export class StudentsController {
     return this.studentsService.getStudentDocuments(tenantId, params.id);
   }
 
+  @Delete(':id/documents/:documentId')
+  @RequirePermissions('students:manage-documents')
+  @ApiOperation({
+    summary: 'Delete student document',
+    description:
+      'Deletes a student document end-to-end by removing the document record, linked file records, and physical file(s) from storage.',
+  })
+  @ApiResponse({ status: 200, description: 'Document deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Student or document not found' })
+  @ApiResponse({ status: 500, description: 'Document records deleted but storage cleanup failed' })
+  deleteStudentDocument(
+    @TenantId() tenantId: string,
+    @Param('id') studentId: string,
+    @Param('documentId') documentId: string,
+  ) {
+    return this.studentsService.deleteStudentDocument(tenantId, studentId, documentId);
+  }
+
   @Put(':id/assign-counselor')
   @RequirePermissions('students:assign-counselor')
   @ApiOperation({

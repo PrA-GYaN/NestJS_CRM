@@ -20,12 +20,16 @@ import {
   MarkNotificationReadDto,
   DashboardStatsResponseDto,
 } from './dto/student-panel.dto';
+import { FilesService } from '../files/files.service';
 
 @Injectable()
 export class StudentPanelService {
   private notificationSubject = new Subject<StudentNotificationEvent>();
 
-  constructor(private tenantService: TenantService) {}
+  constructor(
+    private tenantService: TenantService,
+    private filesService: FilesService,
+  ) {}
 
   /**
    * Returns the student notification stream observable for SSE.
@@ -357,6 +361,10 @@ export class StudentPanelService {
     }
 
     return document;
+  }
+
+  async deleteDocument(tenantId: string, studentId: string, documentId: string) {
+    return this.filesService.deleteStudentDocument(tenantId, studentId, documentId);
   }
 
   // ============================================

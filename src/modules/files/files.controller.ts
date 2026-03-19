@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Delete,
   Param,
   Query,
@@ -19,7 +20,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody, ApiResponse
 import { Response } from 'express';
 import { Multer } from 'multer';
 import { FilesService } from './files.service';
-import { UploadFileDto } from './dto';
+import { UploadFileDto, UpdateFileDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
@@ -152,5 +153,21 @@ export class FilesController {
   @ApiResponse({ status: 404, description: 'File not found' })
   deleteFile(@TenantId() tenantId: string, @Param('fileId') fileId: string) {
     return this.filesService.deleteFile(tenantId, fileId);
+  }
+
+  @Patch(':fileId')
+  @RequirePermissions('documents:upload')
+  @ApiOperation({ summary: 'Update stored file record (partial or full)' })
+  @ApiResponse({ status: 200, description: 'File record updated successfully' })
+  @ApiResponse({ status: 400, description: 'No update fields provided or invalid payload' })
+  @ApiResponse({ status: 403, description: 'Students may only update their own document records' })
+  @ApiResponse({ status: 404, description: 'File or related entity not found' })
+  updateFile(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Param('fileId') fileId: string,
+    @Body() updateDto: UpdateFileDto,
+  ) {
+    return this.filesService.updateFileRecord(tenantId, fileId, updateDto, user);
   }
 }

@@ -1,4 +1,3 @@
--- Remove class-to-course linkage
+-- Remove deprecated course linkage from classes
 ALTER TABLE "classes"
-  DROP COLUMN IF EXISTS "course_id",
-  DROP COLUMN IF EXISTS "courseId";
+DROP COLUMN IF EXISTS "courseId" CASCADE;
