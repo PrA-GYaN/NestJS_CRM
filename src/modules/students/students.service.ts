@@ -4,29 +4,25 @@ import { TenantService } from '../../common/tenant/tenant.service';
 import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto, AssignCounselorDto } from './dto/students.dto';
 import { PaginationDto } from '../../common/dto/common.dto';
 import { DocumentType } from '@prisma/tenant-client';
-import { FilesService } from '../files/files.service';
 
 @Injectable()
 export class StudentsService {
   constructor(
     private tenantService: TenantService,
-    private filesService: FilesService,
   ) { }
 
   private sanitizeApplicantResponse(student: any) {
     const counselorRoleName = student.assignedCounselor?.role?.name?.toLowerCase();
 
     return {
-      ...student,
-      name: undefined,
-      email: undefined,
-      phone: undefined,
-      isActive: undefined,
-      emailVerified: undefined,
-      status: undefined,
-      priority: undefined,
-      createdDate: undefined,
-      createdAt: undefined,
+      name: `${student.firstName} ${student.lastName}`,
+      email: student.email,
+      phone: student.phone,
+      isActive: student.isActive,
+      emailVerified: student.emailVerified,
+      createdDate: student.createdAt,
+      status: student.status,
+      priority: student.priority,
       assignedCounselor:
         counselorRoleName === 'counselor'
           ? { name: student.assignedCounselor?.name ?? null }
@@ -239,11 +235,6 @@ export class StudentsService {
       where: { studentId },
       orderBy: { uploadedAt: 'desc' },
     });
-  }
-
-  async deleteStudentDocument(tenantId: string, studentId: string, documentId: string) {
-    await this.getStudentById(tenantId, studentId);
-    return this.filesService.deleteStudentDocument(tenantId, studentId, documentId);
   }
 
   /**
