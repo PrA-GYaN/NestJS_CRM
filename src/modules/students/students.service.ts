@@ -237,6 +237,25 @@ export class StudentsService {
     });
   }
 
+  async deleteStudentDocument(tenantId: string, studentId: string, documentId: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    await this.getStudentById(tenantId, studentId);
+
+    const document = await tenantPrisma.studentDocument.findFirst({
+      where: { id: documentId, studentId },
+    });
+
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    await tenantPrisma.studentDocument.delete({
+      where: { id: documentId },
+    });
+
+    return { success: true, message: 'Document deleted successfully' };
+  }
+
   /**
    * Assign a Counselor-role staff member to a student.
    * Only Admin users are permitted to call this (enforced at controller level).
