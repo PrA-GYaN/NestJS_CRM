@@ -27,6 +27,7 @@
     "prisma:studio:tenant": "prisma studio --schema=prisma/tenant/schema.prisma",
     "prisma:seed": "ts-node prisma/master/seed.ts",
     "db:seed": "npm run prisma:seed",
+    "tenant:seed:first": "ts-node -r tsconfig-paths/register src/scripts/seed-first-tenant-data.ts",
     "permissions:seed": "ts-node -r tsconfig-paths/register src/scripts/seed-permissions.ts",
     "remove-permissions": "ts-node -r tsconfig-paths/register src/scripts/remove-permissions.ts",
     "assign-superadmin-permissions": "ts-node -r tsconfig-paths/register src/scripts/assign-superadmin-permissions.ts"
