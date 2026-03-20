@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -11,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { StudentsService } from './students.service';
-import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto, AssignCounselorDto } from './dto/students.dto';
+import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto, UpdateStudentDocumentDto, AssignCounselorDto } from './dto/students.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -139,6 +140,31 @@ export class StudentsController {
     @Param('documentId') documentId: string,
   ) {
     return this.studentsService.deleteStudentDocument(tenantId, studentId, documentId);
+  }
+
+  @Patch(':id/documents/:documentId')
+  @RequirePermissions('students:manage-documents')
+  @ApiOperation({
+    summary: 'Update student document record',
+    description:
+      'Partially or fully updates an existing student document record (metadata, verification, file details) without requiring file re-upload.',
+  })
+  @ApiBody({ type: UpdateStudentDocumentDto })
+  @ApiResponse({ status: 200, description: 'Document updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid payload or no update fields provided' })
+  @ApiResponse({ status: 404, description: 'Student or document not found' })
+  updateStudentDocument(
+    @TenantId() tenantId: string,
+    @Param('id') studentId: string,
+    @Param('documentId') documentId: string,
+    @Body() updateDocumentDto: UpdateStudentDocumentDto,
+  ) {
+    return this.studentsService.updateStudentDocument(
+      tenantId,
+      studentId,
+      documentId,
+      updateDocumentDto,
+    );
   }
 
   @Put(':id/assign-counselor')

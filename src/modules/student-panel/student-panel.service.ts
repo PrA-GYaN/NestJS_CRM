@@ -15,6 +15,7 @@ import {
   CreateCourseApplicationDto,
   UpdateCourseApplicationDto,
   StudentApplicationsQueryDto,
+  VisaApplicationsQueryDto,
   DocumentsQueryDto,
   NotificationsQueryDto,
   MarkNotificationReadDto,
@@ -758,13 +759,127 @@ export class StudentPanelService {
     return applications;
   }
 
+  async getMyDetailedVisaApplications(
+    tenantId: string,
+    studentId: string,
+    queryDto: VisaApplicationsQueryDto,
+  ) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    const { page, limit } = queryDto;
+    const shouldPaginate = page !== undefined || limit !== undefined;
+
+    const safePage = Math.max(page ?? 1, 1);
+    const safeLimit = Math.min(Math.max(limit ?? 10, 1), 100);
+    const skip = (safePage - 1) * safeLimit;
+
+    const where = {
+      studentId,
+      tenantId,
+    };
+
+    const select = {
+      id: true,
+      status: true,
+      currentStepId: true,
+      notes: true,
+      createdAt: true,
+      updatedAt: true,
+      workflow: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+        },
+      },
+      courseApplication: {
+        select: {
+          id: true,
+          status: true,
+        },
+      },
+      documents: {
+        select: {
+          id: true,
+          documentType: true,
+          uploadedAt: true,
+        },
+      },
+    };
+
+    if (shouldPaginate) {
+      const [applications, total] = await Promise.all([
+        tenantPrisma.visaApplication.findMany({
+          where,
+          skip,
+          take: safeLimit,
+          orderBy: { createdAt: 'desc' },
+          select,
+        }),
+        tenantPrisma.visaApplication.count({ where }),
+      ]);
+
+      if (total === 0) {
+        throw new NotFoundException('No visa applications found for this student');
+      }
+
+      const data = applications.map((application) => ({
+        id: application.id,
+        status: application.status,
+        currentStepId: application.currentStepId,
+        workflow: application.workflow,
+        courseApplication: application.courseApplication,
+        documents: application.documents.map((document) => ({
+          id: document.id,
+          name: document.documentType,
+          uploadedAt: document.uploadedAt,
+        })),
+        notes: application.notes,
+        createdAt: application.createdAt,
+        updatedAt: application.updatedAt,
+      }));
+
+      return {
+        data,
+        total,
+        page: safePage,
+        limit: safeLimit,
+        totalPages: Math.ceil(total / safeLimit),
+      };
+    }
+
+    const applications = await tenantPrisma.visaApplication.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select,
+    });
+
+    if (applications.length === 0) {
+      throw new NotFoundException('No visa applications found for this student');
+    }
+
+    return applications.map((application) => ({
+      id: application.id,
+      status: application.status,
+      currentStepId: application.currentStepId,
+      workflow: application.workflow,
+      courseApplication: application.courseApplication,
+      documents: application.documents.map((document) => ({
+        id: document.id,
+        name: document.documentType,
+        uploadedAt: document.uploadedAt,
+      })),
+      notes: application.notes,
+      createdAt: application.createdAt,
+      updatedAt: application.updatedAt,
+    }));
+  }
+
   async getVisaApplicationById(tenantId: string, studentId: string, visaApplicationId: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     const application = await tenantPrisma.visaApplication.findFirst({
       where: {
         id: visaApplicationId,
-        studentId,
         tenantId,
       },
       include: {
@@ -788,6 +903,10 @@ export class StudentPanelService {
 
     if (!application) {
       throw new NotFoundException('Visa application not found');
+    }
+
+    if (application.studentId !== studentId) {
+      throw new ForbiddenException('You can only access your own visa applications');
     }
 
     return application;

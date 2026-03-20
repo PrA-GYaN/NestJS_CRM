@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Controller,
   Get,
   Post,
@@ -30,6 +31,7 @@ import {
   CreateCourseApplicationDto,
   UpdateCourseApplicationDto,
   StudentApplicationsQueryDto,
+  VisaApplicationsQueryDto,
   DocumentsQueryDto,
   NotificationsQueryDto,
   MarkNotificationReadDto,
@@ -580,6 +582,32 @@ export class StudentPanelController {
   @ApiResponse({ status: 200, description: 'Visa applications retrieved successfully' })
   getMyVisaApplications(@TenantId() tenantId: string, @CurrentUser() user: any) {
     return this.studentPanelService.getMyVisaApplications(tenantId, user.studentId || user.id);
+  }
+
+  @Get('visa-applications/detailed')
+  @ApiOperation({
+    summary: 'Get my visa applications with workflow, course and notes history',
+    description: 'Returns the authenticated student\'s visa applications with workflow details, course application summary, documents, and notes/history JSON.',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Detailed visa applications retrieved successfully' })
+  @ApiResponse({ status: 403, description: 'Only student tokens can access this endpoint' })
+  @ApiResponse({ status: 404, description: 'No visa applications found for this student' })
+  getMyDetailedVisaApplications(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Query() queryDto: VisaApplicationsQueryDto,
+  ) {
+    if (!user?.isStudent || !user?.studentId) {
+      throw new ForbiddenException('Only authenticated students can access visa applications');
+    }
+
+    return this.studentPanelService.getMyDetailedVisaApplications(
+      tenantId,
+      user.studentId,
+      queryDto,
+    );
   }
 
   @Get('visa-applications/:id')

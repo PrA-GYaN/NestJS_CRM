@@ -158,6 +158,7 @@ export class FilesController {
   @Patch(':fileId')
   @RequirePermissions('documents:upload')
   @ApiOperation({ summary: 'Update stored file record (partial or full)' })
+  @ApiBody({ type: UpdateFileDto })
   @ApiResponse({ status: 200, description: 'File record updated successfully' })
   @ApiResponse({ status: 400, description: 'No update fields provided or invalid payload' })
   @ApiResponse({ status: 403, description: 'Students may only update their own document records' })

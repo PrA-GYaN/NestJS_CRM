@@ -233,6 +233,21 @@ export class NotificationsQueryDto {
   limit?: number = 20;
 }
 
+export class VisaApplicationsQueryDto {
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ default: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+}
+
 // ============================================
 // DASHBOARD DTOs
 // ============================================

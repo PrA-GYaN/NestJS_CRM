@@ -278,7 +278,7 @@ export class FilesService {
       throw new BadRequestException('At least one updatable field is required');
     }
 
-    if (updateDto.studentId !== undefined) {
+    if (updateDto.studentId !== undefined && updateDto.studentId !== null) {
       const student = await tenantPrisma.student.findFirst({
         where: { id: updateDto.studentId, tenantId },
       });
@@ -287,7 +287,7 @@ export class FilesService {
       }
     }
 
-    if (updateDto.visaApplicationId !== undefined) {
+    if (updateDto.visaApplicationId !== undefined && updateDto.visaApplicationId !== null) {
       const visa = await tenantPrisma.visaApplication.findFirst({
         where: { id: updateDto.visaApplicationId, tenantId },
       });
@@ -296,7 +296,7 @@ export class FilesService {
       }
     }
 
-    if (updateDto.courseId !== undefined) {
+    if (updateDto.courseId !== undefined && updateDto.courseId !== null) {
       const course = await tenantPrisma.course.findFirst({
         where: { id: updateDto.courseId, tenantId },
       });

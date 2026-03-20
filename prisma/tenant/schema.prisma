@@ -291,6 +291,7 @@ model CourseApplication {
   student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
   course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
   university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  visaApplications VisaApplication[]
 
   @@index([tenantId])
   @@index([tenantId, studentId])
@@ -396,6 +397,7 @@ model Course {
   updatedAt     DateTime @updatedAt
 
   university         University          @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  classes            Class[]
   courseApplications CourseApplication[]
 
   @@index([tenantId])
@@ -420,11 +422,14 @@ model Class {
   updatedAt    DateTime   @updatedAt
 
   instructor  User?             @relation("Instructor", fields: [instructorId], references: [id], onDelete: SetNull)
+  courseId    String?
+  course      Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
   enrollments ClassEnrollment[]
   bookingRequests ClassBookingRequest[]
 
   @@index([tenantId])
   @@index([tenantId, instructorId])
+  @@index([courseId])
   @@map("classes")
 }
 
@@ -756,6 +761,7 @@ model VisaWorkflow {
 
   visaType VisaType           @relation(fields: [visaTypeId], references: [id], onDelete: Cascade)
   steps    VisaWorkflowStep[]
+  applications VisaApplication[]
 
   @@index([tenantId])
   @@index([tenantId, visaTypeId])
@@ -790,22 +796,29 @@ model VisaApplication {
   tenantId           String
   studentId          String
   visaTypeId         String
-  destinationCountry String     // Kept for backward compatibility
+  courseApplicationId String?
+  workflowId         String
+  destinationCountry String?     // Made optional for backward compatibility
   status             VisaStatus @default(Pending)
   currentStepId      String?    // Current workflow step
   submissionDate     DateTime?
   decisionDate       DateTime?
-  notes              String?
+  notes              Json?      // Store step history and SLA data
+  version            Int        @default(1) // Optimistic concurrency
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  student   Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  visaType  VisaType       @relation(fields: [visaTypeId], references: [id], onDelete: Restrict)
-  documents VisaDocument[]
+  student           Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  visaType          VisaType          @relation(fields: [visaTypeId], references: [id], onDelete: Restrict)
+  courseApplication CourseApplication? @relation(fields: [courseApplicationId], references: [id], onDelete: SetNull)
+  workflow          VisaWorkflow      @relation(fields: [workflowId], references: [id], onDelete: Restrict)
+  documents         VisaDocument[]
 
+  @@unique([tenantId, courseApplicationId]) // Ensure max one active VisaApplication per CourseApplication
   @@index([tenantId])
   @@index([tenantId, studentId])
   @@index([tenantId, visaTypeId])
+  @@index([tenantId, workflowId])
   @@index([studentId])
   @@index([visaTypeId])
   @@index([status])

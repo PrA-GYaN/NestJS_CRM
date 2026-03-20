@@ -5,8 +5,18 @@ import {
   IsUUID,
   IsNotEmpty,
   IsOptional,
+  IsInt,
+  Min,
+  IsDateString,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export enum DocumentVerificationStatusDto {
+  Pending = 'Pending',
+  Verified = 'Verified',
+  Rejected = 'Rejected',
+  Expired = 'Expired',
+}
 
 export class CreateStudentDto {
   @ApiProperty()
@@ -128,4 +138,90 @@ export class UploadDocumentDto {
   @IsString()
   @IsNotEmpty()
   filePath!: string;
+
+  @ApiPropertyOptional({ description: 'Display file name for this document' })
+  @IsOptional()
+  @IsString()
+  fileName?: string;
+
+  @ApiPropertyOptional({ description: 'File size in bytes' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  fileSize?: number;
+
+  @ApiPropertyOptional({ description: 'Document expiration date (ISO 8601)' })
+  @IsOptional()
+  @IsDateString()
+  expiryDate?: string;
+
+  @ApiPropertyOptional({ description: 'Additional metadata (JSON)' })
+  @IsOptional()
+  metadata?: any;
+}
+
+export class UpdateStudentDocumentDto {
+  @ApiPropertyOptional({
+    enum: ['Passport', 'Transcript', 'VisaForm', 'Photo', 'Certificate', 'OfferLetter', 'AcademicDocument', 'FinancialDocument', 'LanguageTestResult', 'RecommendationLetter', 'Other'],
+  })
+  @IsOptional()
+  @IsEnum(['Passport', 'Transcript', 'VisaForm', 'Photo', 'Certificate', 'OfferLetter', 'AcademicDocument', 'FinancialDocument', 'LanguageTestResult', 'RecommendationLetter', 'Other'])
+  documentType?: string;
+
+  @ApiPropertyOptional({ description: 'Document file path' })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  filePath?: string;
+
+  @ApiPropertyOptional({ description: 'Display file name for this document' })
+  @IsOptional()
+  @IsString()
+  fileName?: string;
+
+  @ApiPropertyOptional({ description: 'File size in bytes' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  fileSize?: number;
+
+  @ApiPropertyOptional({ description: 'Version number' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  version?: number;
+
+  @ApiPropertyOptional({ enum: DocumentVerificationStatusDto })
+  @IsOptional()
+  @IsEnum(DocumentVerificationStatusDto)
+  verificationStatus?: DocumentVerificationStatusDto;
+
+  @ApiPropertyOptional({ description: 'Verifier user ID' })
+  @IsOptional()
+  @IsUUID()
+  verifiedBy?: string;
+
+  @ApiPropertyOptional({ description: 'Verification date (ISO 8601)' })
+  @IsOptional()
+  @IsDateString()
+  verificationDate?: string;
+
+  @ApiPropertyOptional({ description: 'Verification notes' })
+  @IsOptional()
+  @IsString()
+  verificationNotes?: string;
+
+  @ApiPropertyOptional({ description: 'Rejection reason' })
+  @IsOptional()
+  @IsString()
+  rejectionReason?: string;
+
+  @ApiPropertyOptional({ description: 'Document expiration date (ISO 8601)' })
+  @IsOptional()
+  @IsDateString()
+  expiryDate?: string;
+
+  @ApiPropertyOptional({ description: 'Additional metadata (JSON)' })
+  @IsOptional()
+  metadata?: any;
 }

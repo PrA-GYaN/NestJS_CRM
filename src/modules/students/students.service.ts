@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { TenantService } from '../../common/tenant/tenant.service';
-import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto, AssignCounselorDto } from './dto/students.dto';
+import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto, UpdateStudentDocumentDto, AssignCounselorDto } from './dto/students.dto';
 import { PaginationDto } from '../../common/dto/common.dto';
-import { DocumentType } from '@prisma/tenant-client';
+import { DocumentType, DocumentVerificationStatus } from '@prisma/tenant-client';
 
 @Injectable()
 export class StudentsService {
@@ -15,6 +15,9 @@ export class StudentsService {
     const counselorRoleName = student.assignedCounselor?.role?.name?.toLowerCase();
 
     return {
+      id: student.id,
+      firstName:student.firstName,
+      lastName:student.lastName,
       name: `${student.firstName} ${student.lastName}`,
       email: student.email,
       phone: student.phone,
@@ -182,7 +185,7 @@ export class StudentsService {
       throw new NotFoundException('Student not found');
     }
 
-    return this.sanitizeApplicantResponse(student);
+    return student;
   }
 
   async updateStudent(tenantId: string, id: string, updateStudentDto: UpdateStudentDto) {
@@ -223,6 +226,10 @@ export class StudentsService {
         studentId,
         documentType: uploadDocumentDto.documentType as DocumentType,
         filePath: uploadDocumentDto.filePath,
+        fileName: uploadDocumentDto.fileName,
+        fileSize: uploadDocumentDto.fileSize,
+        expiryDate: uploadDocumentDto.expiryDate ? new Date(uploadDocumentDto.expiryDate) : undefined,
+        metadata: uploadDocumentDto.metadata,
       },
     });
   }
@@ -254,6 +261,70 @@ export class StudentsService {
     });
 
     return { success: true, message: 'Document deleted successfully' };
+  }
+
+  async updateStudentDocument(
+    tenantId: string,
+    studentId: string,
+    documentId: string,
+    updateDocumentDto: UpdateStudentDocumentDto,
+  ) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    await this.getStudentById(tenantId, studentId);
+
+    const existingDocument = await tenantPrisma.studentDocument.findFirst({
+      where: { id: documentId, studentId, tenantId },
+    });
+
+    if (!existingDocument) {
+      throw new NotFoundException('Document not found');
+    }
+
+    const hasUpdates = Object.values(updateDocumentDto).some((value) => value !== undefined);
+    if (!hasUpdates) {
+      throw new BadRequestException('At least one updatable field is required');
+    }
+
+    if (updateDocumentDto.verifiedBy) {
+      const verifier = await tenantPrisma.user.findFirst({
+        where: { id: updateDocumentDto.verifiedBy, tenantId },
+      });
+      if (!verifier) {
+        throw new NotFoundException('Verifier user not found');
+      }
+    }
+
+    const data: any = {
+      ...(updateDocumentDto.documentType !== undefined && {
+        documentType: updateDocumentDto.documentType as DocumentType,
+      }),
+      ...(updateDocumentDto.filePath !== undefined && { filePath: updateDocumentDto.filePath }),
+      ...(updateDocumentDto.fileName !== undefined && { fileName: updateDocumentDto.fileName }),
+      ...(updateDocumentDto.fileSize !== undefined && { fileSize: updateDocumentDto.fileSize }),
+      ...(updateDocumentDto.version !== undefined && { version: updateDocumentDto.version }),
+      ...(updateDocumentDto.verificationStatus !== undefined && {
+        verificationStatus: updateDocumentDto.verificationStatus as DocumentVerificationStatus,
+      }),
+      ...(updateDocumentDto.verifiedBy !== undefined && { verifiedBy: updateDocumentDto.verifiedBy }),
+      ...(updateDocumentDto.verificationDate !== undefined && {
+        verificationDate: new Date(updateDocumentDto.verificationDate),
+      }),
+      ...(updateDocumentDto.verificationNotes !== undefined && {
+        verificationNotes: updateDocumentDto.verificationNotes,
+      }),
+      ...(updateDocumentDto.rejectionReason !== undefined && {
+        rejectionReason: updateDocumentDto.rejectionReason,
+      }),
+      ...(updateDocumentDto.expiryDate !== undefined && {
+        expiryDate: new Date(updateDocumentDto.expiryDate),
+      }),
+      ...(updateDocumentDto.metadata !== undefined && { metadata: updateDocumentDto.metadata }),
+    };
+
+    return tenantPrisma.studentDocument.update({
+      where: { id: documentId },
+      data,
+    });
   }
 
   /**

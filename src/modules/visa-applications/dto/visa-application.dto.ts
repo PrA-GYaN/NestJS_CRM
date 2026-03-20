@@ -1,0 +1,64 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class CreateVisaApplicationDto {
+  @ApiProperty({
+    description: 'The unique identifier of the student applying for the visa',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  studentId!: string;
+
+  @ApiProperty({
+    description: 'The unique identifier of the specific Visa Type being applied for',
+    example: 'd290f1ee-6c54-4b01-90e6-d701748f0851',
+  })
+  visaTypeId!: string;
+
+  @ApiPropertyOptional({
+    description: 'The unique identifier of the linked Course Application (if applicable)',
+    example: 'c64a595f-9e79-4d64-886d-0bbddbf6ae50',
+  })
+  courseApplicationId?: string;
+
+  @ApiPropertyOptional({
+    description: 'The destination country for the visa',
+    example: 'Australia',
+  })
+  destinationCountry?: string;
+}
+
+export class AdvanceVisaStepDto {
+  @ApiProperty({
+    description: 'The ID of the step the client expects to advance to (serves as a concurrency check)',
+    example: 'b1d0a0d4-7c3d-4c3d-a5d5-a7b6a4a2a1a0',
+  })
+  expectedStepId!: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional remarks or notes detailing the progression of the step',
+    example: 'Biometric verification cleared successfully.',
+  })
+  notes?: string;
+}
+
+export class DefaultFilterDto {
+  @ApiPropertyOptional({
+    description: 'Filter visa applications by student ID',
+  })
+  studentId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter visa applications by Visa Type ID',
+  })
+  visaTypeId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter visa applications by linked Course Application ID',
+  })
+  courseApplicationId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter visa applications by status (e.g., Pending, Submitted, Approved, Rejected)',
+    example: 'Pending',
+  })
+  status?: string;
+}

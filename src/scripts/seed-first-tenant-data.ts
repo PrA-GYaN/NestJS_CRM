@@ -580,11 +580,12 @@ async function seedFirstTenantData() {
                     tenantId,
                     studentId: studentOne.id,
                     visaTypeId: visaType.id,
+                    workflowId: visaWorkflow.id,
                     destinationCountry: 'Australia',
                     status: 'UnderReview',
                     currentStepId: visaStep.id,
                     submissionDate: new Date(),
-                    notes: 'Initial seeded visa application',
+                    notes: [{ stepId: visaStep.id, status: 'UnderReview', timestamp: new Date().toISOString(), matchedSLA: true, remarks: 'Initial seeded visa application' }],
                 },
             }));
 

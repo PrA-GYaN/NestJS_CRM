@@ -15,29 +15,32 @@ export class UpdateFileDto {
   @ApiPropertyOptional({
     description: 'Student ID associated with this file',
     example: '123e4567-e89b-12d3-a456-426614174000',
+    nullable: true,
   })
   @IsString()
   @IsOptional()
   @IsUUID()
-  studentId?: string;
+  studentId?: string | null;
 
   @ApiPropertyOptional({
     description: 'Visa application ID associated with this file',
     example: '123e4567-e89b-12d3-a456-426614174000',
+    nullable: true,
   })
   @IsString()
   @IsOptional()
   @IsUUID()
-  visaApplicationId?: string;
+  visaApplicationId?: string | null;
 
   @ApiPropertyOptional({
     description: 'Course ID associated with this file',
     example: '123e4567-e89b-12d3-a456-426614174000',
+    nullable: true,
   })
   @IsString()
   @IsOptional()
   @IsUUID()
-  courseId?: string;
+  courseId?: string | null;
 
   @ApiPropertyOptional({
     description: 'Original display file name',
