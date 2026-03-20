@@ -4,11 +4,13 @@ import { TenantService } from '../../common/tenant/tenant.service';
 import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto, AssignCounselorDto } from './dto/students.dto';
 import { PaginationDto } from '../../common/dto/common.dto';
 import { DocumentType } from '@prisma/tenant-client';
+import { FilesService } from '../files/files.service';
 
 @Injectable()
 export class StudentsService {
   constructor(
     private tenantService: TenantService,
+    private filesService: FilesService,
   ) { }
 
   private sanitizeApplicantResponse(student: any) {
@@ -237,6 +239,11 @@ export class StudentsService {
       where: { studentId },
       orderBy: { uploadedAt: 'desc' },
     });
+  }
+
+  async deleteStudentDocument(tenantId: string, studentId: string, documentId: string) {
+    await this.getStudentById(tenantId, studentId);
+    return this.filesService.deleteStudentDocument(tenantId, studentId, documentId);
   }
 
   /**
