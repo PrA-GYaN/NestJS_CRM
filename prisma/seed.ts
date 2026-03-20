@@ -35,12 +35,12 @@ async function main() {
   if (!existingTenant) {
     const tenant = await prisma.tenant.create({
       data: {
-        name: 'Demo Education Consultancy',
-        subdomain: 'demo',
+        name: 'crmapi',
+        subdomain: 'crmapi',
         dbHost: process.env.TENANT_DB_HOST || 'localhost',
-        dbName: 'tenant_demo',
+        dbName: 'tenant_crmapi',
         dbUser: process.env.TENANT_DB_USER || 'postgres',
-        dbPassword: process.env.TENANT_DB_PASSWORD || 'postgres',
+        dbPassword: process.env.TENANT_DB_PASSWORD || 'password123',
         featurePackage: 'Advanced',
         status: 'Active',
       },

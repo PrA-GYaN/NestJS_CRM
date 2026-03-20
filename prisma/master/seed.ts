@@ -29,19 +29,19 @@ async function main() {
 
   // Seed Example Tenant (Optional - for testing)
   const existingTenant = await prisma.tenant.findUnique({
-    where: { subdomain: 'demo' },
+    where: { subdomain: 'crmpai' },
   });
 
   if (!existingTenant) {
     const tenant = await prisma.tenant.create({
       data: {
-        name: 'Demo Education Consultancy',
-        subdomain: 'demo',
+        name: 'crmpai',
+        subdomain: 'crmpai',
         dbHost: process.env.TENANT_DB_HOST || 'localhost',
         dbPort: parseInt(process.env.TENANT_DB_PORT || '5432'),
-        dbName: 'tenant_demo',
+        dbName: 'tenant_crmpai',
         dbUser: process.env.TENANT_DB_USER || 'postgres',
-        dbPassword: process.env.TENANT_DB_PASSWORD || 'postgres',
+        dbPassword: process.env.TENANT_DB_PASSWORD || 'password123',
         featurePackage: 'Advanced',
         status: 'Active',
       },
