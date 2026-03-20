@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import * as bcrypt from 'bcrypt';
+import { PrismaClient as TenantPrismaClient } from '@prisma/tenant-client';
 import { AppModule } from '../app.module';
 import { MasterPrismaService } from '../common/prisma/master-prisma.service';
 import { TenantService } from '../common/tenant/tenant.service';
@@ -8,6 +9,7 @@ async function seedFirstTenantData() {
   console.log('🌱 Starting first-tenant sample data seeding...\n');
 
   const app = await NestFactory.createApplicationContext(AppModule);
+  let fallbackTenantPrisma: TenantPrismaClient | null = null;
 
   try {
     const masterPrisma = app.get(MasterPrismaService);
@@ -23,7 +25,33 @@ async function seedFirstTenantData() {
     }
 
     const tenantId = firstTenant.id;
-    const tenantPrisma = await tenantService.getTenantPrisma(tenantId);
+    let tenantPrisma: TenantPrismaClient;
+
+    try {
+      tenantPrisma = await tenantService.getTenantPrisma(tenantId);
+    } catch (error: any) {
+      if (error?.code !== 'ERR_CRYPTO_INVALID_IV') {
+        throw error;
+      }
+
+      console.warn(
+        '⚠️ Tenant dbPassword appears to be plain text (not encrypted). Using direct fallback connection for seeding.',
+      );
+
+      const tenantDatabaseUrl = `postgresql://${encodeURIComponent(firstTenant.dbUser)}:${encodeURIComponent(firstTenant.dbPassword)}@${firstTenant.dbHost}:${firstTenant.dbPort}/${firstTenant.dbName}`;
+
+      fallbackTenantPrisma = new TenantPrismaClient({
+        datasources: {
+          db: {
+            url: tenantDatabaseUrl,
+          },
+        },
+        log: ['error', 'warn'],
+      });
+
+      await fallbackTenantPrisma.$connect();
+      tenantPrisma = fallbackTenantPrisma;
+    }
 
     console.log(`📦 Seeding tenant: ${firstTenant.name} (${firstTenant.subdomain})`);
     console.log(`🆔 Tenant ID: ${tenantId}\n`);
@@ -982,6 +1010,9 @@ async function seedFirstTenantData() {
     console.error('❌ Seeding failed:', error);
     process.exit(1);
   } finally {
+    if (fallbackTenantPrisma) {
+      await fallbackTenantPrisma.$disconnect();
+    }
     await app.close();
   }
 }
