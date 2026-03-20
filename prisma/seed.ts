@@ -1,7 +1,22 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 const prisma = new PrismaClient();
+
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'default-key-change-in-production-32c';
+const ENCRYPTION_ALGORITHM = 'aes-256-cbc';
+
+function encrypt(text: string): string {
+  const key = Buffer.from(ENCRYPTION_KEY.padEnd(32, '0').substring(0, 32));
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
+
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+
+  return `${iv.toString('hex')}:${encrypted}`;
+}
 
 async function main() {
   console.log('🌱 Starting database seeding...');
@@ -33,6 +48,9 @@ async function main() {
   });
 
   if (!existingTenant) {
+    const tenantDbPassword = process.env.TENANT_DB_PASSWORD || 'password123';
+    const encryptedTenantDbPassword = encrypt(tenantDbPassword);
+
     const tenant = await prisma.tenant.create({
       data: {
         name: 'crmapi',
@@ -40,7 +58,7 @@ async function main() {
         dbHost: process.env.TENANT_DB_HOST || 'localhost',
         dbName: 'tenant_crmapi',
         dbUser: process.env.TENANT_DB_USER || 'postgres',
-        dbPassword: process.env.TENANT_DB_PASSWORD || 'password123',
+        dbPassword: encryptedTenantDbPassword,
         featurePackage: 'Advanced',
         status: 'Active',
       },
