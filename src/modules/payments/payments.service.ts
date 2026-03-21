@@ -35,10 +35,26 @@ export class PaymentsService {
   private buildPaymentInclude() {
     return {
       student: {
-        select: { id: true, name: true, email: true },
+        select: { id: true, firstName: true, lastName: true, email: true },
       },
       service: {
         select: { id: true, name: true, price: true },
+      },
+    };
+  }
+
+  private normalizePaymentResponse<T extends { student?: any }>(payment: T): T {
+    if (!payment?.student) return payment;
+
+    const firstName = payment.student.firstName ?? '';
+    const lastName = payment.student.lastName ?? '';
+    const name = `${firstName} ${lastName}`.trim();
+
+    return {
+      ...payment,
+      student: {
+        ...payment.student,
+        name,
       },
     };
   }
@@ -107,7 +123,7 @@ export class PaymentsService {
       },
     });
 
-    return payment;
+    return this.normalizePaymentResponse(payment);
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -165,8 +181,12 @@ export class PaymentsService {
       tenantPrisma.payment.count({ where }),
     ]);
 
+    const normalizedPayments = payments.map((payment) =>
+      this.normalizePaymentResponse(payment),
+    );
+
     return {
-      data: payments,
+      data: normalizedPayments,
       total,
       page,
       limit,
@@ -185,7 +205,7 @@ export class PaymentsService {
       include: this.buildPaymentInclude(),
     });
     if (!payment) throw new NotFoundException('Payment not found');
-    return payment;
+    return this.normalizePaymentResponse(payment);
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -258,8 +278,12 @@ export class PaymentsService {
       tenantPrisma.payment.count({ where }),
     ]);
 
+    const normalizedPayments = payments.map((payment) =>
+      this.normalizePaymentResponse(payment),
+    );
+
     return {
-      data: payments,
+      data: normalizedPayments,
       total,
       page,
       limit,
@@ -325,7 +349,7 @@ export class PaymentsService {
       },
     });
 
-    return updated;
+    return this.normalizePaymentResponse(updated);
   }
 
   // ─────────────────────────────────────────────────────────────────

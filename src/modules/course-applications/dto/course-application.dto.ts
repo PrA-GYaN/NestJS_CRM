@@ -106,3 +106,143 @@ export class StudentIdParamDto {
   @IsNotEmpty()
   studentId!: string;
 }
+
+export class CountrySummaryDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty()
+  code!: string;
+}
+
+export class UniversitySummaryDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  ranking?: number | null;
+
+  @ApiPropertyOptional({ type: () => CountrySummaryDto })
+  country?: CountrySummaryDto;
+}
+
+export class CourseSummaryDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  duration?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  fees?: number | null;
+
+  @ApiPropertyOptional({ nullable: true, type: 'object', additionalProperties: true })
+  requirements?: Record<string, any> | null;
+
+  @ApiPropertyOptional({ nullable: true, type: 'object', additionalProperties: true })
+  intakePeriods?: Record<string, any> | null;
+
+  @ApiPropertyOptional({ nullable: true, type: 'object', additionalProperties: true })
+  deadlines?: Record<string, any> | null;
+}
+
+export class StudentSummaryDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  firstName!: string;
+
+  @ApiProperty()
+  lastName!: string;
+
+  @ApiProperty()
+  email!: string;
+}
+
+export class CourseApplicationResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  tenantId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  studentId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  courseId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  universityId!: string;
+
+  @ApiProperty({ enum: ApplicationStatus })
+  status!: ApplicationStatus;
+
+  @ApiPropertyOptional({ nullable: true })
+  intakePeriod?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: 'object', additionalProperties: true })
+  notes?: Record<string, any> | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  rejectionReason?: string | null;
+
+  @ApiProperty()
+  applicationDate!: Date;
+
+  @ApiPropertyOptional({ nullable: true })
+  submissionDate?: Date | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  decisionDate?: Date | null;
+
+  @ApiProperty()
+  createdAt!: Date;
+
+  @ApiProperty()
+  updatedAt!: Date;
+
+  @ApiPropertyOptional({ type: () => StudentSummaryDto })
+  student?: StudentSummaryDto;
+
+  @ApiPropertyOptional({ type: () => CourseSummaryDto })
+  course?: CourseSummaryDto;
+
+  @ApiPropertyOptional({ type: () => UniversitySummaryDto })
+  university?: UniversitySummaryDto;
+}
+
+export class PaginatedCourseApplicationsResponseDto {
+  @ApiProperty({ type: () => [CourseApplicationResponseDto] })
+  data!: CourseApplicationResponseDto[];
+
+  @ApiProperty()
+  total!: number;
+
+  @ApiProperty()
+  page!: number;
+
+  @ApiProperty()
+  limit!: number;
+
+  @ApiProperty()
+  totalPages!: number;
+}
+
+export class DeleteCourseApplicationResponseDto {
+  @ApiProperty()
+  success!: boolean;
+
+  @ApiProperty()
+  message!: string;
+}

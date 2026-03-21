@@ -62,6 +62,11 @@ export class PermissionsService {
       description: 'Appointment management permissions',
     },
     {
+      module: 'activity-logs',
+      actions: ['read'],
+      description: 'Activity log access permissions',
+    },
+    {
       module: 'files',
       actions: ['create', 'read', 'update', 'delete', 'download'],
       description: 'File management permissions',

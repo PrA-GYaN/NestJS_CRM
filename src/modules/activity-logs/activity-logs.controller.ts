@@ -18,23 +18,30 @@ import { ActivityLogsService } from './activity-logs.service';
 import { PaginationDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ActivityLogFilterDto, ActivityLogResponseDto } from './dto/activity-log.dto';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { CanRead } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Activity Logs')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('logs')
 export class ActivityLogsController {
   constructor(private readonly activityLogsService: ActivityLogsService) {}
 
   @Get()
+  @CanRead('activity-logs')
   @ApiOperation({
     summary: 'Get all activity logs with filtering',
-    description: 'Retrieve activity logs for audit purposes with optional filters',
+    description: 'Retrieve activity logs for audit purposes with optional filters. Required permission: activity-logs:read',
   })
   @ApiResponse({
     status: 200,
     description: 'Activity logs retrieved successfully',
     type: [ActivityLogResponseDto],
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Requires activity-logs:read permission',
   })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -56,13 +63,18 @@ export class ActivityLogsController {
   }
 
   @Get('stats')
+  @CanRead('activity-logs')
   @ApiOperation({
     summary: 'Get activity statistics',
-    description: 'Get aggregated statistics about activities in the system',
+    description: 'Get aggregated statistics about activities in the system. Required permission: activity-logs:read',
   })
   @ApiResponse({
     status: 200,
     description: 'Activity statistics retrieved successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Requires activity-logs:read permission',
   })
   async getStats(@Req() req: any) {
     const tenantId = req.tenantId;
@@ -70,9 +82,10 @@ export class ActivityLogsController {
   }
 
   @Get('entity/:entityType/:entityId')
+  @CanRead('activity-logs')
   @ApiOperation({
     summary: 'Get activity logs for a specific entity',
-    description: 'Retrieve all activity logs for a specific entity (e.g., all logs for a task)',
+    description: 'Retrieve all activity logs for a specific entity (e.g., all logs for a task). Required permission: activity-logs:read',
   })
   @ApiParam({ name: 'entityType', description: 'Type of entity (Task, Appointment, etc.)' })
   @ApiParam({ name: 'entityId', description: 'ID of the entity' })
@@ -80,6 +93,10 @@ export class ActivityLogsController {
     status: 200,
     description: 'Entity activity logs retrieved successfully',
     type: [ActivityLogResponseDto],
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Requires activity-logs:read permission',
   })
   async getEntityLogs(
     @Req() req: any,
@@ -97,15 +114,20 @@ export class ActivityLogsController {
   }
 
   @Get('user/:userId')
+  @CanRead('activity-logs')
   @ApiOperation({
     summary: 'Get activity logs for a specific user',
-    description: 'Retrieve all activities performed by a specific user',
+    description: 'Retrieve all activities performed by a specific user. Required permission: activity-logs:read',
   })
   @ApiParam({ name: 'userId', description: 'ID of the user' })
   @ApiResponse({
     status: 200,
     description: 'User activity logs retrieved successfully',
     type: [ActivityLogResponseDto],
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Requires activity-logs:read permission',
   })
   async getUserLogs(
     @Req() req: any,
