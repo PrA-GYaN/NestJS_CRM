@@ -47,6 +47,7 @@ async function bootstrap() {
     // Student-facing
     .addTag('Student Panel', 'Self-service portal for students: profile, documents, course applications, appointments, notifications, visa, payments, and services')
     .addTag('Student Management', 'Admin-side student records management: create, update, documents, and lifecycle tracking')
+    .addTag('Course Applications', 'Student course application submission and admin/instructor review workflow')
     // Lead & CRM
     .addTag('Lead Management', 'Lead capture, tracking, qualification, and conversion to students')
     // Universities & Courses

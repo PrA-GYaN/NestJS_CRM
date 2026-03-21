@@ -297,6 +297,7 @@ model CourseApplication {
   @@index([tenantId, studentId])
   @@index([tenantId, status])
   @@index([studentId, status])
+  @@unique([tenantId, studentId, courseId])
   @@map("course_applications")
 }
 

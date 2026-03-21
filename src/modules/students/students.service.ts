@@ -127,12 +127,24 @@ export class StudentsService {
         },
         classEnrollments: {
           include: {
-            class: true,
+            class: {
+              include: {
+                instructor: {
+                  select: { id: true, name: true, email: true },
+                },
+              },
+            },
           },
         },
         classBookingRequests: {
           include: {
-            class: true,
+            class: {
+              include: {
+                instructor: {
+                  select: { id: true, name: true, email: true },
+                },
+              },
+            },
           },
         },
         testAssignments: {

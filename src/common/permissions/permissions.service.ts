@@ -42,6 +42,11 @@ export class PermissionsService {
       description: 'Student management permissions',
     },
     {
+      module: 'course-applications',
+      actions: ['create', 'read', 'update', 'delete'],
+      description: 'Course application management permissions',
+    },
+    {
       module: 'universities',
       actions: ['create', 'read', 'update', 'delete', 'export'],
       description: 'University management permissions',
