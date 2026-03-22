@@ -86,8 +86,9 @@ export class PaymentsService {
     const remaining =
       dto.remainingAmount !== undefined ? dto.remainingAmount : +(total - paid).toFixed(2);
 
-    // Auto-generate invoice number when not provided or empty
-    const invoiceNumber = (dto.invoiceNumber?.trim()) ?? this.generateInvoiceNumber();
+    // Auto-generate invoice number when not provided, empty, or whitespace-only
+    const trimmedInvoiceNumber = dto.invoiceNumber?.trim();
+    const invoiceNumber = trimmedInvoiceNumber || this.generateInvoiceNumber();
 
     const payment = await tenantPrisma.payment.create({
       data: {

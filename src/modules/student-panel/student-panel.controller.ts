@@ -639,6 +639,18 @@ export class StudentPanelController {
     return this.studentPanelService.getMyServices(tenantId, user.studentId || user.id);
   }
 
+  @Get('services/:id')
+  @ApiOperation({ summary: 'Get my service by ID with classes and tests' })
+  @ApiResponse({ status: 200, description: 'Service retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Service not found or not assigned to student' })
+  getMyServiceById(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Param() params: IdParamDto,
+  ) {
+    return this.studentPanelService.getMyServiceById(tenantId, user.studentId || user.id, params.id);
+  }
+
   @Post('services/:id/request')
   @ApiOperation({ summary: 'Request a service from student panel' })
   @ApiResponse({ status: 201, description: 'Service request created successfully' })

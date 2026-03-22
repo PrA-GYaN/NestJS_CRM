@@ -44,10 +44,10 @@ export class CreateCourseApplicationDto {
 export class UpdateApplicationStatusDto {
   @ApiProperty({
     description: 'New application status',
-    enum: [ApplicationStatus.Accepted, ApplicationStatus.Rejected],
+    enum: ['Draft', 'Submitted', 'UnderReview', 'Shortlisted', 'OfferReceived', 'Accepted', 'Rejected', 'Withdrawn'],
   })
-  @IsEnum([ApplicationStatus.Accepted, ApplicationStatus.Rejected])
-  status!: 'Accepted' | 'Rejected';
+  @IsEnum(['Draft', 'Submitted', 'UnderReview', 'Shortlisted', 'OfferReceived', 'Accepted', 'Rejected', 'Withdrawn'])
+  status!: 'Draft' | 'Submitted' | 'UnderReview' | 'Shortlisted' | 'OfferReceived' | 'Accepted' | 'Rejected' | 'Withdrawn';
 
   @ApiPropertyOptional({
     description: 'Reason when rejecting an application',

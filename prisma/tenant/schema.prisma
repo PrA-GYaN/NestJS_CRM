@@ -414,6 +414,7 @@ model Course {
 model Class {
   id           String     @id @default(uuid())
   tenantId     String
+  serviceId    String
   name         String
   description  String?
   schedule     Json       // Class schedule with dates and times
@@ -423,13 +424,16 @@ model Class {
   updatedAt    DateTime   @updatedAt
 
   instructor  User?             @relation("Instructor", fields: [instructorId], references: [id], onDelete: SetNull)
+  service     Service           @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   courseId    String?
   course      Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
   enrollments ClassEnrollment[]
   bookingRequests ClassBookingRequest[]
 
   @@index([tenantId])
+  @@index([tenantId, serviceId])
   @@index([tenantId, instructorId])
+  @@index([serviceId])
   @@index([courseId])
   @@map("classes")
 }
@@ -534,6 +538,7 @@ enum TestType {
 
 model Test {
   id          String   @id @default(uuid())
+  serviceId   String
   name        String
   type        TestType
   description String?
@@ -541,8 +546,10 @@ model Test {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  service     Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   assignments TestAssignment[]
 
+  @@index([serviceId])
   @@map("tests")
 }
 
@@ -896,6 +903,8 @@ model Service {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  classes         Class[]
+  tests           Test[]
   commissions     Commission[]
   payments        Payment[]
   studentServices StudentService[]

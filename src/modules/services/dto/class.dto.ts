@@ -52,6 +52,11 @@ export class ClassDayTimingDto {
 }
 
 export class CreateClassDto {
+  @ApiProperty({ description: 'Service ID this class belongs to' })
+  @IsUUID()
+  @IsNotEmpty()
+  serviceId!: string;
+
   @ApiProperty({ description: 'Class name', example: 'IELTS Morning Batch' })
   @IsString()
   @IsNotEmpty()
@@ -94,6 +99,11 @@ export class CreateClassDto {
 }
 
 export class UpdateClassDto {
+  @ApiPropertyOptional({ description: 'Service ID this class belongs to' })
+  @IsOptional()
+  @IsUUID()
+  serviceId?: string;
+
   @ApiPropertyOptional({ description: 'Class name', example: 'IELTS Evening Batch' })
   @IsOptional()
   @IsString()

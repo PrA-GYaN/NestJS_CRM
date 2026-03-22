@@ -22,6 +22,11 @@ export enum TestType {
 }
 
 export class CreateTestDto {
+  @ApiProperty({ description: 'Service ID this test belongs to' })
+  @IsUUID()
+  @IsNotEmpty()
+  serviceId!: string;
+
   @ApiProperty({ description: 'Test name', example: 'IELTS Academic' })
   @IsString()
   @IsNotEmpty()
@@ -49,6 +54,11 @@ export class CreateTestDto {
 }
 
 export class UpdateTestDto {
+  @ApiPropertyOptional({ description: 'Service ID this test belongs to' })
+  @IsOptional()
+  @IsUUID()
+  serviceId?: string;
+
   @ApiPropertyOptional({ description: 'Test name', example: 'IELTS Academic' })
   @IsOptional()
   @IsString()

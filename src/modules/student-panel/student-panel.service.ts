@@ -964,6 +964,54 @@ export class StudentPanelService {
     return services;
   }
 
+  async getMyServiceById(tenantId: string, studentId: string, serviceId: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    const assignment = await tenantPrisma.studentService.findFirst({
+      where: {
+        tenantId,
+        studentId,
+        serviceId,
+      },
+      include: {
+        service: {
+          include: {
+            classes: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                schedule: true,
+                studentCapacity: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+              orderBy: { createdAt: 'desc' },
+            },
+            tests: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                description: true,
+                studentCapacity: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+              orderBy: { createdAt: 'desc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!assignment) {
+      throw new NotFoundException('Service not found or not assigned to this student');
+    }
+
+    return assignment.service;
+  }
+
   // ============================================
   // NOTIFICATIONS
   // ============================================

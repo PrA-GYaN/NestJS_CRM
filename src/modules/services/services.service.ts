@@ -14,6 +14,33 @@ import { Decimal } from '@prisma/client/runtime/library';
 export class ServicesService {
   constructor(private tenantService: TenantService) {}
 
+  private async validateServiceCanBeAssignedDirectly(tenantId: string, serviceId: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    const service = await tenantPrisma.service.findFirst({
+      where: { id: serviceId, tenantId },
+      select: {
+        id: true,
+        _count: {
+          select: {
+            classes: true,
+            tests: true,
+          },
+        },
+      },
+    });
+
+    if (!service) {
+      throw new NotFoundException('Service not found');
+    }
+
+    if (service._count.classes > 0 || service._count.tests > 0) {
+      throw new BadRequestException(
+        'This service has associated classes or tests. Please assign the student to a specific class or test instead.',
+      );
+    }
+  }
+
   async requestServiceBooking(
     tenantId: string,
     serviceId: string,
@@ -131,6 +158,29 @@ export class ServicesService {
         throw new BadRequestException('Only pending requests can be approved');
       }
 
+      const requestedService = await tx.service.findFirst({
+        where: { id: request.serviceId, tenantId },
+        select: {
+          id: true,
+          _count: {
+            select: {
+              classes: true,
+              tests: true,
+            },
+          },
+        },
+      });
+
+      if (!requestedService) {
+        throw new NotFoundException('Service not found');
+      }
+
+      if (requestedService._count.classes > 0 || requestedService._count.tests > 0) {
+        throw new BadRequestException(
+          'This service has associated classes or tests. Please assign the student to a specific class or test instead.',
+        );
+      }
+
       const existingAssignment = await tx.studentService.findFirst({
         where: {
           tenantId,
@@ -246,6 +296,27 @@ export class ServicesService {
         price: new Decimal(createServiceDto.price),
       },
       include: {
+        classes: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            studentCapacity: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        tests: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            description: true,
+            studentCapacity: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
         studentServices: {
           include: {
             student: {
@@ -291,6 +362,8 @@ export class ServicesService {
           },
           _count: {
             select: {
+              classes: true,
+              tests: true,
               studentServices: true,
               payments: true,
             },
@@ -318,6 +391,30 @@ export class ServicesService {
     const service = await tenantPrisma.service.findFirst({
       where: { id, tenantId },
       include: {
+        classes: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            schedule: true,
+            studentCapacity: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        tests: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            description: true,
+            studentCapacity: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
         studentServices: {
           include: {
             student: {
@@ -337,6 +434,8 @@ export class ServicesService {
         },
         _count: {
           select: {
+            classes: true,
+            tests: true,
             studentServices: true,
             payments: true,
             commissions: true,
@@ -420,6 +519,7 @@ export class ServicesService {
 
     // Verify service exists
     await this.getServiceById(tenantId, serviceId);
+    await this.validateServiceCanBeAssignedDirectly(tenantId, serviceId);
 
     // Verify student exists
     const student = await tenantPrisma.student.findFirst({
@@ -487,6 +587,7 @@ export class ServicesService {
 
     // Verify service exists
     await this.getServiceById(tenantId, serviceId);
+    await this.validateServiceCanBeAssignedDirectly(tenantId, serviceId);
 
     // Verify all students exist
     const students = await tenantPrisma.student.findMany({

@@ -3,25 +3,44 @@ import { TenantService } from '../../common/tenant/tenant.service';
 import { PaginationDto } from '../../common/dto/common.dto';
 import { CreateTestDto, UpdateTestDto, AssignTestToStudentDto, UpdateTestAssignmentDto } from './dto/test.dto';
 import { Decimal } from '@prisma/client/runtime/library';
+import { PrismaClient as TenantPrismaClient } from '@prisma/tenant-client';
 
 @Injectable()
 export class TestsService {
   constructor(private tenantService: TenantService) {}
 
+  private async ensureServiceExists(
+    prisma: TenantPrismaClient,
+    tenantId: string,
+    serviceId: string,
+  ) {
+    const service = await prisma.service.findFirst({
+      where: { id: serviceId, tenantId },
+      select: { id: true },
+    });
+
+    if (!service) {
+      throw new NotFoundException('Service not found');
+    }
+  }
+
   /**
-   * Create a new test (global, not tenant-scoped)
+   * Create a new test
    */
   async createTest(tenantId: string, dto: CreateTestDto) {
     const prisma = await this.tenantService.getTenantPrisma(tenantId);
+    await this.ensureServiceExists(prisma, tenantId, dto.serviceId);
 
     return prisma.test.create({
       data: {
+        service: { connect: { id: dto.serviceId } },
         name: dto.name,
         type: dto.type,
         description: dto.description,
         studentCapacity: dto.studentCapacity,
       },
       include: {
+        service: { select: { id: true, name: true } },
         _count: { select: { assignments: true } },
       },
     });
@@ -37,14 +56,16 @@ export class TestsService {
 
     const [tests, total] = await Promise.all([
       prisma.test.findMany({
+        where: { service: { tenantId } },
         skip,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
         include: {
+          service: { select: { id: true, name: true } },
           _count: { select: { assignments: true } },
         },
       }),
-      prisma.test.count(),
+      prisma.test.count({ where: { service: { tenantId } } }),
     ]);
 
     return {
@@ -62,9 +83,10 @@ export class TestsService {
   async getTestById(tenantId: string, id: string) {
     const prisma = await this.tenantService.getTenantPrisma(tenantId);
 
-    const test = await prisma.test.findUnique({
-      where: { id },
+    const test = await prisma.test.findFirst({
+      where: { id, service: { tenantId } },
       include: {
+        service: { select: { id: true, name: true } },
         assignments: {
           include: {
             student: {
@@ -91,15 +113,21 @@ export class TestsService {
     const prisma = await this.tenantService.getTenantPrisma(tenantId);
     await this.getTestById(tenantId, id);
 
+    if (dto.serviceId !== undefined) {
+      await this.ensureServiceExists(prisma, tenantId, dto.serviceId);
+    }
+
     return prisma.test.update({
       where: { id },
       data: {
+        ...(dto.serviceId !== undefined && { service: { connect: { id: dto.serviceId } } }),
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.type !== undefined && { type: dto.type }),
         ...(dto.description !== undefined && { description: dto.description }),
         ...(dto.studentCapacity !== undefined && { studentCapacity: dto.studentCapacity }),
       },
       include: {
+        service: { select: { id: true, name: true } },
         _count: { select: { assignments: true } },
       },
     });
@@ -140,7 +168,7 @@ export class TestsService {
     return prisma.testAssignment.create({
       data: { testId, studentId: dto.studentId, status: 'Pending' },
       include: {
-        test: { select: { id: true, name: true, type: true } },
+        test: { select: { id: true, name: true, type: true, serviceId: true } },
         student: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
     });
@@ -152,7 +180,10 @@ export class TestsService {
   async updateTestAssignment(tenantId: string, assignmentId: string, dto: UpdateTestAssignmentDto) {
     const prisma = await this.tenantService.getTenantPrisma(tenantId);
 
-    const assignment = await prisma.testAssignment.findUnique({ where: { id: assignmentId } });
+    const assignment = await prisma.testAssignment.findFirst({
+      where: { id: assignmentId, test: { service: { tenantId } } },
+      select: { id: true },
+    });
     if (!assignment) {
       throw new NotFoundException('Test assignment not found');
     }
@@ -164,7 +195,7 @@ export class TestsService {
         ...(dto.score !== undefined && { score: new Decimal(dto.score) }),
       },
       include: {
-        test: { select: { id: true, name: true, type: true } },
+        test: { select: { id: true, name: true, type: true, serviceId: true } },
         student: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
     });
@@ -176,7 +207,10 @@ export class TestsService {
   async deleteTestAssignment(tenantId: string, assignmentId: string) {
     const prisma = await this.tenantService.getTenantPrisma(tenantId);
 
-    const assignment = await prisma.testAssignment.findUnique({ where: { id: assignmentId } });
+    const assignment = await prisma.testAssignment.findFirst({
+      where: { id: assignmentId, test: { service: { tenantId } } },
+      select: { id: true },
+    });
     if (!assignment) {
       throw new NotFoundException('Test assignment not found');
     }
@@ -198,7 +232,7 @@ export class TestsService {
 
     const [assignments, total] = await Promise.all([
       prisma.testAssignment.findMany({
-        where: { testId },
+        where: { testId, test: { service: { tenantId } } },
         skip,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
@@ -208,7 +242,7 @@ export class TestsService {
           },
         },
       }),
-      prisma.testAssignment.count({ where: { testId } }),
+      prisma.testAssignment.count({ where: { testId, test: { service: { tenantId } } } }),
     ]);
 
     return {

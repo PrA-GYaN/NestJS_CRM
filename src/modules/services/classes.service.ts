@@ -18,6 +18,21 @@ export class ClassesService {
 
   constructor(private tenantService: TenantService) {}
 
+  private async ensureServiceExists(
+    prisma: TenantPrismaClient,
+    tenantId: string,
+    serviceId: string,
+  ) {
+    const service = await prisma.service.findFirst({
+      where: { id: serviceId, tenantId },
+      select: { id: true },
+    });
+
+    if (!service) {
+      throw new NotFoundException('Service not found');
+    }
+  }
+
   private async expirePendingReservations(prisma: TenantPrismaClient, tenantId: string) {
     await prisma.classBookingRequest.updateMany({
       where: {
@@ -62,6 +77,7 @@ export class ClassesService {
    */
   async createClass(tenantId: string, dto: CreateClassDto) {
     const prisma = await this.tenantService.getTenantPrisma(tenantId);
+    await this.ensureServiceExists(prisma, tenantId, dto.serviceId);
 
     const data: Prisma.ClassCreateInput = {
       tenantId,
@@ -69,12 +85,14 @@ export class ClassesService {
       description: dto.description,
       schedule: this.normalizeSchedule(dto.schedule),
       studentCapacity: dto.studentCapacity,
+      service: { connect: { id: dto.serviceId } },
       ...(dto.instructorId && { instructor: { connect: { id: dto.instructorId } } }),
     };
 
     return prisma.class.create({
       data,
       include: {
+        service: { select: { id: true, name: true } },
         instructor: { select: { id: true, name: true, email: true } },
         _count: { select: { enrollments: true } },
       },
@@ -96,6 +114,7 @@ export class ClassesService {
         take: limit,
         orderBy: { [sortBy]: sortOrder },
         include: {
+          service: { select: { id: true, name: true } },
           instructor: { select: { id: true, name: true, email: true } },
           _count: { select: { enrollments: true } },
         },
@@ -121,6 +140,7 @@ export class ClassesService {
     const cls = await prisma.class.findFirst({
       where: { id, tenantId },
       include: {
+        service: { select: { id: true, name: true } },
         instructor: { select: { id: true, name: true, email: true } },
         enrollments: {
           include: {
@@ -148,7 +168,12 @@ export class ClassesService {
     const prisma = await this.tenantService.getTenantPrisma(tenantId);
     await this.getClassById(tenantId, id);
 
+    if (dto.serviceId !== undefined) {
+      await this.ensureServiceExists(prisma, tenantId, dto.serviceId);
+    }
+
     const data: Prisma.ClassUpdateInput = {
+      ...(dto.serviceId !== undefined && { service: { connect: { id: dto.serviceId } } }),
       ...(dto.name !== undefined && { name: dto.name }),
       ...(dto.description !== undefined && { description: dto.description }),
       ...(dto.schedule !== undefined && { schedule: this.normalizeSchedule(dto.schedule) }),
@@ -160,6 +185,7 @@ export class ClassesService {
       where: { id },
       data,
       include: {
+        service: { select: { id: true, name: true } },
         instructor: { select: { id: true, name: true, email: true } },
         _count: { select: { enrollments: true } },
       },

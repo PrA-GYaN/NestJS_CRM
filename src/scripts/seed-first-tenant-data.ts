@@ -333,6 +333,19 @@ async function seedFirstTenantData() {
                 },
             }));
 
+        const prepService =
+            (await tenantPrisma.service.findFirst({
+                where: { tenantId, name: 'Academic Preparation Support' },
+            })) ||
+            (await tenantPrisma.service.create({
+                data: {
+                    tenantId,
+                    name: 'Academic Preparation Support',
+                    description: 'Preparation-focused support for classes and tests',
+                    price: 600,
+                },
+            }));
+
         const classOne =
             (await tenantPrisma.class.findFirst({
                 where: { tenantId, name: 'IELTS Preparation - Batch A' },
@@ -340,6 +353,7 @@ async function seedFirstTenantData() {
             (await tenantPrisma.class.create({
                 data: {
                     tenantId,
+                    serviceId: prepService.id,
                     name: 'IELTS Preparation - Batch A',
                     description: 'Basic IELTS preparation class',
                     schedule: {
@@ -387,10 +401,14 @@ async function seedFirstTenantData() {
 
         const testIelts =
             (await tenantPrisma.test.findFirst({
-                where: { name: 'IELTS Mock Test - Set 1' },
+                where: {
+                    name: 'IELTS Mock Test - Set 1',
+                    service: { tenantId },
+                },
             })) ||
             (await tenantPrisma.test.create({
                 data: {
+                    serviceId: prepService.id,
                     name: 'IELTS Mock Test - Set 1',
                     type: 'IELTS',
                     description: 'Seeded IELTS practice test',
