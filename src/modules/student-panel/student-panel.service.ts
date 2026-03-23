@@ -163,6 +163,7 @@ export class StudentPanelService {
 
   async getDashboardStats(tenantId: string, studentId: string): Promise<DashboardStatsResponseDto> {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    const now = new Date();
 
     // Get all stats in parallel
     const [
@@ -175,6 +176,10 @@ export class StudentPanelService {
       unreadNotifications,
       documentsToUpload,
       student,
+      visaApplications,
+      recentActivity,
+      upcomingTasks,
+      upcomingAppointmentsList,
     ] = await Promise.all([
       // Total course applications
       tenantPrisma.courseApplication.count({
@@ -218,9 +223,9 @@ export class StudentPanelService {
         where: {
           studentId,
           tenantId,
-          status: 'Scheduled',
+          status: { in: ['Pending', 'Booked', 'Scheduled'] },
           scheduledAt: {
-            gte: new Date(),
+            gte: now,
             lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           },
         },
@@ -246,7 +251,139 @@ export class StudentPanelService {
         where: { id: studentId, tenantId },
         select: { profileCompleteness: true },
       }),
+      // Detailed visa applications with workflow and steps
+      tenantPrisma.visaApplication.findMany({
+        where: {
+          studentId,
+          tenantId,
+        },
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          visaType: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              country: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true,
+                },
+              },
+            },
+          },
+          workflow: {
+            select: {
+              id: true,
+              name: true,
+              steps: {
+                where: { isActive: true },
+                orderBy: { stepOrder: 'asc' },
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  stepOrder: true,
+                  requiresDocument: true,
+                  isActive: true,
+                  expectedDurationDays: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      // Recent activities from notifications
+      tenantPrisma.studentNotification.findMany({
+        where: {
+          studentId,
+          tenantId,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          type: true,
+          title: true,
+          message: true,
+          metadata: true,
+          createdAt: true,
+        },
+      }),
+      // Upcoming tasks (top 5)
+      tenantPrisma.task.findMany({
+        where: {
+          tenantId,
+          relatedEntityType: 'Student',
+          relatedEntityId: studentId,
+          status: { in: ['Pending', 'InProgress'] },
+          dueDate: { not: null, gte: now },
+        },
+        orderBy: { dueDate: 'asc' },
+        take: 5,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          status: true,
+          priority: true,
+          dueDate: true,
+          createdAt: true,
+        },
+      }),
+      // Upcoming appointments (top 5)
+      tenantPrisma.appointment.findMany({
+        where: {
+          studentId,
+          tenantId,
+          status: { in: ['Pending', 'Booked', 'Scheduled'] },
+          scheduledAt: { gte: now },
+        },
+        orderBy: { scheduledAt: 'asc' },
+        take: 5,
+        select: {
+          id: true,
+          scheduledAt: true,
+          endTime: true,
+          duration: true,
+          status: true,
+          purpose: true,
+          note: true,
+          staff: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      }),
     ]);
+
+    const visaApplicationsDetailed = visaApplications.map((application) => {
+      const currentStep = application.workflow.steps.find(
+        (step) => step.id === application.currentStepId,
+      );
+
+      return {
+        id: application.id,
+        status: application.status,
+        destinationCountry: application.destinationCountry,
+        submissionDate: application.submissionDate,
+        decisionDate: application.decisionDate,
+        currentStepId: application.currentStepId,
+        visaType: application.visaType,
+        workflow: {
+          id: application.workflow.id,
+          name: application.workflow.name,
+          currentStep,
+          steps: application.workflow.steps,
+        },
+        createdAt: application.createdAt,
+        updatedAt: application.updatedAt,
+      };
+    });
 
     return {
       totalApplications,
@@ -258,6 +395,25 @@ export class StudentPanelService {
       unreadNotifications,
       documentsToUpload,
       profileCompleteness: student?.profileCompleteness || 0,
+      visaApplications: visaApplicationsDetailed,
+      recentActivity: recentActivity.map((activity) => ({
+        id: activity.id,
+        category: activity.type,
+        title: activity.title,
+        description: activity.message,
+        metadata: activity.metadata,
+        createdAt: activity.createdAt,
+      })),
+      upcomingTasks: upcomingTasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        dueDate: task.dueDate as Date,
+        createdAt: task.createdAt,
+      })),
+      upcomingAppointmentsList,
     };
   }
 
@@ -943,73 +1099,276 @@ export class StudentPanelService {
   async getMyServices(tenantId: string, studentId: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
-    const services = await tenantPrisma.studentService.findMany({
-      where: {
-        studentId,
-        tenantId,
-      },
-      orderBy: { assignedAt: 'desc' },
+    const student = await tenantPrisma.student.findFirst({
+      where: { id: studentId, tenantId },
+      select: { id: true },
+    });
+
+    if (!student) {
+      throw new NotFoundException('Student not found');
+    }
+
+    const services = await tenantPrisma.service.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: 'desc' },
       include: {
-        service: {
+        studentServices: {
+          where: { studentId },
+          select: {
+            id: true,
+            assignedAt: true,
+            notes: true,
+          },
+        },
+        classes: {
+          orderBy: { createdAt: 'desc' },
           select: {
             id: true,
             name: true,
             description: true,
-            price: true,
+            schedule: true,
+            studentCapacity: true,
+            createdAt: true,
+            updatedAt: true,
+            enrollments: {
+              where: { studentId },
+              select: {
+                id: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
+          },
+        },
+        tests: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            description: true,
+            studentCapacity: true,
+            createdAt: true,
+            updatedAt: true,
+            assignments: {
+              where: { studentId },
+              select: {
+                id: true,
+                status: true,
+                score: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
           },
         },
       },
     });
 
-    return services;
+    const mappedServices = services.map((service) => {
+      const serviceAssignment = service.studentServices[0] || null;
+
+      const classes = service.classes.map((cls) => {
+        const classAssignment = cls.enrollments[0] || null;
+
+        return {
+          id: cls.id,
+          name: cls.name,
+          description: cls.description,
+          schedule: cls.schedule,
+          studentCapacity: cls.studentCapacity,
+          createdAt: cls.createdAt,
+          updatedAt: cls.updatedAt,
+          assignment: {
+            isAssigned: !!classAssignment,
+            enrollmentId: classAssignment?.id || null,
+            status: classAssignment?.status || null,
+            assignedAt: classAssignment?.createdAt || null,
+            updatedAt: classAssignment?.updatedAt || null,
+          },
+        };
+      });
+
+      const tests = service.tests.map((test) => {
+        const testAssignment = test.assignments[0] || null;
+
+        return {
+          id: test.id,
+          name: test.name,
+          type: test.type,
+          description: test.description,
+          studentCapacity: test.studentCapacity,
+          createdAt: test.createdAt,
+          updatedAt: test.updatedAt,
+          assignment: {
+            isAssigned: !!testAssignment,
+            assignmentId: testAssignment?.id || null,
+            status: testAssignment?.status || null,
+            score: testAssignment?.score ?? null,
+            assignedAt: testAssignment?.createdAt || null,
+            updatedAt: testAssignment?.updatedAt || null,
+          },
+        };
+      });
+
+      return {
+        id: service.id,
+        name: service.name,
+        description: service.description,
+        price: service.price,
+        createdAt: service.createdAt,
+        updatedAt: service.updatedAt,
+        assignment: {
+          isAssigned: !!serviceAssignment,
+          assignmentId: serviceAssignment?.id || null,
+          assignedAt: serviceAssignment?.assignedAt || null,
+          notes: serviceAssignment?.notes || null,
+        },
+        classes,
+        tests,
+      };
+    });
+
+    return {
+      tenantId,
+      studentId,
+      totalServices: mappedServices.length,
+      assignedServices: mappedServices.filter((service) => service.assignment.isAssigned).length,
+      services: mappedServices,
+    };
   }
 
   async getMyServiceById(tenantId: string, studentId: string, serviceId: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
-    const assignment = await tenantPrisma.studentService.findFirst({
-      where: {
-        tenantId,
-        studentId,
-        serviceId,
-      },
+    const student = await tenantPrisma.student.findFirst({
+      where: { id: studentId, tenantId },
+      select: { id: true },
+    });
+
+    if (!student) {
+      throw new NotFoundException('Student not found');
+    }
+
+    const service = await tenantPrisma.service.findFirst({
+      where: { id: serviceId, tenantId },
       include: {
-        service: {
-          include: {
-            classes: {
+        studentServices: {
+          where: { studentId },
+          select: {
+            id: true,
+            assignedAt: true,
+            notes: true,
+          },
+        },
+        classes: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            schedule: true,
+            studentCapacity: true,
+            createdAt: true,
+            updatedAt: true,
+            enrollments: {
+              where: { studentId },
               select: {
                 id: true,
-                name: true,
-                description: true,
-                schedule: true,
-                studentCapacity: true,
+                status: true,
                 createdAt: true,
                 updatedAt: true,
               },
-              orderBy: { createdAt: 'desc' },
             },
-            tests: {
+          },
+        },
+        tests: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            description: true,
+            studentCapacity: true,
+            createdAt: true,
+            updatedAt: true,
+            assignments: {
+              where: { studentId },
               select: {
                 id: true,
-                name: true,
-                type: true,
-                description: true,
-                studentCapacity: true,
+                status: true,
+                score: true,
                 createdAt: true,
                 updatedAt: true,
               },
-              orderBy: { createdAt: 'desc' },
             },
           },
         },
       },
     });
 
-    if (!assignment) {
-      throw new NotFoundException('Service not found or not assigned to this student');
+    if (!service) {
+      throw new NotFoundException('Service not found');
     }
 
-    return assignment.service;
+    const serviceAssignment = service.studentServices[0] || null;
+
+    return {
+      id: service.id,
+      name: service.name,
+      description: service.description,
+      price: service.price,
+      createdAt: service.createdAt,
+      updatedAt: service.updatedAt,
+      assignment: {
+        isAssigned: !!serviceAssignment,
+        assignmentId: serviceAssignment?.id || null,
+        assignedAt: serviceAssignment?.assignedAt || null,
+        notes: serviceAssignment?.notes || null,
+      },
+      classes: service.classes.map((cls) => {
+        const classAssignment = cls.enrollments[0] || null;
+
+        return {
+          id: cls.id,
+          name: cls.name,
+          description: cls.description,
+          schedule: cls.schedule,
+          studentCapacity: cls.studentCapacity,
+          createdAt: cls.createdAt,
+          updatedAt: cls.updatedAt,
+          assignment: {
+            isAssigned: !!classAssignment,
+            enrollmentId: classAssignment?.id || null,
+            status: classAssignment?.status || null,
+            assignedAt: classAssignment?.createdAt || null,
+            updatedAt: classAssignment?.updatedAt || null,
+          },
+        };
+      }),
+      tests: service.tests.map((test) => {
+        const testAssignment = test.assignments[0] || null;
+
+        return {
+          id: test.id,
+          name: test.name,
+          type: test.type,
+          description: test.description,
+          studentCapacity: test.studentCapacity,
+          createdAt: test.createdAt,
+          updatedAt: test.updatedAt,
+          assignment: {
+            isAssigned: !!testAssignment,
+            assignmentId: testAssignment?.id || null,
+            status: testAssignment?.status || null,
+            score: testAssignment?.score ?? null,
+            assignedAt: testAssignment?.createdAt || null,
+            updatedAt: testAssignment?.updatedAt || null,
+          },
+        };
+      }),
+    };
   }
 
   // ============================================

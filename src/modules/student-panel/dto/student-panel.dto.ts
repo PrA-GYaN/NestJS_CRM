@@ -252,6 +252,130 @@ export class VisaApplicationsQueryDto {
 // DASHBOARD DTOs
 // ============================================
 
+export class DashboardVisaWorkflowStepDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  description?: string | null;
+
+  @ApiProperty()
+  stepOrder!: number;
+
+  @ApiProperty()
+  requiresDocument!: boolean;
+
+  @ApiProperty()
+  isActive!: boolean;
+
+  @ApiPropertyOptional({ nullable: true })
+  expectedDurationDays?: number | null;
+}
+
+export class DashboardVisaApplicationDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  status!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  destinationCountry?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  submissionDate?: Date | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  decisionDate?: Date | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  currentStepId?: string | null;
+
+  @ApiProperty({ type: Object })
+  visaType!: any;
+
+  @ApiProperty({ type: Object })
+  workflow!: any;
+
+  @ApiProperty()
+  createdAt!: Date;
+
+  @ApiProperty()
+  updatedAt!: Date;
+}
+
+export class DashboardRecentActivityDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  category!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty()
+  description!: string;
+
+  @ApiPropertyOptional({ type: Object, nullable: true })
+  metadata?: any;
+
+  @ApiProperty()
+  createdAt!: Date;
+}
+
+export class DashboardUpcomingTaskDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  description?: string | null;
+
+  @ApiProperty()
+  status!: string;
+
+  @ApiProperty()
+  priority!: string;
+
+  @ApiProperty()
+  dueDate!: Date;
+
+  @ApiProperty()
+  createdAt!: Date;
+}
+
+export class DashboardUpcomingAppointmentDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  scheduledAt!: Date;
+
+  @ApiProperty()
+  endTime!: Date;
+
+  @ApiProperty()
+  duration!: number;
+
+  @ApiProperty()
+  status!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  purpose?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  note?: string | null;
+
+  @ApiProperty({ type: Object })
+  staff!: any;
+}
+
 export class DashboardStatsResponseDto {
   @ApiProperty()
   totalApplications!: number;
@@ -279,4 +403,169 @@ export class DashboardStatsResponseDto {
 
   @ApiProperty()
   profileCompleteness!: number;
+
+  @ApiProperty({ type: [DashboardVisaApplicationDto] })
+  visaApplications!: DashboardVisaApplicationDto[];
+
+  @ApiProperty({ type: [DashboardRecentActivityDto] })
+  recentActivity!: DashboardRecentActivityDto[];
+
+  @ApiProperty({ type: [DashboardUpcomingTaskDto] })
+  upcomingTasks!: DashboardUpcomingTaskDto[];
+
+  @ApiProperty({ type: [DashboardUpcomingAppointmentDto] })
+  upcomingAppointmentsList!: DashboardUpcomingAppointmentDto[];
+}
+
+// ============================================
+// SERVICES RESPONSE DTOs
+// ============================================
+
+export class ServiceAssignmentDto {
+  @ApiProperty()
+  isAssigned!: boolean;
+
+  @ApiPropertyOptional({ nullable: true })
+  assignmentId?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  assignedAt?: Date | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  notes?: string | null;
+}
+
+export class ClassAssignmentDto {
+  @ApiProperty()
+  isAssigned!: boolean;
+
+  @ApiPropertyOptional({ nullable: true })
+  enrollmentId?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  status?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  assignedAt?: Date | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  updatedAt?: Date | null;
+}
+
+export class TestAssignmentDto {
+  @ApiProperty()
+  isAssigned!: boolean;
+
+  @ApiPropertyOptional({ nullable: true })
+  assignmentId?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  status?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: Number })
+  score?: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  assignedAt?: Date | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  updatedAt?: Date | null;
+}
+
+export class StudentPanelClassSummaryDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  description?: string | null;
+
+  @ApiProperty({ type: Object })
+  schedule!: any;
+
+  @ApiProperty()
+  studentCapacity!: number;
+
+  @ApiProperty()
+  createdAt!: Date;
+
+  @ApiProperty()
+  updatedAt!: Date;
+
+  @ApiProperty({ type: ClassAssignmentDto })
+  assignment!: ClassAssignmentDto;
+}
+
+export class StudentPanelTestSummaryDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty()
+  type!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  description?: string | null;
+
+  @ApiProperty()
+  studentCapacity!: number;
+
+  @ApiProperty()
+  createdAt!: Date;
+
+  @ApiProperty()
+  updatedAt!: Date;
+
+  @ApiProperty({ type: TestAssignmentDto })
+  assignment!: TestAssignmentDto;
+}
+
+export class StudentPanelServiceSummaryDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  description?: string | null;
+
+  @ApiProperty({ type: Number })
+  price!: any;
+
+  @ApiProperty()
+  createdAt!: Date;
+
+  @ApiProperty()
+  updatedAt!: Date;
+
+  @ApiProperty({ type: ServiceAssignmentDto })
+  assignment!: ServiceAssignmentDto;
+
+  @ApiProperty({ type: [StudentPanelClassSummaryDto] })
+  classes!: StudentPanelClassSummaryDto[];
+
+  @ApiProperty({ type: [StudentPanelTestSummaryDto] })
+  tests!: StudentPanelTestSummaryDto[];
+}
+
+export class StudentPanelServicesResponseDto {
+  @ApiProperty()
+  tenantId!: string;
+
+  @ApiProperty()
+  studentId!: string;
+
+  @ApiProperty()
+  totalServices!: number;
+
+  @ApiProperty()
+  assignedServices!: number;
+
+  @ApiProperty({ type: [StudentPanelServiceSummaryDto] })
+  services!: StudentPanelServiceSummaryDto[];
 }

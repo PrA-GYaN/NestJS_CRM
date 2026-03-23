@@ -36,6 +36,8 @@ import {
   NotificationsQueryDto,
   MarkNotificationReadDto,
   DashboardStatsResponseDto,
+  StudentPanelServicesResponseDto,
+  StudentPanelServiceSummaryDto,
 } from './dto/student-panel.dto';
 import {
   CreateAppointmentRequestDto,
@@ -141,8 +143,8 @@ export class StudentPanelController {
 
   @Get('dashboard/stats')
   @ApiOperation({
-    summary: 'Get dashboard statistics',
-    description: 'Returns aggregated KPIs for the student dashboard: application counts, pending tasks, upcoming appointments, unread notifications, and profile completeness score.',
+    summary: 'Get dashboard overview',
+    description: 'Returns dashboard KPIs plus detailed visa applications (country, visa type, workflow steps, current step), recent activity, and upcoming tasks/appointments.',
   })
   @ApiResponse({ status: 200, description: 'Dashboard stats retrieved successfully', type: DashboardStatsResponseDto })
   getDashboardStats(@TenantId() tenantId: string, @CurrentUser() user: any) {
@@ -633,16 +635,24 @@ export class StudentPanelController {
   }
 
   @Get('services')
-  @ApiOperation({ summary: 'Get my services' })
-  @ApiResponse({ status: 200, description: 'Services retrieved successfully' })
+  @ApiOperation({ summary: 'Get all tenant services with my assignment status' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tenant services with classes, tests, and assignment status retrieved successfully',
+    type: StudentPanelServicesResponseDto,
+  })
   getMyServices(@TenantId() tenantId: string, @CurrentUser() user: any) {
     return this.studentPanelService.getMyServices(tenantId, user.studentId || user.id);
   }
 
   @Get('services/:id')
-  @ApiOperation({ summary: 'Get my service by ID with classes and tests' })
-  @ApiResponse({ status: 200, description: 'Service retrieved successfully' })
-  @ApiResponse({ status: 404, description: 'Service not found or not assigned to student' })
+  @ApiOperation({ summary: 'Get tenant service by ID with classes, tests, and my assignment status' })
+  @ApiResponse({
+    status: 200,
+    description: 'Service retrieved successfully',
+    type: StudentPanelServiceSummaryDto,
+  })
+  @ApiResponse({ status: 404, description: 'Service not found' })
   getMyServiceById(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,
