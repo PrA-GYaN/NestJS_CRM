@@ -232,7 +232,7 @@ export class CourseApplicationsRepository {
   async updateStatus(
     tenantId: string,
     id: string,
-    status: 'Accepted' | 'Rejected',
+    status: ApplicationStatus,
     rejectionReason?: string,
   ) {
     const prisma = await this.tenantPrisma(tenantId);

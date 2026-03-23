@@ -58,7 +58,7 @@ export class VisaApplicationsService {
     });
   }
 
-  async advanceStep(tenantId: string, id: string, advanceDto: AdvanceVisaStepDto) {
+  async fadvanceStep(tenantId: string, id: string, advanceDto: AdvanceVisaStepDto) {
     const { expectedStepId, notes } = advanceDto;
 
     return this.prisma.$transaction(async (tx: any) => {

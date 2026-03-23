@@ -48,6 +48,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { VisaApplicationsModule } from './modules/visa-applications/visa-applications.module';
 import { CourseApplicationsModule } from './modules/course-applications/course-applications.module';
+import { VisaDocumentsModule } from './modules/visa-documents/visa-documents.module';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { CourseApplicationsModule } from './modules/course-applications/course-a
     NotificationsModule,
     ActivityLogsModule,
     VisaApplicationsModule,
+    VisaDocumentsModule,
     CourseApplicationsModule,
   ],
   providers: [
