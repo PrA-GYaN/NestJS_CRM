@@ -143,6 +143,20 @@ export class TestsController {
     return this.testsService.getTestAssignments(tenantId, params.id, paginationDto);
   }
 
+  @Get(':id/booking-requests')
+  @CanRead('services')
+  @ApiOperation({ summary: 'Get all booking requests for a specific test' })
+  @ApiParam({ name: 'id', description: 'Test ID' })
+  @ApiResponse({ status: 200, description: 'Booking requests retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Test not found' })
+  getTestBookingRequestsByTestId(
+    @TenantId() tenantId: string,
+    @Param() params: IdParamDto,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return this.testsService.getTestBookingRequestsByTestId(tenantId, params.id, paginationDto);
+  }
+
   @Get('booking-requests/all')
   @CanRead('services')
   @ApiOperation({ summary: 'Get all test booking requests (for CRM panel)' })

@@ -261,6 +261,51 @@ export class TestsService {
   }
 
   /**
+   * Get all booking requests for a specific test
+   */
+  async getTestBookingRequestsByTestId(tenantId: string, testId: string, paginationDto?: PaginationDto) {
+    const prisma = await this.tenantService.getTenantPrisma(tenantId);
+    
+    // Ensure test exists
+    await this.getTestById(tenantId, testId);
+    
+    const { page = 1, limit = 10, sortBy = 'requestedAt', sortOrder = 'desc' } = paginationDto || {};
+    const skip = (page - 1) * limit;
+
+    const [requests, total] = await Promise.all([
+      prisma.testBookingRequest.findMany({
+        where: {
+          testId,
+          tenantId,
+          test: { service: { tenantId } },
+        },
+        skip,
+        take: limit,
+        orderBy: { [sortBy]: sortOrder },
+        include: {
+          test: { select: { id: true, name: true, type: true } },
+          student: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
+        },
+      }),
+      prisma.testBookingRequest.count({
+        where: {
+          testId,
+          tenantId,
+          test: { service: { tenantId } },
+        },
+      }),
+    ]);
+
+    return {
+      data: requests,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
    * Request test participation (seat reservation)
    */
   async requestTestBooking(
