@@ -63,8 +63,8 @@ export class PermissionsService {
     },
     {
       module: 'activity-logs',
-      actions: ['read'],
-      description: 'Activity log access permissions',
+      actions: ['read', 'export', 'delete'],
+      description: 'Activity log access, export, and deletion permissions',
     },
     {
       module: 'files',

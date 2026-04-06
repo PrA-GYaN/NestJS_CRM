@@ -1139,6 +1139,13 @@ export class StudentPanelService {
                 updatedAt: true,
               },
             },
+            bookingRequests: {
+              where: { studentId },
+              select: {
+                id: true,
+                status: true,
+              },
+            },
           },
         },
         tests: {
@@ -1161,6 +1168,13 @@ export class StudentPanelService {
                 updatedAt: true,
               },
             },
+            bookingRequests: {
+              where: { studentId },
+              select: {
+                id: true,
+                status: true,
+              },
+            },
           },
         },
       },
@@ -1171,6 +1185,7 @@ export class StudentPanelService {
 
       const classes = service.classes.map((cls) => {
         const classAssignment = cls.enrollments[0] || null;
+        const classBookingRequest = cls.bookingRequests[0] || null;
 
         return {
           id: cls.id,
@@ -1187,11 +1202,14 @@ export class StudentPanelService {
             assignedAt: classAssignment?.createdAt || null,
             updatedAt: classAssignment?.updatedAt || null,
           },
+          hasBookingRequest: !!classBookingRequest,
+          bookingRequestStatus: classBookingRequest?.status || null,
         };
       });
 
       const tests = service.tests.map((test) => {
         const testAssignment = test.assignments[0] || null;
+        const testBookingRequest = test.bookingRequests[0] || null;
 
         return {
           id: test.id,
@@ -1209,6 +1227,8 @@ export class StudentPanelService {
             assignedAt: testAssignment?.createdAt || null,
             updatedAt: testAssignment?.updatedAt || null,
           },
+          hasBookingRequest: !!testBookingRequest,
+          bookingRequestStatus: testBookingRequest?.status || null,
         };
       });
 
@@ -1281,6 +1301,13 @@ export class StudentPanelService {
                 updatedAt: true,
               },
             },
+            bookingRequests: {
+              where: { studentId },
+              select: {
+                id: true,
+                status: true,
+              },
+            },
           },
         },
         tests: {
@@ -1301,6 +1328,13 @@ export class StudentPanelService {
                 score: true,
                 createdAt: true,
                 updatedAt: true,
+              },
+            },
+            bookingRequests: {
+              where: { studentId },
+              select: {
+                id: true,
+                status: true,
               },
             },
           },
@@ -1329,6 +1363,7 @@ export class StudentPanelService {
       },
       classes: service.classes.map((cls) => {
         const classAssignment = cls.enrollments[0] || null;
+        const classBookingRequest = cls.bookingRequests[0] || null;
 
         return {
           id: cls.id,
@@ -1345,10 +1380,13 @@ export class StudentPanelService {
             assignedAt: classAssignment?.createdAt || null,
             updatedAt: classAssignment?.updatedAt || null,
           },
+          hasBookingRequest: !!classBookingRequest,
+          bookingRequestStatus: classBookingRequest?.status || null,
         };
       }),
       tests: service.tests.map((test) => {
         const testAssignment = test.assignments[0] || null;
+        const testBookingRequest = test.bookingRequests[0] || null;
 
         return {
           id: test.id,
@@ -1366,6 +1404,8 @@ export class StudentPanelService {
             assignedAt: testAssignment?.createdAt || null,
             updatedAt: testAssignment?.updatedAt || null,
           },
+          hasBookingRequest: !!testBookingRequest,
+          bookingRequestStatus: testBookingRequest?.status || null,
         };
       }),
     };
