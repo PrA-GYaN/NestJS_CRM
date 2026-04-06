@@ -32,6 +32,8 @@ import {
   CreatePaymentDto,
   PaymentQueryDto,
   UpdatePaymentDto,
+  PaymentStatisticsQueryDto,
+  PaymentStatisticsResponseDto,
 } from './dto/payment.dto';
 
 @ApiTags('Payments')
@@ -91,6 +93,40 @@ export class PaymentsController {
     return this.paymentsService.getPayments(tenantId, queryDto);
   }
 
+  // ─── STATISTICS ───────────────────────────────────────────────────
+
+  /**
+   * Get detailed payment statistics for the authenticated tenant.
+   *
+   * Includes metrics such as total revenue, revenue trends, pending/overdue amounts,
+   * collection rates, breakdowns by payment method and status, and daily revenue trends.
+   *
+   * Default period: last 3 months (if no date range specified)
+   * Comparison period: automatically set to the 3 months prior to the main period
+   *
+   * Filters: Optional date ranges, payment status, payment method, customer (studentId), service
+   */
+  @Get('statistics/summary')
+  @CanRead('payments')
+  @ApiOperation({
+    summary: 'Get payment statistics and analytics',
+    description:
+      'Returns comprehensive payment statistics for the tenant including revenue metrics, ' +
+      'payment trends, collection rates, and breakdowns. Supports filtering by date range, ' +
+      'status, payment method, customer, and service. Default period is last 3 months.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Payment statistics retrieved successfully.',
+    type: PaymentStatisticsResponseDto,
+  })
+  getPaymentStatistics(
+    @TenantId() tenantId: string,
+    @Query() queryDto: PaymentStatisticsQueryDto,
+  ) {
+    return this.paymentsService.getPaymentStatistics(tenantId, queryDto);
+  }
+
   // ─── OVERDUE ──────────────────────────────────────────────────────
 
   /**
@@ -148,6 +184,62 @@ export class PaymentsController {
     @Param('studentId') studentId: string,
   ) {
     return this.paymentsService.getStudentPaymentSummary(tenantId, studentId);
+  }
+
+  /**
+   * Get all pending (non-completed) payments for a student and service.
+   * Useful for aggregating payment amounts and calculating balances.
+   */
+  @Get('pending/:studentId/:serviceId?')
+  @CanRead('payments')
+  @ApiOperation({
+    summary: 'Get pending payments for a student and service',
+    description:
+      'Retrieves all pending and partially-paid payments for the student in the current payment cycle. ' +
+      'Service ID is optional. Use this to display active payment transactions or compute aggregate balances.',
+  })
+  @ApiParam({ name: 'studentId', description: 'Student UUID' })
+  @ApiParam({
+    name: 'serviceId',
+    description: 'Service UUID (optional)',
+    required: false,
+  })
+  getPendingPayments(
+    @TenantId() tenantId: string,
+    @Param('studentId') studentId: string,
+    @Param('serviceId') serviceId?: string,
+  ) {
+    return this.paymentsService.getStudentServicePendingPayments(
+      tenantId,
+      studentId,
+      serviceId || null,
+    );
+  }
+
+  /**
+   * Get detailed payment cycle information for a student and service.
+   * Shows current and all historical payment cycles with summaries.
+   */
+  @Get('cycles/:studentId/:serviceId?')
+  @CanRead('payments')
+  @ApiOperation({
+    summary: 'Get payment cycle information',
+    description:
+      'Retrieves detailed information about all payment cycles for a student and service. ' +
+      'Shows current cycle number, current cycle summary, and all previous cycles with their statuses.',
+  })
+  @ApiParam({ name: 'studentId', description: 'Student UUID' })
+  @ApiParam({
+    name: 'serviceId',
+    description: 'Service UUID (optional)',
+    required: false,
+  })
+  getPaymentCycleInfo(
+    @TenantId() tenantId: string,
+    @Param('studentId') studentId: string,
+    @Param('serviceId') serviceId?: string,
+  ) {
+    return this.paymentsService.getPaymentCycleInfo(tenantId, studentId, serviceId || null);
   }
 
   // ─── SINGLE ───────────────────────────────────────────────────────

@@ -1259,12 +1259,15 @@ model Payment {
   currency             String        @default("USD")
   totalAmount          Decimal       @db.Decimal(10, 2)   // Total fee / invoice amount
   paidAmount           Decimal       @db.Decimal(10, 2)   // Amount paid in THIS transaction
-  remainingAmount      Decimal       @db.Decimal(10, 2)   // Balance still outstanding after this payment
+  remainingAmount      Decimal       @db.Decimal(10, 2)   // Remaining balance after ALL payments for this cycle
 
   // ----- Classification -----
   paymentType          PaymentType   @default(Full)
   paymentMethod        PaymentMethod @default(Cash)
   status               PaymentStatus @default(Pending)
+
+  // ----- Payment Cycle Tracking -----
+  paymentCycle         Int           @default(1)          // Tracks which payment cycle this belongs to (1st, 2nd, etc.)
 
   // ----- Reference / tracking -----
   invoiceNumber        String?       // Human-readable invoice reference, e.g. INV-2024-001
@@ -1281,6 +1284,7 @@ model Payment {
   service Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, studentId])
+  @@index([tenantId, studentId, serviceId, paymentCycle])
   @@index([tenantId, status])
   @@index([tenantId, paymentType])
   @@index([tenantId, dueDate])
