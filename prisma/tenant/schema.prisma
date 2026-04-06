@@ -184,6 +184,7 @@ model Student {
   appointments        Appointment[]
   classEnrollments    ClassEnrollment[]
   classBookingRequests   ClassBookingRequest[]
+  testBookingRequests TestBookingRequest[]
   testAssignments     TestAssignment[]
   visaApplications    VisaApplication[]
   courseApplications  CourseApplication[]
@@ -240,6 +241,7 @@ model StudentDocument {
   metadata             Json?                       // Additional document metadata
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  visaDocuments VisaDocument[]  // Link to visa documents
 
   @@index([tenantId])
   @@index([tenantId, studentId])
@@ -537,17 +539,20 @@ enum TestType {
 }
 
 model Test {
-  id          String   @id @default(uuid())
-  serviceId   String
-  name        String
-  type        TestType
-  description String?
-  studentCapacity Int   @default(1)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                          String   @id @default(uuid())
+  serviceId                   String
+  name                        String
+  type                        TestType
+  description                 String?
+  scheduledDate               DateTime?    // When the test will be conducted
+  studentCapacity             Int          @default(1)
+  reservationDurationMinutes  Int          @default(15)  // Minutes to hold seat reservation for pending requests
+  createdAt                   DateTime     @default(now())
+  updatedAt                   DateTime     @updatedAt
 
-  service     Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  service     Service              @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   assignments TestAssignment[]
+  bookingRequests TestBookingRequest[]
 
   @@index([serviceId])
   @@map("tests")
@@ -574,6 +579,41 @@ model TestAssignment {
   @@index([studentId])
   @@index([testId])
   @@map("test_assignments")
+}
+
+enum TestBookingRequestStatus {
+  Pending
+  Approved
+  Rejected
+  Cancelled
+  Expired
+}
+
+model TestBookingRequest {
+  id                   String                   @id @default(uuid())
+  tenantId             String
+  testId               String
+  studentId            String
+  status               TestBookingRequestStatus @default(Pending)
+  notes                String?
+  requestedAt          DateTime                 @default(now())
+  reservationExpiresAt DateTime?
+  approvedAt           DateTime?
+  approvedBy           String?
+  rejectedAt           DateTime?
+  rejectedBy           String?
+  rejectionReason      String?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  test    Test    @relation(fields: [testId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, testId, status])
+  @@index([tenantId, studentId, status])
+  @@index([tenantId, reservationExpiresAt])
+  @@index([tenantId, requestedAt])
+  @@map("test_booking_requests")
 }
 
 // ============================================
@@ -837,15 +877,20 @@ model VisaDocument {
   id                String       @id @default(uuid())
   tenantId          String
   visaApplicationId String
-  documentType      DocumentType
-  filePath          String
+  studentDocumentId String?      // Reference to existing StudentDocument
+  documentType      DocumentType?  // Will be set from studentDocument if linked, or directly
+  filePath          String?        // Will be set from studentDocument if linked, or directly
+  workflowId        String?        // Which workflow step this document satisfies
   uploadedAt        DateTime     @default(now())
 
   visaApplication VisaApplication @relation(fields: [visaApplicationId], references: [id], onDelete: Cascade)
+  studentDocument StudentDocument? @relation(fields: [studentDocumentId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([tenantId, visaApplicationId])
   @@index([visaApplicationId])
+  @@index([tenantId, workflowId])
+  @@index([studentDocumentId])
   @@map("visa_documents")
 }
 

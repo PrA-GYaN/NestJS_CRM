@@ -43,4 +43,12 @@ export class VisaApplicationsController {
   async findAll(@Req() req: any, @Query() filters: DefaultFilterDto) {
     return this.visaApplicationsService.findAll(req.user?.tenantId || req.headers['x-tenant-id'], filters);
   }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a specific Visa Application with full details' })
+  @ApiResponse({ status: 200, description: 'Visa application with documents, workflow status, and requirements' })
+  @ApiResponse({ status: 404, description: 'Visa application not found' })
+  async findOne(@Req() req: any, @Param('id') id: string) {
+    return this.visaApplicationsService.findOne(req.user?.tenantId || req.headers['x-tenant-id'], id);
+  }
 }

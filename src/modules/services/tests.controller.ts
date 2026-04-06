@@ -18,6 +18,8 @@ import {
   UpdateTestDto,
   AssignTestToStudentDto,
   UpdateTestAssignmentDto,
+  CreateTestBookingRequestDto,
+  ApproveRejectTestBookingRequestDto,
 } from './dto/test.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -139,5 +141,47 @@ export class TestsController {
     @Query() paginationDto: PaginationDto,
   ) {
     return this.testsService.getTestAssignments(tenantId, params.id, paginationDto);
+  }
+
+  @Get('booking-requests/all')
+  @CanRead('services')
+  @ApiOperation({ summary: 'Get all test booking requests (for CRM panel)' })
+  @ApiResponse({ status: 200, description: 'Booking requests retrieved successfully' })
+  getTestBookingRequests(
+    @TenantId() tenantId: string,
+    @Query() query: any,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return this.testsService.getTestBookingRequests(tenantId, query, paginationDto);
+  }
+
+  @Post('booking-requests/:requestId/approve')
+  @CanUpdate('services')
+  @ApiOperation({ summary: 'Approve a test booking request' })
+  @ApiParam({ name: 'requestId', description: 'Test Booking Request ID' })
+  @ApiResponse({ status: 200, description: 'Test booking request approved successfully' })
+  @ApiResponse({ status: 404, description: 'Test booking request not found' })
+  @ApiResponse({ status: 409, description: 'Request is not in Pending status or no seats available' })
+  approveTestBookingRequest(
+    @TenantId() tenantId: string,
+    @Param('requestId') requestId: string,
+    @Body() dto: ApproveRejectTestBookingRequestDto,
+  ) {
+    return this.testsService.approveTestBookingRequest(tenantId, requestId, dto);
+  }
+
+  @Post('booking-requests/:requestId/reject')
+  @CanUpdate('services')
+  @ApiOperation({ summary: 'Reject a test booking request' })
+  @ApiParam({ name: 'requestId', description: 'Test Booking Request ID' })
+  @ApiResponse({ status: 200, description: 'Test booking request rejected successfully' })
+  @ApiResponse({ status: 404, description: 'Test booking request not found' })
+  @ApiResponse({ status: 409, description: 'Request is not in Pending status' })
+  rejectTestBookingRequest(
+    @TenantId() tenantId: string,
+    @Param('requestId') requestId: string,
+    @Body() dto: ApproveRejectTestBookingRequestDto,
+  ) {
+    return this.testsService.rejectTestBookingRequest(tenantId, requestId, dto);
   }
 }

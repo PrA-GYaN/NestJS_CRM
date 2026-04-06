@@ -22,8 +22,10 @@ import { AppointmentsService } from '../appointments/appointments.service';
 import { WorkingHoursService } from '../working-hours/working-hours.service';
 import { ServicesService } from '../services/services.service';
 import { ClassesService } from '../services/classes.service';
+import { TestsService } from '../services/tests.service';
 import { CreateServiceBookingRequestDto } from '../services/dto/service.dto';
 import { CreateClassBookingRequestDto } from '../services/dto/class.dto';
+import { CreateTestBookingRequestDto } from '../services/dto/test.dto';
 import {
   UpdateStudentProfileDto,
   ChangePasswordDto,
@@ -46,7 +48,7 @@ import {
   AppointmentsQueryDto,
   StudentBookedSlotsQueryDto,
 } from '../appointments/dto/appointment.dto';
-import { IdParamDto } from '../../common/dto/common.dto';
+import { IdParamDto, PaginationDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
@@ -62,6 +64,7 @@ export class StudentPanelController {
     private workingHoursService: WorkingHoursService,
     private servicesService: ServicesService,
     private classesService: ClassesService,
+    private testsService: TestsService,
   ) {}
 
   // ============================================
@@ -695,6 +698,49 @@ export class StudentPanelController {
       user.studentId || user.id,
       dto,
     );
+  }
+
+  @Post('tests/:id/request')
+  @ApiOperation({ summary: 'Request test participation from student panel' })
+  @ApiResponse({ status: 201, description: 'Test booking request created and seat reserved temporarily' })
+  @ApiResponse({ status: 409, description: 'Test is full or an active request already exists' })
+  requestTest(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Param() params: IdParamDto,
+    @Body() dto: CreateTestBookingRequestDto,
+  ) {
+    return this.testsService.requestTestBooking(
+      tenantId,
+      params.id,
+      user.studentId || user.id,
+      dto,
+    );
+  }
+
+  @Get('tests/my-requests')
+  @ApiOperation({ summary: 'Get my test booking requests' })
+  @ApiResponse({ status: 200, description: 'Test booking requests retrieved successfully' })
+  getMyTestBookingRequests(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return this.testsService.getStudentTestBookingRequests(tenantId, user.studentId || user.id, paginationDto);
+  }
+
+  @Post('tests/requests/:requestId/cancel')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Cancel a test booking request' })
+  @ApiResponse({ status: 200, description: 'Test booking request cancelled successfully' })
+  @ApiResponse({ status: 404, description: 'Test booking request not found' })
+  @ApiResponse({ status: 409, description: 'Can only cancel requests with Pending status' })
+  cancelTestBookingRequest(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Param('requestId') requestId: string,
+  ) {
+    return this.testsService.cancelTestBookingRequest(tenantId, requestId, user.studentId || user.id);
   }
 
   // ============================================

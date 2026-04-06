@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { DocumentType } from '@prisma/tenant-client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateVisaDocumentDto, UpdateVisaDocumentDto, VisaDocumentsQueryDto } from './dto';
 
@@ -9,7 +10,7 @@ export class VisaDocumentsService {
   private async getVisaApplicationOrThrow(tenantId: string, visaApplicationId: string) {
     const visaApplication = await this.prisma.visaApplication.findFirst({
       where: { id: visaApplicationId, tenantId },
-      select: { id: true, studentId: true },
+      select: { id: true, studentId: true, workflowId: true },
     });
 
     if (!visaApplication) {
@@ -45,6 +46,43 @@ export class VisaDocumentsService {
     return studentDocument;
   }
 
+  /**
+   * Validate documents for a specific workflow
+   * Checks if all required documents for the current workflow step are present
+   */
+  private async validateWorkflowDocuments(
+    tenantId: string,
+    visaApplicationId: string,
+    workflowId: string,
+    currentFieldDocumentType?: DocumentType,
+  ) {
+    const workflowSteps = await this.prisma.visaWorkflowStep.findMany({
+      where: { workflowId, isActive: true, requiresDocument: true },
+      orderBy: { stepOrder: 'asc' },
+    });
+
+    if (workflowSteps.length === 0) {
+      return true; // No document requirements
+    }
+
+    const existingDocs = await this.prisma.visaDocument.findMany({
+      where: {
+        tenantId,
+        visaApplicationId,
+        workflowId,
+      },
+      select: { documentType: true },
+    });
+
+    const existingDocTypes = new Set<DocumentType | null>(existingDocs.map(d => d.documentType).filter(Boolean));
+    
+    if (currentFieldDocumentType) {
+      existingDocTypes.add(currentFieldDocumentType);
+    }
+
+    return existingDocTypes.size > 0;
+  }
+
   async create(tenantId: string, dto: CreateVisaDocumentDto) {
     const hasDirectFields = !!dto.documentType || !!dto.filePath;
 
@@ -54,6 +92,10 @@ export class VisaDocumentsService {
 
     const visaApplication = await this.getVisaApplicationOrThrow(tenantId, dto.visaApplicationId);
 
+    let documentType: DocumentType | undefined;
+    let filePath: string | undefined;
+    let studentDocumentRef: string | undefined;
+
     if (dto.studentDocumentId) {
       const sourceDocument = await this.resolveStudentDocumentForVisa(
         tenantId,
@@ -61,26 +103,41 @@ export class VisaDocumentsService {
         visaApplication,
       );
 
-      return this.prisma.visaDocument.create({
-        data: {
-          tenantId,
-          visaApplicationId: dto.visaApplicationId,
-          documentType: sourceDocument.documentType,
-          filePath: sourceDocument.filePath,
-        },
-      });
+      documentType = sourceDocument.documentType as DocumentType;
+      filePath = sourceDocument.filePath;
+      studentDocumentRef = sourceDocument.id;
+    } else {
+      if (!dto.documentType || !dto.filePath) {
+        throw new BadRequestException('documentType and filePath are required when studentDocumentId is not provided');
+      }
+      documentType = dto.documentType as DocumentType;
+      filePath = dto.filePath;
     }
 
-    if (!dto.documentType || !dto.filePath) {
-      throw new BadRequestException('documentType and filePath are required when studentDocumentId is not provided');
+    // Validate workflow-specific documents if workflowId is provided
+    if (dto.workflowId) {
+      await this.validateWorkflowDocuments(tenantId, dto.visaApplicationId, dto.workflowId, documentType);
     }
 
     return this.prisma.visaDocument.create({
       data: {
         tenantId,
         visaApplicationId: dto.visaApplicationId,
-        documentType: dto.documentType,
-        filePath: dto.filePath,
+        studentDocumentId: studentDocumentRef,
+        documentType,
+        filePath,
+        workflowId: dto.workflowId,
+      },
+      include: {
+        visaApplication: {
+          select: {
+            id: true,
+            studentId: true,
+            visaTypeId: true,
+            status: true,
+          },
+        },
+        studentDocument: true,
       },
     });
   }
@@ -90,6 +147,7 @@ export class VisaDocumentsService {
       where: {
         tenantId,
         ...(query.visaApplicationId && { visaApplicationId: query.visaApplicationId }),
+        ...(query.workflowId && { workflowId: query.workflowId }),
         ...(query.studentId && { visaApplication: { studentId: query.studentId } }),
       },
       include: {
@@ -101,6 +159,7 @@ export class VisaDocumentsService {
             status: true,
           },
         },
+        studentDocument: true,
       },
       orderBy: { uploadedAt: 'desc' },
     });
@@ -118,6 +177,7 @@ export class VisaDocumentsService {
             status: true,
           },
         },
+        studentDocument: true,
       },
     });
 
@@ -133,7 +193,7 @@ export class VisaDocumentsService {
       where: { id, tenantId },
       include: {
         visaApplication: {
-          select: { id: true, studentId: true },
+          select: { id: true, studentId: true, workflowId: true },
         },
       },
     });
@@ -167,6 +227,7 @@ export class VisaDocumentsService {
 
       data.documentType = sourceDocument.documentType;
       data.filePath = sourceDocument.filePath;
+      data.studentDocumentId = sourceDocument.id;
     } else {
       if (dto.documentType) {
         data.documentType = dto.documentType;
@@ -174,6 +235,13 @@ export class VisaDocumentsService {
       if (dto.filePath) {
         data.filePath = dto.filePath;
       }
+      if (dto.documentType || dto.filePath) {
+        data.studentDocumentId = null;
+      }
+    }
+
+    if (dto.workflowId !== undefined) {
+      data.workflowId = dto.workflowId;
     }
 
     if (Object.keys(data).length === 0) {
@@ -192,6 +260,7 @@ export class VisaDocumentsService {
             status: true,
           },
         },
+        studentDocument: true,
       },
     });
   }
@@ -213,4 +282,60 @@ export class VisaDocumentsService {
       message: 'Visa document deleted successfully',
     };
   }
+
+  /**
+   * Get documents for a specific visa application and workflow
+   * Used for workflow-specific validation
+   */
+  async getWorkflowDocuments(
+    tenantId: string,
+    visaApplicationId: string,
+    workflowId: string,
+  ) {
+    return this.prisma.visaDocument.findMany({
+      where: {
+        tenantId,
+        visaApplicationId,
+        workflowId,
+      },
+      select: {
+        id: true,
+        documentType: true,
+        filePath: true,
+        studentDocumentId: true,
+      },
+      orderBy: { uploadedAt: 'desc' },
+    });
+  }
+
+  /**
+   * Check if a visa application has all required documents for a workflow step
+   */
+  async checkWorkflowStepDocumentRequirements(
+    tenantId: string,
+    visaApplicationId: string,
+    workflowId: string,
+    stepOrder: number,
+  ) {
+    const step = await this.prisma.visaWorkflowStep.findFirst({
+      where: { workflowId, stepOrder, tenantId },
+    });
+
+    if (!step) {
+      throw new NotFoundException('Workflow step not found');
+    }
+
+    if (!step.requiresDocument) {
+      return { hasFulfilled: true, requiredButMissing: false };
+    }
+
+    const documents = await this.getWorkflowDocuments(tenantId, visaApplicationId, workflowId);
+
+    return {
+      hasFulfilled: documents.length > 0,
+      requiredButMissing: documents.length === 0,
+      documents,
+    };
+  }
 }
+

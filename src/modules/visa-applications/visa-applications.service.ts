@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, PreconditionFailedException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateVisaApplicationDto, AdvanceVisaStepDto, DefaultFilterDto } from './dto/visa-application.dto';
-import { VisaStatus, Prisma } from '@prisma/tenant-client';
+import { VisaStatus, Prisma, VisaWorkflowStep } from '@prisma/tenant-client';
 
 export interface HistoryEntry {
   stepId: string | null;
@@ -126,5 +126,105 @@ export class VisaApplicationsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async findOne(tenantId: string, id: string) {
+    const visaApplication = await this.prisma.visaApplication.findFirst({
+      where: { id, tenantId },
+      include: {
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+        visaType: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+        workflow: {
+          include: {
+            steps: {
+              where: { isActive: true },
+              orderBy: { stepOrder: 'asc' },
+            },
+          },
+        },
+        courseApplication: {
+          select: {
+            id: true,
+            status: true,
+            course: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        documents: {
+          include: {
+            studentDocument: {
+              select: {
+                id: true,
+                documentType: true,
+                filePath: true,
+                verificationStatus: true,
+              },
+            },
+          },
+          orderBy: { uploadedAt: 'desc' },
+        },
+      },
+    });
+
+    if (!visaApplication) {
+      throw new NotFoundException('Visa application not found');
+    }
+
+    // Enhanced response with workflow step analysis and document requirements
+    const currentStepIndex = visaApplication.workflow.steps.findIndex(
+      (s: VisaWorkflowStep) => s.id === visaApplication.currentStepId,
+    );
+
+    const currentStep = currentStepIndex !== -1 ? visaApplication.workflow.steps[currentStepIndex] : null;
+    const nextStep = currentStepIndex < visaApplication.workflow.steps.length - 1
+      ? visaApplication.workflow.steps[currentStepIndex + 1]
+      : null;
+
+    // Calculate which steps need documents
+    const stepDocumentRequirements = visaApplication.workflow.steps.map((step: VisaWorkflowStep) => {
+      const documentsForStep = visaApplication.documents.filter((doc: any) => doc.workflowId === step.id);
+      return {
+        stepId: step.id,
+        stepName: step.name,
+        stepOrder: step.stepOrder,
+        requiresDocument: step.requiresDocument,
+        isDocumentSubmitted: documentsForStep.length > 0,
+        submittedDocuments: documentsForStep,
+      };
+    });
+
+    return {
+      ...visaApplication,
+      currentStep,
+      nextStep,
+      workflowProgress: {
+        totalSteps: visaApplication.workflow.steps.length,
+        currentStepIndex: currentStepIndex + 1,
+        percentageComplete: ((currentStepIndex + 1) / visaApplication.workflow.steps.length) * 100,
+      },
+      stepDocumentRequirements,
+      metadata: {
+        createdDaysAgo: Math.floor((Date.now() - new Date(visaApplication.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
+        isCompleted: visaApplication.status === 'Approved' || visaApplication.status === 'Rejected',
+      },
+    };
   }
 }

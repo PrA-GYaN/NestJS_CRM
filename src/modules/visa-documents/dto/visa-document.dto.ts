@@ -26,6 +26,14 @@ export class CreateVisaDocumentDto {
   @ValidateIf((dto: CreateVisaDocumentDto) => !dto.studentDocumentId)
   @IsString()
   filePath?: string;
+
+  @ApiPropertyOptional({
+    description: 'Workflow ID - which workflow step this document satisfies',
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID()
+  workflowId?: string;
 }
 
 export class UpdateVisaDocumentDto {
@@ -54,6 +62,14 @@ export class UpdateVisaDocumentDto {
   @IsOptional()
   @IsString()
   filePath?: string;
+
+  @ApiPropertyOptional({
+    description: 'Workflow ID - which workflow step this document satisfies',
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID()
+  workflowId?: string;
 }
 
 export class VisaDocumentsQueryDto {
@@ -72,4 +88,12 @@ export class VisaDocumentsQueryDto {
   @IsOptional()
   @IsUUID()
   studentId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by workflow ID',
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID()
+  workflowId?: string;
 }

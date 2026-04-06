@@ -8,6 +8,7 @@ import {
   IsInt,
   Min,
   Max,
+  IsISO8601,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -42,6 +43,11 @@ export class CreateTestDto {
   @IsString()
   description?: string;
 
+  @ApiPropertyOptional({ description: 'Date and time when the test will be conducted', example: '2026-05-15T10:00:00Z' })
+  @IsOptional()
+  @IsISO8601()
+  scheduledDate?: string;
+
   @ApiProperty({
     description: 'Maximum number of students allowed for this test',
     example: 100,
@@ -51,6 +57,19 @@ export class CreateTestDto {
   @Min(1)
   @Type(() => Number)
   studentCapacity!: number;
+
+  @ApiPropertyOptional({
+    description: 'Duration in minutes to hold seat reservation for pending requests',
+    example: 15,
+    minimum: 1,
+    maximum: 1440,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  @Type(() => Number)
+  reservationDurationMinutes?: number;
 }
 
 export class UpdateTestDto {
@@ -74,6 +93,11 @@ export class UpdateTestDto {
   @IsString()
   description?: string;
 
+  @ApiPropertyOptional({ description: 'Date and time when the test will be conducted' })
+  @IsOptional()
+  @IsISO8601()
+  scheduledDate?: string;
+
   @ApiPropertyOptional({
     description: 'Maximum number of students allowed for this test',
     example: 150,
@@ -84,6 +108,19 @@ export class UpdateTestDto {
   @Min(1)
   @Type(() => Number)
   studentCapacity?: number;
+
+  @ApiPropertyOptional({
+    description: 'Duration in minutes to hold seat reservation for pending requests',
+    example: 20,
+    minimum: 1,
+    maximum: 1440,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  @Type(() => Number)
+  reservationDurationMinutes?: number;
 }
 
 export class AssignTestToStudentDto {
@@ -106,4 +143,28 @@ export class UpdateTestAssignmentDto {
   @Max(100)
   @Type(() => Number)
   score?: number;
+}
+
+export class CreateTestBookingRequestDto {
+  @ApiPropertyOptional({ description: 'Additional notes for the test booking request' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class ApproveRejectTestBookingRequestDto {
+  @ApiPropertyOptional({ description: 'User ID who is approving/rejecting the request' })
+  @IsOptional()
+  @IsString()
+  approvedBy?: string;
+
+  @ApiPropertyOptional({ description: 'User ID who is approving/rejecting the request' })
+  @IsOptional()
+  @IsString()
+  rejectedBy?: string;
+
+  @ApiPropertyOptional({ description: 'Reason for rejection' })
+  @IsOptional()
+  @IsString()
+  rejectionReason?: string;
 }
