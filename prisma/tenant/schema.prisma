@@ -576,6 +576,7 @@ model TestAssignment {
   test    Test    @relation(fields: [testId], references: [id], onDelete: Cascade)
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
+  @@unique([testId, studentId])
   @@index([studentId])
   @@index([testId])
   @@map("test_assignments")
