@@ -158,7 +158,7 @@ export class PaymentsService {
     });
 
     const totalPaid = pendingPayments.reduce(
-      (sum, p) => sum + this.toDecimal(p.paidAmount),
+      (sum: number, p: { paidAmount: Decimal }) => sum + this.toDecimal(p.paidAmount),
       0,
     );
 
