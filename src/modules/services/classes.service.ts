@@ -14,8 +14,6 @@ import { PrismaClient as TenantPrismaClient, Prisma } from '@prisma/tenant-clien
 
 @Injectable()
 export class ClassesService {
-  private readonly reservationDurationMinutes = 15;
-
   constructor(private tenantService: TenantService) {}
 
   private async ensureServiceExists(
@@ -85,6 +83,7 @@ export class ClassesService {
       description: dto.description,
       schedule: this.normalizeSchedule(dto.schedule),
       studentCapacity: dto.studentCapacity,
+      reservationDurationMinutes: dto.reservationDurationMinutes || 15,
       service: { connect: { id: dto.serviceId } },
       ...(dto.instructorId && { instructor: { connect: { id: dto.instructorId } } }),
     };
@@ -178,6 +177,7 @@ export class ClassesService {
       ...(dto.description !== undefined && { description: dto.description }),
       ...(dto.schedule !== undefined && { schedule: this.normalizeSchedule(dto.schedule) }),
       ...(dto.studentCapacity !== undefined && { studentCapacity: dto.studentCapacity }),
+      ...(dto.reservationDurationMinutes !== undefined && { reservationDurationMinutes: dto.reservationDurationMinutes }),
       ...(dto.instructorId !== undefined && { instructor: { connect: { id: dto.instructorId } } }),
     };
 
@@ -248,7 +248,7 @@ export class ClassesService {
 
       const cls = await tx.class.findFirst({
         where: { id: classId, tenantId },
-        select: { id: true, name: true, studentCapacity: true },
+        select: { id: true, name: true, studentCapacity: true, reservationDurationMinutes: true },
       });
 
       if (!cls) {
@@ -311,7 +311,7 @@ export class ClassesService {
       }
 
       const reservationExpiresAt = new Date(
-        Date.now() + this.reservationDurationMinutes * 60 * 1000,
+        Date.now() + cls.reservationDurationMinutes * 60 * 1000,
       );
 
       return tx.classBookingRequest.create({

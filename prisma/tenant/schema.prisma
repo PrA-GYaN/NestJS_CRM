@@ -414,16 +414,17 @@ model Course {
 // ============================================
 
 model Class {
-  id           String     @id @default(uuid())
-  tenantId     String
-  serviceId    String
-  name         String
-  description  String?
-  schedule     Json       // Class schedule with dates and times
-  studentCapacity Int     @default(1)
-  instructorId String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                          String     @id @default(uuid())
+  tenantId                    String
+  serviceId                   String
+  name                        String
+  description                 String?
+  schedule                    Json       // Class schedule with dates and times
+  studentCapacity             Int        @default(1)
+  reservationDurationMinutes  Int        @default(15)  // Minutes to hold seat reservation for pending requests
+  instructorId                String?
+  createdAt                   DateTime   @default(now())
+  updatedAt                   DateTime   @updatedAt
 
   instructor  User?             @relation("Instructor", fields: [instructorId], references: [id], onDelete: SetNull)
   service     Service           @relation(fields: [serviceId], references: [id], onDelete: Cascade)
@@ -524,6 +525,7 @@ model ClassBookingRequest {
 
   @@index([tenantId, classId, status])
   @@index([tenantId, studentId, status])
+  @@index([tenantId, status, reservationExpiresAt])
   @@index([tenantId, reservationExpiresAt])
   @@index([tenantId, requestedAt])
   @@map("class_booking_requests")
@@ -612,6 +614,7 @@ model TestBookingRequest {
 
   @@index([tenantId, testId, status])
   @@index([tenantId, studentId, status])
+  @@index([tenantId, status, reservationExpiresAt])
   @@index([tenantId, reservationExpiresAt])
   @@index([tenantId, requestedAt])
   @@map("test_booking_requests")

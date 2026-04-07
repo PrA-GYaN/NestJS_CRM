@@ -92,6 +92,18 @@ export class CreateClassDto {
   @Type(() => Number)
   studentCapacity!: number;
 
+  @ApiPropertyOptional({
+    description: 'Duration in minutes to hold seat reservation for pending requests',
+    example: 20,
+    minimum: 1,
+    maximum: 1440,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  reservationDurationMinutes?: number;
+
   @ApiPropertyOptional({ description: 'Instructor user ID' })
   @IsOptional()
   @IsUUID()
@@ -139,6 +151,18 @@ export class UpdateClassDto {
   @Min(1)
   @Type(() => Number)
   studentCapacity?: number;
+
+  @ApiPropertyOptional({
+    description: 'Duration in minutes to hold seat reservation for pending requests',
+    example: 20,
+    minimum: 1,
+    maximum: 1440,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  reservationDurationMinutes?: number;
 
   @ApiPropertyOptional({ description: 'Instructor user ID' })
   @IsOptional()

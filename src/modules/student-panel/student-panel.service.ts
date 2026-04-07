@@ -1140,10 +1140,20 @@ export class StudentPanelService {
               },
             },
             bookingRequests: {
-              where: { studentId },
+              where: {
+                studentId,
+                // Exclude Approved and Rejected requests
+                NOT: {
+                  status: {
+                    in: ['Approved', 'Rejected'],
+                  },
+                },
+              },
+              orderBy: { requestedAt: 'desc' },
               select: {
                 id: true,
                 status: true,
+                requestedAt: true,
               },
             },
           },
@@ -1169,10 +1179,20 @@ export class StudentPanelService {
               },
             },
             bookingRequests: {
-              where: { studentId },
+              where: {
+                studentId,
+                // Exclude Approved and Rejected requests
+                NOT: {
+                  status: {
+                    in: ['Approved', 'Rejected'],
+                  },
+                },
+              },
+              orderBy: { requestedAt: 'desc' },
               select: {
                 id: true,
                 status: true,
+                requestedAt: true,
               },
             },
           },
@@ -1184,8 +1204,9 @@ export class StudentPanelService {
       const serviceAssignment = service.studentServices[0] || null;
 
       const classes = service.classes.map((cls) => {
-        const classAssignment = cls.enrollments[0] || null;
-        const classBookingRequest = cls.bookingRequests[0] || null;
+        // Get the latest (most recent) booking request
+        const latestBookingRequest = cls.bookingRequests[0] || null;
+        const hasRequested = latestBookingRequest !== null;
 
         return {
           id: cls.id,
@@ -1196,20 +1217,22 @@ export class StudentPanelService {
           createdAt: cls.createdAt,
           updatedAt: cls.updatedAt,
           assignment: {
-            isAssigned: !!classAssignment,
-            enrollmentId: classAssignment?.id || null,
-            status: classAssignment?.status || null,
-            assignedAt: classAssignment?.createdAt || null,
-            updatedAt: classAssignment?.updatedAt || null,
+            isAssigned: !!cls.enrollments[0],
+            enrollmentId: cls.enrollments[0]?.id || null,
+            status: cls.enrollments[0]?.status || null,
+            assignedAt: cls.enrollments[0]?.createdAt || null,
+            updatedAt: cls.enrollments[0]?.updatedAt || null,
           },
-          hasBookingRequest: !!classBookingRequest,
-          bookingRequestStatus: classBookingRequest?.status || null,
+          hasRequested,
+          latestRequestStatus: latestBookingRequest?.status || null,
         };
       });
 
       const tests = service.tests.map((test) => {
         const testAssignment = test.assignments[0] || null;
-        const testBookingRequest = test.bookingRequests[0] || null;
+        // Get the latest (most recent) booking request
+        const latestBookingRequest = test.bookingRequests[0] || null;
+        const hasRequested = latestBookingRequest !== null;
 
         return {
           id: test.id,
@@ -1227,8 +1250,8 @@ export class StudentPanelService {
             assignedAt: testAssignment?.createdAt || null,
             updatedAt: testAssignment?.updatedAt || null,
           },
-          hasBookingRequest: !!testBookingRequest,
-          bookingRequestStatus: testBookingRequest?.status || null,
+          hasRequested,
+          latestRequestStatus: latestBookingRequest?.status || null,
         };
       });
 
@@ -1302,10 +1325,20 @@ export class StudentPanelService {
               },
             },
             bookingRequests: {
-              where: { studentId },
+              where: {
+                studentId,
+                // Exclude Approved and Rejected requests
+                NOT: {
+                  status: {
+                    in: ['Approved', 'Rejected'],
+                  },
+                },
+              },
+              orderBy: { requestedAt: 'desc' },
               select: {
                 id: true,
                 status: true,
+                requestedAt: true,
               },
             },
           },
@@ -1331,10 +1364,20 @@ export class StudentPanelService {
               },
             },
             bookingRequests: {
-              where: { studentId },
+              where: {
+                studentId,
+                // Exclude Approved and Rejected requests
+                NOT: {
+                  status: {
+                    in: ['Approved', 'Rejected'],
+                  },
+                },
+              },
+              orderBy: { requestedAt: 'desc' },
               select: {
                 id: true,
                 status: true,
+                requestedAt: true,
               },
             },
           },
@@ -1363,7 +1406,9 @@ export class StudentPanelService {
       },
       classes: service.classes.map((cls) => {
         const classAssignment = cls.enrollments[0] || null;
-        const classBookingRequest = cls.bookingRequests[0] || null;
+        // Get the latest (most recent) booking request
+        const latestBookingRequest = cls.bookingRequests[0] || null;
+        const hasRequested = latestBookingRequest !== null;
 
         return {
           id: cls.id,
@@ -1380,13 +1425,15 @@ export class StudentPanelService {
             assignedAt: classAssignment?.createdAt || null,
             updatedAt: classAssignment?.updatedAt || null,
           },
-          hasBookingRequest: !!classBookingRequest,
-          bookingRequestStatus: classBookingRequest?.status || null,
+          hasRequested,
+          latestRequestStatus: latestBookingRequest?.status || null,
         };
       }),
       tests: service.tests.map((test) => {
         const testAssignment = test.assignments[0] || null;
-        const testBookingRequest = test.bookingRequests[0] || null;
+        // Get the latest (most recent) booking request
+        const latestBookingRequest = test.bookingRequests[0] || null;
+        const hasRequested = latestBookingRequest !== null;
 
         return {
           id: test.id,
@@ -1404,8 +1451,8 @@ export class StudentPanelService {
             assignedAt: testAssignment?.createdAt || null,
             updatedAt: testAssignment?.updatedAt || null,
           },
-          hasBookingRequest: !!testBookingRequest,
-          bookingRequestStatus: testBookingRequest?.status || null,
+          hasRequested,
+          latestRequestStatus: latestBookingRequest?.status || null,
         };
       }),
     };
