@@ -281,6 +281,8 @@ export class TestsService {
           testId,
           tenantId,
           test: { service: { tenantId } },
+          // Exclude Approved requests as they are already in enrolled response
+          NOT: { status: 'Approved' },
         },
         skip,
         take: limit,
@@ -295,6 +297,8 @@ export class TestsService {
           testId,
           tenantId,
           test: { service: { tenantId } },
+          // Exclude Approved requests as they are already in enrolled response
+          NOT: { status: 'Approved' },
         },
       }),
     ]);
@@ -418,7 +422,12 @@ export class TestsService {
     // Expire pending reservations that have exceeded their time limit
     await this.expirePendingReservations(prisma, tenantId);
 
-    const where: any = { tenantId, test: { service: { tenantId } } };
+    const where: any = {
+      tenantId,
+      test: { service: { tenantId } },
+      // Exclude Approved requests as they are already in enrolled response
+      NOT: { status: 'Approved' },
+    };
     if (filters?.testId) where.testId = filters.testId;
     if (filters?.status) where.status = filters.status;
 
@@ -560,7 +569,12 @@ export class TestsService {
 
     const [requests, total] = await Promise.all([
       prisma.testBookingRequest.findMany({
-        where: { tenantId, studentId },
+        where: {
+          tenantId,
+          studentId,
+          // Exclude Approved requests as they are already in enrolled response
+          NOT: { status: 'Approved' },
+        },
         skip,
         take: limit,
         orderBy: { requestedAt: 'desc' },
@@ -568,7 +582,14 @@ export class TestsService {
           test: { select: { id: true, name: true, type: true, scheduledDate: true } },
         },
       }),
-      prisma.testBookingRequest.count({ where: { tenantId, studentId } }),
+      prisma.testBookingRequest.count({
+        where: {
+          tenantId,
+          studentId,
+          // Exclude Approved requests as they are already in enrolled response
+          NOT: { status: 'Approved' },
+        },
+      }),
     ]);
 
     return {

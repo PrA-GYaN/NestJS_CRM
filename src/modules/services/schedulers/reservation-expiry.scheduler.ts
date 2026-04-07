@@ -24,7 +24,9 @@ export class ReservationExpiryScheduler {
    * Default: Every minute ('* * * * *')
    * Can be configured via environment variable: CRON_RESERVATION_EXPIRY
    */
-  @Cron('${CRON_RESERVATION_EXPIRY:* * * * *}', { timeZone: 'UTC' })
+  @Cron(`${process.env.CRON_RESERVATION_EXPIRY || '* * * * *'}`, {
+    timeZone: 'UTC',
+  })
   async handleReservationExpiry() {
     try {
       this.logger.log('Starting reservation expiry job...');

@@ -248,17 +248,20 @@ export class PaymentsService {
       dto.serviceId || null,
     );
 
-    // Auto-calculate remaining amount based on cumulative pending payments
-    const remaining = await this.calculateRemainingAmount(
+    // Auto-calculate remaining amount based on cumulative pending payments + current payment
+    let remaining = await this.calculateRemainingAmount(
       tenantPrisma,
       total,
       dto.studentId,
       dto.serviceId || null,
       paymentCycle,
     );
+    // Subtract the current payment from remaining
+    remaining = Math.max(0, +(remaining - paid).toFixed(2));
 
-    // Determine payment status: Completed if paid == total, else Pending
-    const status = paid >= total ? 'Completed' : 'Pending';
+    // Determine payment status based on total paid in cycle (existing + current)
+    const totalPaidInCycle = total - remaining;
+    const status = totalPaidInCycle >= total ? 'Completed' : totalPaidInCycle > 0 ? 'PartiallyPaid' : 'Pending';
 
     // Auto-generate invoice number when not provided, empty, or whitespace-only
     const trimmedInvoiceNumber = dto.invoiceNumber?.trim();

@@ -113,7 +113,12 @@ export class ServicesService {
 
     const [data, total] = await Promise.all([
       tenantPrisma.serviceBookingRequest.findMany({
-        where: { tenantId, serviceId },
+        where: {
+          tenantId,
+          serviceId,
+          // Exclude Approved requests as they are already in enrolled response
+          NOT: { status: 'Approved' },
+        },
         skip,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
@@ -130,7 +135,14 @@ export class ServicesService {
           },
         },
       }),
-      tenantPrisma.serviceBookingRequest.count({ where: { tenantId, serviceId } }),
+      tenantPrisma.serviceBookingRequest.count({
+        where: {
+          tenantId,
+          serviceId,
+          // Exclude Approved requests as they are already in enrolled response
+          NOT: { status: 'Approved' },
+        },
+      }),
     ]);
 
     return {

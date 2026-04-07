@@ -346,7 +346,12 @@ export class ClassesService {
 
     const [data, total] = await Promise.all([
       prisma.classBookingRequest.findMany({
-        where: { tenantId, classId },
+        where: {
+          tenantId,
+          classId,
+          // Exclude Approved requests as they are already in enrolled response
+          NOT: { status: 'Approved' },
+        },
         skip,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
@@ -363,7 +368,14 @@ export class ClassesService {
           },
         },
       }),
-      prisma.classBookingRequest.count({ where: { tenantId, classId } }),
+      prisma.classBookingRequest.count({
+        where: {
+          tenantId,
+          classId,
+          // Exclude Approved requests as they are already in enrolled response
+          NOT: { status: 'Approved' },
+        },
+      })
     ]);
 
     return {
