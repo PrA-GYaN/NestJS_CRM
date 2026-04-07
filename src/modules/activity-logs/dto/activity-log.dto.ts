@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsObject, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsObject, IsOptional, IsString, IsUUID, IsInt, IsPositive } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export enum ActivityAction {
   Created = 'Created',
@@ -154,4 +155,39 @@ export class ActivityLogFilterDto {
   })
   @IsOptional()
   toDate?: string;
+}
+
+/**
+ * Combined DTO for GET /logs endpoint
+ * Includes both filter and pagination parameters
+ */
+export class GetActivityLogsQueryDto extends ActivityLogFilterDto {
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  @Type(() => Number)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ default: 10 })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  @Type(() => Number)
+  limit?: number = 10;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sortBy?: string;
+
+  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })
+  @IsOptional()
+  @IsEnum(['asc', 'desc'])
+  sortOrder?: 'asc' | 'desc' = 'desc';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

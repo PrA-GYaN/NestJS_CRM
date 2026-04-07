@@ -17,7 +17,7 @@ import {
 import { ActivityLogsService } from './activity-logs.service';
 import { PaginationDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ActivityLogFilterDto, ActivityLogResponseDto } from './dto/activity-log.dto';
+import { ActivityLogFilterDto, ActivityLogResponseDto, GetActivityLogsQueryDto } from './dto/activity-log.dto';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { CanRead } from '../../common/decorators/permissions.decorator';
 
@@ -53,12 +53,29 @@ export class ActivityLogsController {
   @ApiQuery({ name: 'action', required: false, type: String })
   @ApiQuery({ name: 'fromDate', required: false, type: String })
   @ApiQuery({ name: 'toDate', required: false, type: String })
+  @ApiQuery({ name: 'search', required: false, type: String })
   async getLogs(
     @Req() req: any,
-    @Query() filterDto: ActivityLogFilterDto,
-    @Query() paginationDto: PaginationDto,
+    @Query() queryDto: GetActivityLogsQueryDto,
   ) {
     const tenantId = req.tenantId;
+    // Extract pagination dto from query dto
+    const paginationDto: PaginationDto = {
+      page: queryDto.page,
+      limit: queryDto.limit,
+      sortBy: queryDto.sortBy,
+      sortOrder: queryDto.sortOrder,
+      search: queryDto.search,
+    };
+    // Extract filter dto from query dto
+    const filterDto: ActivityLogFilterDto = {
+      userId: queryDto.userId,
+      entityType: queryDto.entityType,
+      entityId: queryDto.entityId,
+      action: queryDto.action,
+      fromDate: queryDto.fromDate,
+      toDate: queryDto.toDate,
+    };
     return this.activityLogsService.getLogs(tenantId, filterDto, paginationDto);
   }
 

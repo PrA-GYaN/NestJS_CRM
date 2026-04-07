@@ -269,6 +269,9 @@ export class TestsService {
     // Ensure test exists
     await this.getTestById(tenantId, testId);
     
+    // Expire pending reservations that have exceeded their time limit
+    await this.expirePendingReservations(prisma, tenantId);
+    
     const { page = 1, limit = 10, sortBy = 'requestedAt', sortOrder = 'desc' } = paginationDto || {};
     const skip = (page - 1) * limit;
 
@@ -412,6 +415,9 @@ export class TestsService {
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = page ? (page - 1) * limit : 0;
 
+    // Expire pending reservations that have exceeded their time limit
+    await this.expirePendingReservations(prisma, tenantId);
+
     const where: any = { tenantId, test: { service: { tenantId } } };
     if (filters?.testId) where.testId = filters.testId;
     if (filters?.status) where.status = filters.status;
@@ -548,6 +554,9 @@ export class TestsService {
     const prisma = await this.tenantService.getTenantPrisma(tenantId);
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = page ? (page - 1) * limit : 0;
+
+    // Expire pending reservations that have exceeded their time limit
+    await this.expirePendingReservations(prisma, tenantId);
 
     const [requests, total] = await Promise.all([
       prisma.testBookingRequest.findMany({
