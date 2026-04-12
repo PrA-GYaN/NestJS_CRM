@@ -944,7 +944,23 @@ export class StudentPanelService {
         select: {
           id: true,
           name: true,
-          type: true,
+          description: true,
+          steps: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              stepOrder: true,
+              requiresDocument: true,
+              isActive: true,
+              expectedDurationDays: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+            orderBy: {
+              stepOrder: 'asc',
+            },
+          },
         },
       },
       courseApplication: {
@@ -978,21 +994,32 @@ export class StudentPanelService {
         throw new NotFoundException('No visa applications found for this student');
       }
 
-      const data = applications.map((application) => ({
-        id: application.id,
-        status: application.status,
-        currentStepId: application.currentStepId,
-        workflow: application.workflow,
-        courseApplication: application.courseApplication,
-        documents: application.documents.map((document) => ({
-          id: document.id,
-          name: document.documentType,
-          uploadedAt: document.uploadedAt,
-        })),
-        notes: application.notes,
-        createdAt: application.createdAt,
-        updatedAt: application.updatedAt,
-      }));
+      const data = applications.map((application) => {
+        const currentStep = application.workflow.steps.find(
+          (step) => step.id === application.currentStepId,
+        );
+        return {
+          id: application.id,
+          status: application.status,
+          currentStepId: application.currentStepId,
+          currentStep: currentStep || null,
+          workflow: {
+            id: application.workflow.id,
+            name: application.workflow.name,
+            description: application.workflow.description,
+            steps: application.workflow.steps,
+          },
+          courseApplication: application.courseApplication,
+          documents: application.documents.map((document) => ({
+            id: document.id,
+            name: document.documentType,
+            uploadedAt: document.uploadedAt,
+          })),
+          notes: application.notes,
+          createdAt: application.createdAt,
+          updatedAt: application.updatedAt,
+        };
+      });
 
       return {
         data,
@@ -1013,21 +1040,32 @@ export class StudentPanelService {
       throw new NotFoundException('No visa applications found for this student');
     }
 
-    return applications.map((application) => ({
-      id: application.id,
-      status: application.status,
-      currentStepId: application.currentStepId,
-      workflow: application.workflow,
-      courseApplication: application.courseApplication,
-      documents: application.documents.map((document) => ({
-        id: document.id,
-        name: document.documentType,
-        uploadedAt: document.uploadedAt,
-      })),
-      notes: application.notes,
-      createdAt: application.createdAt,
-      updatedAt: application.updatedAt,
-    }));
+    return applications.map((application) => {
+      const currentStep = application.workflow.steps.find(
+        (step) => step.id === application.currentStepId,
+      );
+      return {
+        id: application.id,
+        status: application.status,
+        currentStepId: application.currentStepId,
+        currentStep: currentStep || null,
+        workflow: {
+          id: application.workflow.id,
+          name: application.workflow.name,
+          description: application.workflow.description,
+          steps: application.workflow.steps,
+        },
+        courseApplication: application.courseApplication,
+        documents: application.documents.map((document) => ({
+          id: document.id,
+          name: document.documentType,
+          uploadedAt: document.uploadedAt,
+        })),
+        notes: application.notes,
+        createdAt: application.createdAt,
+        updatedAt: application.updatedAt,
+      };
+    });
   }
 
   async getVisaApplicationById(tenantId: string, studentId: string, visaApplicationId: string) {
