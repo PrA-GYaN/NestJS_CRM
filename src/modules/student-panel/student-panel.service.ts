@@ -933,51 +933,6 @@ export class StudentPanelService {
       tenantId,
     };
 
-    const select = {
-      id: true,
-      status: true,
-      currentStepId: true,
-      notes: true,
-      createdAt: true,
-      updatedAt: true,
-      workflow: {
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          steps: {
-            select: {
-              id: true,
-              name: true,
-              description: true,
-              stepOrder: true,
-              requiresDocument: true,
-              isActive: true,
-              expectedDurationDays: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-            orderBy: {
-              stepOrder: 'asc',
-            },
-          },
-        },
-      },
-      courseApplication: {
-        select: {
-          id: true,
-          status: true,
-        },
-      },
-      documents: {
-        select: {
-          id: true,
-          documentType: true,
-          uploadedAt: true,
-        },
-      },
-    };
-
     if (shouldPaginate) {
       const [applications, total] = await Promise.all([
         tenantPrisma.visaApplication.findMany({
@@ -985,7 +940,19 @@ export class StudentPanelService {
           skip,
           take: safeLimit,
           orderBy: { createdAt: 'desc' },
-          select,
+          include: {
+            workflow: {
+              include: {
+                steps: {
+                  orderBy: {
+                    stepOrder: 'asc' as const,
+                  },
+                },
+              },
+            },
+            courseApplication: true,
+            documents: true,
+          },
         }),
         tenantPrisma.visaApplication.count({ where }),
       ]);
@@ -996,7 +963,7 @@ export class StudentPanelService {
 
       const data = applications.map((application) => {
         const currentStep = application.workflow.steps.find(
-          (step) => step.id === application.currentStepId,
+          (step: any) => step.id === application.currentStepId,
         );
         return {
           id: application.id,
@@ -1010,7 +977,7 @@ export class StudentPanelService {
             steps: application.workflow.steps,
           },
           courseApplication: application.courseApplication,
-          documents: application.documents.map((document) => ({
+          documents: application.documents.map((document: any) => ({
             id: document.id,
             name: document.documentType,
             uploadedAt: document.uploadedAt,
@@ -1033,7 +1000,19 @@ export class StudentPanelService {
     const applications = await tenantPrisma.visaApplication.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      select,
+      include: {
+        workflow: {
+          include: {
+            steps: {
+              orderBy: {
+                stepOrder: 'asc' as const,
+              },
+            },
+          },
+        },
+        courseApplication: true,
+        documents: true,
+      },
     });
 
     if (applications.length === 0) {
@@ -1042,7 +1021,7 @@ export class StudentPanelService {
 
     return applications.map((application) => {
       const currentStep = application.workflow.steps.find(
-        (step) => step.id === application.currentStepId,
+        (step: any) => step.id === application.currentStepId,
       );
       return {
         id: application.id,
@@ -1056,7 +1035,7 @@ export class StudentPanelService {
           steps: application.workflow.steps,
         },
         courseApplication: application.courseApplication,
-        documents: application.documents.map((document) => ({
+        documents: application.documents.map((document: any) => ({
           id: document.id,
           name: document.documentType,
           uploadedAt: document.uploadedAt,
