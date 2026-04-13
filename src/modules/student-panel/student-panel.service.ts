@@ -124,6 +124,7 @@ export class StudentPanelService {
   async changePassword(tenantId: string, studentId: string, changePasswordDto: ChangePasswordDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
+    // Step 1: Verify student exists
     const student = await tenantPrisma.student.findFirst({
       where: { id: studentId, tenantId },
     });
@@ -132,18 +133,29 @@ export class StudentPanelService {
       throw new NotFoundException('Student not found');
     }
 
-    // Verify current password
+    // Step 2: Validate that new password and confirm password match
+    if (changePasswordDto.newPassword !== changePasswordDto.confirmPassword) {
+      throw new BadRequestException('New password and confirm password do not match');
+    }
+
+    // Step 3: Validate that new password is different from current password
     const passwordField = student.password || student.hashedPassword;
     if (!passwordField) {
       throw new BadRequestException('No password set for this account');
     }
 
-    const isPasswordValid = await bcrypt.compare(changePasswordDto.currentPassword, passwordField);
-    if (!isPasswordValid) {
+    const isSamePassword = await bcrypt.compare(changePasswordDto.newPassword, passwordField);
+    if (isSamePassword) {
+      throw new BadRequestException('New password must be different from the current password');
+    }
+
+    // Step 4: Verify current password is correct
+    const isCurrentPasswordValid = await bcrypt.compare(changePasswordDto.currentPassword, passwordField);
+    if (!isCurrentPasswordValid) {
       throw new BadRequestException('Current password is incorrect');
     }
 
-    // Hash new password
+    // Step 5: Hash and update the new password
     const hashedPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
 
     await tenantPrisma.student.update({
@@ -151,10 +163,15 @@ export class StudentPanelService {
       data: {
         password: hashedPassword,
         hashedPassword: hashedPassword,
+        updatedAt: new Date(),
       },
     });
 
-    return { success: true, message: 'Password changed successfully' };
+    return { 
+      success: true, 
+      message: 'Password changed successfully',
+      timestamp: new Date().toISOString(),
+    };
   }
 
   // ============================================
@@ -1070,6 +1087,14 @@ export class StudentPanelService {
             },
           },
         },
+        workflow: {
+          include: {
+            steps: {
+              where: { isActive: true },
+              orderBy: { stepOrder: 'asc' },
+            },
+          },
+        },
         documents: true,
       },
     });
@@ -1082,7 +1107,26 @@ export class StudentPanelService {
       throw new ForbiddenException('You can only access your own visa applications');
     }
 
-    return application;
+    // Enhance response with current workflow step information
+    const currentStepIndex = application.workflow.steps.findIndex(
+      (step: any) => step.id === application.currentStepId,
+    );
+
+    const currentStep = currentStepIndex !== -1 ? application.workflow.steps[currentStepIndex] : null;
+    const nextStep = currentStepIndex < application.workflow.steps.length - 1
+      ? application.workflow.steps[currentStepIndex + 1]
+      : null;
+
+    return {
+      ...application,
+      currentStep,
+      nextStep,
+      workflowProgress: {
+        totalSteps: application.workflow.steps.length,
+        currentStepIndex: currentStepIndex + 1,
+        percentageComplete: ((currentStepIndex + 1) / application.workflow.steps.length) * 100,
+      },
+    };
   }
 
   // ============================================
@@ -1099,6 +1143,14 @@ export class StudentPanelService {
       },
       orderBy: { createdAt: 'desc' },
       include: {
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
         service: {
           select: {
             id: true,
@@ -1110,7 +1162,22 @@ export class StudentPanelService {
       },
     });
 
-    return payments;
+    // Normalize response to include student name
+    return payments.map((payment) => {
+      const firstName = payment.student?.firstName ?? '';
+      const lastName = payment.student?.lastName ?? '';
+      const name = `${firstName} ${lastName}`.trim();
+
+      return {
+        ...payment,
+        student: payment.student
+          ? {
+              ...payment.student,
+              name,
+            }
+          : null,
+      };
+    });
   }
 
   async getMyServices(tenantId: string, studentId: string) {
@@ -1472,6 +1539,239 @@ export class StudentPanelService {
           latestRequestStatus: latestBookingRequest?.status || null,
         };
       }),
+    };
+  }
+
+  // ============================================
+  // PAYMENT BALANCE & STATUS (STRICT CYCLE LOGIC)
+  // ============================================
+
+  /**
+   * Get payment status for a specific service.
+   * Returns current cycle info, remaining balance, and completion status.
+   * Follows the strict independent payment cycle logic.
+   */
+  async getServicePaymentStatus(
+    tenantId: string,
+    studentId: string,
+    serviceId: string | null,
+  ) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    // Helper to convert Decimal to number
+    const toDecimal = (value: any): number => {
+      return typeof value === 'number' ? value : Number(value?.toFixed?.(2) ?? value ?? 0);
+    };
+
+    // Get cycle info
+    const payments = await tenantPrisma.payment.findMany({
+      where: {
+        studentId,
+        tenantId,
+        ...(serviceId ? { serviceId } : { serviceId: null }),
+      },
+      orderBy: [{ paymentCycle: 'asc' }, { createdAt: 'asc' }],
+      select: {
+        id: true,
+        paymentCycle: true,
+        totalAmount: true,
+        paidAmount: true,
+        remainingAmount: true,
+        status: true,
+        paymentDate: true,
+      },
+    });
+
+    if (payments.length === 0) {
+      return {
+        hasPayments: false,
+        currentCycle: null,
+        totalServiceCost: 0,
+        totalPaidInCycle: 0,
+        remainingBalance: 0,
+        cycleStatus: null,
+        message: 'No payments recorded for this service',
+      };
+    }
+
+    // Get the latest (current) cycle
+    const maxCycle = Math.max(...payments.map((p) => p.paymentCycle));
+    const currentCyclePayments = payments.filter((p) => p.paymentCycle === maxCycle);
+
+    // Calculate cycle totals (convert Decimal to number)
+    const totalServiceCost = toDecimal(currentCyclePayments[0]?.totalAmount);
+    const totalPaidInCycle = currentCyclePayments.reduce((sum, p) => sum + toDecimal(p.paidAmount), 0);
+    const remainingBalance = totalServiceCost - totalPaidInCycle;
+
+    // Determine cycle status (follows strict spec logic)
+    let cycleStatus: 'Pending' | 'PartiallyPaid' | 'Completed';
+    if (totalPaidInCycle === 0) {
+      cycleStatus = 'Pending';
+    } else if (totalPaidInCycle < totalServiceCost) {
+      cycleStatus = 'PartiallyPaid';
+    } else {
+      cycleStatus = 'Completed';
+    }
+
+    // Count completed and incomplete cycles for history
+    const completedCycles: Array<{
+      cycleNumber: number;
+      totalAmount: number;
+      totalPaid: number;
+      status: string;
+      paymentDates: Date[];
+    }> = [];
+    const cycleMap = new Map<
+      number,
+      { payments: typeof payments; totalPaid: number }
+    >();
+
+    payments.forEach((p) => {
+      if (!cycleMap.has(p.paymentCycle)) {
+        cycleMap.set(p.paymentCycle, { payments: [], totalPaid: 0 });
+      }
+      const cycle = cycleMap.get(p.paymentCycle)!;
+      cycle.payments.push(p);
+      cycle.totalPaid += toDecimal(p.paidAmount);
+    });
+
+    cycleMap.forEach((cycle, cycleNum) => {
+      const isCompleted = cycle.totalPaid >= toDecimal(cycle.payments[0].totalAmount);
+      if (isCompleted && cycleNum < maxCycle) {
+        completedCycles.push({
+          cycleNumber: cycleNum,
+          totalAmount: toDecimal(cycle.payments[0].totalAmount),
+          totalPaid: cycle.totalPaid,
+          status: 'Completed',
+          paymentDates: cycle.payments.map((p) => p.paymentDate).filter(Boolean) as Date[],
+        });
+      }
+    });
+
+    return {
+      hasPayments: true,
+      currentCycle: maxCycle,
+      totalServiceCost: Number(totalServiceCost),
+      totalPaidInCycle: Number(totalPaidInCycle),
+      remainingBalance: Math.max(0, Number(remainingBalance)),
+      cycleStatus,
+      canMakePayment: remainingBalance > 0,
+      completedCycles: completedCycles.length,
+      cycleHistory: completedCycles,
+      payments: currentCyclePayments.map((p) => ({
+        id: p.id,
+        paidAmount: toDecimal(p.paidAmount),
+        status: p.status,
+        paymentDate: p.paymentDate,
+      })),
+    };
+  }
+
+  /**
+   * Get payment status across all services for a student.
+   * Returns summary of payment cycles and completion status per service.
+   */
+  async getMyPaymentStatus(tenantId: string, studentId: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    // Helper to convert Decimal to number
+    const toDecimal = (value: any): number => {
+      return typeof value === 'number' ? value : Number(value?.toFixed?.(2) ?? value ?? 0);
+    };
+
+    // Get all payments for this student
+    const allPayments = await tenantPrisma.payment.findMany({
+      where: { studentId, tenantId },
+      include: {
+        service: {
+          select: { id: true, name: true, price: true },
+        },
+      },
+      orderBy: [{ serviceId: 'asc' }, { paymentCycle: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    if (allPayments.length === 0) {
+      return {
+        totalServices: 0,
+        totalPaymentAmount: 0,
+        totalRemainingBalance: 0,
+        completedServices: 0,
+        serviceStatus: [],
+      };
+    }
+
+    // Group by service
+    const serviceMap = new Map<
+      string,
+      {
+        serviceName: string;
+        cycles: Map<number, { totalAmount: number; totalPaid: number; isCompleted: boolean }>;
+      }
+    >();
+
+    allPayments.forEach((p) => {
+      const serviceKey = p.serviceId || 'general';
+      if (!serviceMap.has(serviceKey)) {
+        serviceMap.set(serviceKey, {
+          serviceName: p.service?.name || 'General Payment',
+          cycles: new Map(),
+        });
+      }
+
+      const serviceData = serviceMap.get(serviceKey)!;
+      if (!serviceData.cycles.has(p.paymentCycle)) {
+        serviceData.cycles.set(p.paymentCycle, {
+          totalAmount: toDecimal(p.totalAmount),
+          totalPaid: 0,
+          isCompleted: false,
+        });
+      }
+
+      const cycle = serviceData.cycles.get(p.paymentCycle)!;
+      cycle.totalPaid += toDecimal(p.paidAmount);
+      cycle.isCompleted = cycle.totalPaid >= cycle.totalAmount;
+    });
+
+    // Calculate summaries per service
+    const serviceStatus: any[] = [];
+    let totalPaymentAmount = 0;
+    let totalRemainingBalance = 0;
+    let completedServices = 0;
+
+    serviceMap.forEach((serviceData, serviceKey) => {
+      const cycles = Array.from(serviceData.cycles.values());
+      const currentCycle = cycles[cycles.length - 1];
+
+      const totalServiceCost = currentCycle.totalAmount;
+      const totalPaid = cycles.reduce((sum, c) => sum + c.totalPaid, 0);
+      const remainingInCurrentCycle = totalServiceCost - currentCycle.totalPaid;
+
+      const completedCycleCount = cycles.filter((c) => c.isCompleted).length;
+      const isServiceCompleted = currentCycle.isCompleted;
+
+      serviceStatus.push({
+        serviceId: serviceKey === 'general' ? null : serviceKey,
+        serviceName: serviceData.serviceName,
+        currentCycle: cycles.length,
+        totalServiceCost: Number(totalServiceCost),
+        totalPaidAcrossAllCycles: totalPaid,
+        remainingInCurrentCycle: Math.max(0, remainingInCurrentCycle),
+        currentCycleStatus: isServiceCompleted ? 'Completed' : remainingInCurrentCycle > 0 ? 'PartiallyPaid' : 'Pending',
+        completedCycles: completedCycleCount,
+        canMakePayment: remainingInCurrentCycle > 0,
+      });
+
+      totalPaymentAmount += totalServiceCost;
+      totalRemainingBalance += Math.max(0, remainingInCurrentCycle);
+      if (isServiceCompleted) completedServices++;
+    });
+
+    return {
+      totalServices: serviceStatus.length,
+      totalPaymentAmount,
+      totalRemainingBalance,
+      completedServices,
+      serviceStatus: serviceStatus.sort((a, b) => a.serviceName.localeCompare(b.serviceName)),
     };
   }
 

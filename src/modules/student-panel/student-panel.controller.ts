@@ -102,11 +102,33 @@ export class StudentPanelController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Change my password',
-    description: 'Changes the student account password. New password must be at least 8 characters and contain uppercase, lowercase, and a number or special character.',
+    description: 'Securely changes the student account password. Validates current password, ensures new password matches confirmation, and enforces password strength requirements. New password must be at least 8 characters and contain uppercase, lowercase, and a number or special character.',
   })
   @ApiBody({ type: ChangePasswordDto })
-  @ApiResponse({ status: 200, description: 'Password changed successfully' })
-  @ApiResponse({ status: 400, description: 'Current password incorrect or new password does not meet requirements' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Password changed successfully',
+    schema: {
+      example: {
+        success: true,
+        message: 'Password changed successfully',
+        timestamp: '2026-04-13T10:30:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Password validation failed - includes cases: passwords do not match, new password same as current, current password incorrect, or weak password format',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'New password and confirm password do not match',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Missing or invalid student JWT token' })
+  @ApiResponse({ status: 404, description: 'Student account not found' })
   changePassword(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,

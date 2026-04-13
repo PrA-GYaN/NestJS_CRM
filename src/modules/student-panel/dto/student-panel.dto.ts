@@ -54,18 +54,23 @@ export class UpdateStudentProfileDto {
 }
 
 export class ChangePasswordDto {
-  @ApiProperty()
+  @ApiProperty({ description: 'Current password for verification' })
   @IsString()
   @MinLength(6)
   currentPassword!: string;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'New password (min 8 chars, must contain uppercase, lowercase, and number or special character)' })
   @IsString()
   @MinLength(8)
   @Matches(/((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, {
     message: 'Password must contain uppercase, lowercase, and number/special character',
   })
   newPassword!: string;
+
+  @ApiProperty({ description: 'Confirm new password - must match newPassword' })
+  @IsString()
+  @MinLength(8)
+  confirmPassword!: string;
 }
 
 // ============================================

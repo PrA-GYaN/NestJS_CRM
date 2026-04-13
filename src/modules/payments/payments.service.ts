@@ -806,13 +806,21 @@ export class PaymentsService {
   // ─────────────────────────────────────────────────────────────────
 
   /**
-   * Compute comprehensive payment statistics for the tenant.
+   * Compute comprehensive payment statistics for the tenant (STRICT CYCLE LOGIC).
    *
-   * Key metrics:
-   * - Total revenue (completed payments)
+   * NEW LOGIC (Payment Cycle Based):
+   * - Groups payments by cycle (independent payment cycles per student/service)
+   * - Collection Rate = % of completed cycles / total cycles (not $ based)
+   * - Total Revenue = sum of completed cycle amounts (not individual payments)
+   * - Completed Count = number of completed cycles
+   * - Pending Count = number of incomplete cycles
+   * - Each cycle represents independent payment toward one full service price
+   *
+   * Key Metrics:
+   * - Total revenue (completed cycles only)
    * - Revenue change (period-over-period)
    * - Pending/Overdue amounts and counts
-   * - Collection rate
+   * - Collection rate (% of cycles completed)
    * - Payment method and status breakdowns
    * - Daily revenue trends
    * - Various averages and medians
@@ -901,56 +909,95 @@ export class PaymentsService {
       },
     });
 
-    // ─── Compute metrics ───
-    const completedPayments = allPayments.filter((p) => p.status === 'Completed');
-    const pendingPayments = allPayments.filter(
-      (p) => p.status === 'Pending' || p.status === 'PartiallyPaid',
-    );
+    // ─── Compute metrics (STRICT CYCLE LOGIC) ───
+    // Group payments by cycle to follow new independent cycle model
+    const cycleMap = new Map<
+      string,
+      {
+        totalAmount: number;
+        totalPaid: number;
+        status: string;
+        isCompleted: boolean;
+        remainingAmount: number;
+      }
+    >();
 
-    const totalRevenue = completedPayments.reduce(
-      (sum, p) => sum + this.toDecimal(p.paidAmount),
-      0,
-    );
+    allPayments.forEach((p) => {
+      // Create unique cycle key: studentId-serviceId-paymentCycle
+      const cycleKey = `${p.studentId}-${p.serviceId || 'null'}-${p.paymentCycle}`;
 
-    const previousRevenue = comparisonPayments
-      .filter((p) => p.status === 'Completed')
-      .reduce((sum, p) => sum + this.toDecimal(p.paidAmount), 0);
+      if (!cycleMap.has(cycleKey)) {
+        cycleMap.set(cycleKey, {
+          totalAmount: this.toDecimal(p.totalAmount),
+          totalPaid: 0,
+          status: p.status,
+          isCompleted: p.status === 'Completed',
+          remainingAmount: this.toDecimal(p.totalAmount),
+        });
+      }
+
+      const cycle = cycleMap.get(cycleKey)!;
+      cycle.totalPaid += this.toDecimal(p.paidAmount);
+      cycle.remainingAmount = cycle.totalAmount - cycle.totalPaid;
+      cycle.isCompleted = cycle.remainingAmount <= 0.01; // Account for rounding
+    });
+
+    // Completed cycles = cycles where totalPaid >= totalAmount
+    const completedCycles = Array.from(cycleMap.values()).filter((c) => c.isCompleted);
+    const incompleteCycles = Array.from(cycleMap.values()).filter((c) => !c.isCompleted);
+
+    // Total revenue = sum of totalAmount from completed cycles
+    const totalRevenue = completedCycles.reduce((sum, c) => sum + c.totalAmount, 0);
+
+    // Comparison period cycles
+    const comparisonCycleMap = new Map<string, { isCompleted: boolean; totalAmount: number }>();
+    comparisonPayments.forEach((p) => {
+      const cycleKey = `${p.studentId}-${p.serviceId || 'null'}-${p.paymentCycle}`;
+      if (!comparisonCycleMap.has(cycleKey)) {
+        comparisonCycleMap.set(cycleKey, {
+          isCompleted: p.status === 'Completed',
+          totalAmount: this.toDecimal(p.totalAmount),
+        });
+      }
+    });
+    const comparisonCompletedCycles = Array.from(comparisonCycleMap.values()).filter(
+      (c) => c.isCompleted,
+    );
+    const previousRevenue = comparisonCompletedCycles.reduce((sum, c) => sum + c.totalAmount, 0);
 
     const revenueChange = totalRevenue - previousRevenue;
     const revenueChangePercent =
       previousRevenue > 0 ? (revenueChange / previousRevenue) * 100 : 0;
 
-    const totalPendingAmount = pendingPayments.reduce(
-      (sum, p) => sum + this.toDecimal(p.remainingAmount),
+    // Total pending amount = remaining balance from incomplete cycles
+    const totalPendingAmount = incompleteCycles.reduce((sum, c) => sum + c.remainingAmount, 0);
+
+    // Total completed amount = sum of totalAmount of completed cycles
+    const totalCompletedAmount = completedCycles.reduce((sum, c) => sum + c.totalAmount, 0);
+
+    // Total invoiced amount = sum of all cycle totalAmounts
+    const totalInvoicedAmount = Array.from(cycleMap.values()).reduce(
+      (sum, c) => sum + c.totalAmount,
       0,
     );
 
-    const totalCompletedAmount = completedPayments.reduce(
-      (sum, p) => sum + this.toDecimal(p.paidAmount),
-      0,
-    );
-
-    const totalInvoicedAmount = allPayments.reduce(
-      (sum, p) => sum + this.toDecimal(p.totalAmount),
-      0,
-    );
-
+    // Collection Rate = Number of completed cycles / Total cycles * 100
     const collectionRate =
-      totalInvoicedAmount > 0 ? (totalCompletedAmount / totalInvoicedAmount) * 100 : 0;
+      cycleMap.size > 0 ? (completedCycles.length / cycleMap.size) * 100 : 0;
 
     const totalOverdueAmount = overduePayments.reduce(
       (sum, p) => sum + this.toDecimal(p.remainingAmount),
       0,
     );
 
-    // Calculate averages
+    // Calculate averages based on actual payments (not cycle totals)
     const averagePaymentAmount =
       allPayments.length > 0
         ? allPayments.reduce((sum, p) => sum + this.toDecimal(p.paidAmount), 0) /
           allPayments.length
         : 0;
 
-    // Calculate median
+    // Calculate median based on actual payments
     const sortedAmounts = allPayments
       .map((p) => this.toDecimal(p.paidAmount))
       .sort((a, b) => a - b);
@@ -968,7 +1015,8 @@ export class PaymentsService {
       0,
     );
 
-    // Calculate average days to complete payment
+    // Calculate average days to complete payment (for completed cycles)
+    const completedPayments = allPayments.filter((p) => p.status === 'Completed');
     const completedWithDates = completedPayments.filter((p) => p.dueDate && p.paymentDate);
     const averageDaysToComplete =
       completedWithDates.length > 0
@@ -1013,10 +1061,10 @@ export class PaymentsService {
         revenueChange: +revenueChange.toFixed(2),
         revenueChangePercent: +revenueChangePercent.toFixed(2),
         totalPendingAmount: +totalPendingAmount.toFixed(2),
-        pendingPaymentCount: pendingPayments.length,
+        pendingPaymentCount: incompleteCycles.length, // Count of incomplete cycles
         totalCompletedAmount: +totalCompletedAmount.toFixed(2),
-        completedPaymentCount: completedPayments.length,
-        collectionRate: +collectionRate.toFixed(2),
+        completedPaymentCount: completedCycles.length, // Count of completed cycles
+        collectionRate: +collectionRate.toFixed(2), // % of completed cycles
         totalInvoicedAmount: +totalInvoicedAmount.toFixed(2),
         totalOverdueAmount: +totalOverdueAmount.toFixed(2),
         overduePaymentCount: overduePayments.length,
@@ -1026,6 +1074,8 @@ export class PaymentsService {
         averageDaysToComplete: +averageDaysToComplete.toFixed(2),
         uniqueCustomerCount,
         averagePaymentPerCustomer: +averagePaymentPerCustomer.toFixed(2),
+        totalCycles: cycleMap.size, // Total payment cycles in period
+        completedCycles: completedCycles.length, // Completed cycles
       },
       statusBreakdown,
       methodBreakdown,

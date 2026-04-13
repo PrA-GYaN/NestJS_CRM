@@ -402,6 +402,12 @@ export class PaymentStatisticsMetricsDto {
 
   @ApiProperty({ description: 'Average payment value per customer', example: 2413.79 })
   averagePaymentPerCustomer!: number;
+
+  @ApiProperty({ description: 'Total payment cycles in the period (strict cycle logic)', example: 45 })
+  totalCycles!: number;
+
+  @ApiProperty({ description: 'Number of completed cycles (strict cycle logic)', example: 38 })
+  completedCycles!: number;
 }
 
 export class PaymentStatisticsResponseDto {
