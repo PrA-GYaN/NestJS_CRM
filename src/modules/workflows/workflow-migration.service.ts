@@ -142,11 +142,12 @@ export class WorkflowMigrationService {
       };
     } catch (error) {
       // Mark migration as failed
+      const errorMessage = error instanceof Error ? error.message : String(error);
       await tenantPrisma.applicationMigrationLog.update({
         where: { id: migrationLog.id },
         data: {
           status: 'Failed',
-          errorMessage: error.message,
+          errorMessage,
         },
       });
 
@@ -281,9 +282,10 @@ export class WorkflowMigrationService {
         results.successful++;
       } catch (error) {
         results.failed++;
+        const errorMessage = error instanceof Error ? error.message : String(error);
         results.failedApplications.push({
           applicationId: app.id,
-          error: error.message,
+          error: errorMessage,
         });
       }
     }

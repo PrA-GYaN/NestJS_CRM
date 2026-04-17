@@ -550,6 +550,7 @@ async function seedFirstTenantData() {
         const visaWorkflow =
             (await tenantPrisma.visaWorkflow.findFirst({
                 where: { tenantId, visaTypeId: visaType.id, name: 'Australia Student Visa Workflow' },
+                include: { versions: true },
             })) ||
             (await tenantPrisma.visaWorkflow.create({
                 data: {
@@ -558,6 +559,23 @@ async function seedFirstTenantData() {
                     name: 'Australia Student Visa Workflow',
                     description: 'Standard visa processing workflow',
                     isActive: true,
+                },
+                include: { versions: true },
+            }));
+
+        // Create or get version 1 of the workflow
+        const workflowVersion =
+            (await tenantPrisma.visaWorkflowVersion.findFirst({
+                where: { workflowId: visaWorkflow.id, versionNumber: 1 },
+            })) ||
+            (await tenantPrisma.visaWorkflowVersion.create({
+                data: {
+                    tenantId,
+                    workflowId: visaWorkflow.id,
+                    versionNumber: 1,
+                    status: 'Active',
+                    description: 'Initial version',
+                    createdBy: 'system',
                 },
             }));
 
@@ -599,6 +617,7 @@ async function seedFirstTenantData() {
                     studentId: studentOne.id,
                     visaTypeId: visaType.id,
                     workflowId: visaWorkflow.id,
+                    workflowVersionId: workflowVersion.id,
                     destinationCountry: 'Australia',
                     status: 'UnderReview',
                     currentStepId: visaStep.id,
