@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, PreconditionFailedException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateVisaApplicationDto, AdvanceVisaStepDto, DefaultFilterDto } from './dto/visa-application.dto';
-import { VisaStatus, Prisma, VisaWorkflowStep } from '@prisma/tenant-client';
+import { VisaStatus, Prisma } from '@prisma/tenant-client';
 
 export interface HistoryEntry {
   stepId: string | null;
@@ -25,15 +25,47 @@ export class VisaApplicationsService {
 
     const visaType = await this.prisma.visaType.findUnique({
       where: { id: visaTypeId, tenantId },
-      include: { workflows: { where: { isActive: true }, include: { steps: { where: { stepOrder: 1, isActive: true } } } } },
+      include: {
+        workflows: {
+          where: { isActive: true },
+          include: {
+            currentVersion: {
+              include: {
+                steps: { where: { stepOrder: 1, isActive: true }, orderBy: { stepOrder: 'asc' } },
+              },
+            },
+          },
+        },
+      },
     });
     if (!visaType || !visaType.isActive) throw new NotFoundException('Active Visa Type not found for the given tenant');
 
     const workflow = visaType.workflows[0];
     if (!workflow) throw new BadRequestException('No active workflow found for this Visa Type');
 
-    const firstStep = workflow.steps[0];
-    if (!firstStep) throw new BadRequestException('The selected workflow has no configured first step');
+    // Get or create active version
+    let workflowVersion = workflow.currentVersion;
+    
+    if (!workflowVersion) {
+      // If no active version exists, try to get the latest Active version
+      workflowVersion = await this.prisma.visaWorkflowVersion.findFirst({
+        where: {
+          workflowId: workflow.id,
+          status: 'Active',
+        },
+        include: {
+          steps: { where: { stepOrder: 1, isActive: true }, orderBy: { stepOrder: 'asc' } },
+        },
+        orderBy: { versionNumber: 'desc' },
+      });
+    }
+
+    if (!workflowVersion) {
+      throw new BadRequestException('No active workflow version found for this Visa Type');
+    }
+
+    const firstStep = workflowVersion.steps[0];
+    if (!firstStep) throw new BadRequestException('The selected workflow version has no configured first step');
 
     if (courseApplicationId) {
       const courseApp = await this.prisma.courseApplication.findUnique({ where: { id: courseApplicationId, tenantId } });
@@ -51,62 +83,105 @@ export class VisaApplicationsService {
 
     return this.prisma.visaApplication.create({
       data: {
-        tenantId, studentId, visaTypeId, workflowId: workflow.id, courseApplicationId: courseApplicationId || null,
-        destinationCountry: destinationCountry || null, status: VisaStatus.Pending, currentStepId: firstStep.id, notes: initialHistory as any, version: 1,
+        tenantId,
+        studentId,
+        visaTypeId,
+        workflowId: workflow.id,
+        workflowVersionId: workflowVersion.id,
+        courseApplicationId: courseApplicationId || null,
+        destinationCountry: destinationCountry || null,
+        status: VisaStatus.Pending,
+        currentStepId: firstStep.id,
+        notes: initialHistory as any,
+        version: 1,
       },
-      include: { student: true, workflow: true, visaType: true },
+      include: {
+        student: true,
+        workflow: true,
+        workflowVersion: { include: { steps: true } },
+        visaType: true,
+      },
     });
   }
 
   async advanceStep(tenantId: string, id: string, advanceDto: AdvanceVisaStepDto) {
     const { expectedStepId, notes } = advanceDto;
 
-    return this.prisma.$transaction(async (tx: any) => {
-      const app = await tx.visaApplication.findUnique({
-        where: { id, tenantId },
-        include: { workflow: { include: { steps: { orderBy: { stepOrder: 'asc' } } } }, documents: true },
-      });
-      if (!app) throw new NotFoundException('Visa Application not found');
-      if (app.status === 'Approved' || app.status === 'Rejected') throw new BadRequestException(`Cannot advance a visa application that is ${app.status}`);
-      if (app.currentStepId !== expectedStepId) throw new ConflictException('The workflow step state has changed since you loaded it.');
+    return this.prisma.$transaction(
+      async (tx: any) => {
+        const app = await tx.visaApplication.findUnique({
+          where: { id, tenantId },
+          include: {
+            workflowVersion: { include: { steps: { orderBy: { stepOrder: 'asc' } } } },
+            documents: true,
+          },
+        });
+        if (!app) throw new NotFoundException('Visa Application not found');
+        if (app.status === 'Approved' || app.status === 'Rejected')
+          throw new BadRequestException(`Cannot advance a visa application that is ${app.status}`);
+        if (app.currentStepId !== expectedStepId)
+          throw new ConflictException('The workflow step state has changed since you loaded it.');
 
-      const stepIndex = app.workflow.steps.findIndex((s: any) => s.id === app.currentStepId);
-      if (stepIndex === -1) throw new BadRequestException('Current step not found in the workflow steps');
-      const currentStep = app.workflow.steps[stepIndex];
+        const stepIndex = app.workflowVersion.steps.findIndex((s: any) => s.id === app.currentStepId);
+        if (stepIndex === -1) throw new BadRequestException('Current step not found in the workflow version steps');
+        const currentStep = app.workflowVersion.steps[stepIndex];
 
-      if (currentStep.requiresDocument && app.documents.length === 0) throw new PreconditionFailedException(`Documents are required before advancing from ${currentStep.name}`);
+        if (currentStep.requiresDocument && app.documents.length === 0)
+          throw new PreconditionFailedException(`Documents are required before advancing from ${currentStep.name}`);
 
-      const nextStep = app.workflow.steps[stepIndex + 1];
-      const history: HistoryEntry[] = Array.isArray(app.notes) ? app.notes as any : [];
-      
-      let matchedSLA = true;
-      if (history.length > 0 && currentStep.expectedDurationDays) {
-        const diffDays = Math.ceil(Math.abs(new Date().getTime() - new Date(history[history.length - 1].timestamp).getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays > currentStep.expectedDurationDays) matchedSLA = false;
-      }
-      history.push({ stepId: app.currentStepId, status: 'Completed', timestamp: new Date().toISOString(), matchedSLA, remarks: notes });
+        const nextStep = app.workflowVersion.steps[stepIndex + 1];
+        const history: HistoryEntry[] = Array.isArray(app.notes) ? (app.notes as any) : [];
 
-      // Determine updated status
-      const updatedStatus = nextStep 
-        ? (app.status === VisaStatus.Pending ? VisaStatus.Submitted : app.status) 
-        : VisaStatus.Submitted;
+        let matchedSLA = true;
+        if (history.length > 0 && currentStep.expectedDurationDays) {
+          const diffDays = Math.ceil(
+            Math.abs(
+              new Date().getTime() - new Date(history[history.length - 1].timestamp).getTime(),
+            ) /
+              (1000 * 60 * 60 * 24),
+          );
+          if (diffDays > currentStep.expectedDurationDays) matchedSLA = false;
+        }
+        history.push({
+          stepId: app.currentStepId,
+          status: 'Completed',
+          timestamp: new Date().toISOString(),
+          matchedSLA,
+          remarks: notes,
+        });
 
-      if (!nextStep) {
-         history.push({ stepId: null, status: 'All Steps Completed', timestamp: new Date().toISOString(), matchedSLA: true, remarks: 'Automated transition to submitted state' });
-      }
+        // Determine updated status
+        const updatedStatus =
+          nextStep
+            ? app.status === VisaStatus.Pending
+              ? VisaStatus.Submitted
+              : app.status
+            : VisaStatus.Submitted;
 
-      const updatedApp = await tx.visaApplication.update({
-        where: { id: app.id, version: app.version },
-        data: {
-          currentStepId: nextStep ? nextStep.id : null,
-          status: updatedStatus,
-          notes: history as any,
-          version: { increment: 1 },
-        },
-      });
+        if (!nextStep) {
+          history.push({
+            stepId: null,
+            status: 'All Steps Completed',
+            timestamp: new Date().toISOString(),
+            matchedSLA: true,
+            remarks: 'Automated transition to submitted state',
+          });
+        }
 
-      return updatedApp;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+        const updatedApp = await tx.visaApplication.update({
+          where: { id: app.id, version: app.version },
+          data: {
+            currentStepId: nextStep ? nextStep.id : null,
+            status: updatedStatus,
+            notes: history as any,
+            version: { increment: 1 },
+          },
+        });
+
+        return updatedApp;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   async findAll(tenantId: string, filters: DefaultFilterDto) {
@@ -123,6 +198,11 @@ export class VisaApplicationsService {
         student: true,
         visaType: true,
         workflow: true,
+        workflowVersion: {
+          include: {
+            steps: { orderBy: { stepOrder: 'asc' } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -148,7 +228,8 @@ export class VisaApplicationsService {
             description: true,
           },
         },
-        workflow: {
+        workflow: true,
+        workflowVersion: {
           include: {
             steps: {
               where: { isActive: true },
@@ -189,17 +270,14 @@ export class VisaApplicationsService {
     }
 
     // Enhanced response with workflow step analysis and document requirements
-    const currentStepIndex = visaApplication.workflow.steps.findIndex(
-      (s: VisaWorkflowStep) => s.id === visaApplication.currentStepId,
-    );
+    const steps = visaApplication.workflowVersion.steps;
+    const currentStepIndex = steps.findIndex((s) => s.id === visaApplication.currentStepId);
 
-    const currentStep = currentStepIndex !== -1 ? visaApplication.workflow.steps[currentStepIndex] : null;
-    const nextStep = currentStepIndex < visaApplication.workflow.steps.length - 1
-      ? visaApplication.workflow.steps[currentStepIndex + 1]
-      : null;
+    const currentStep = currentStepIndex !== -1 ? steps[currentStepIndex] : null;
+    const nextStep = currentStepIndex < steps.length - 1 ? steps[currentStepIndex + 1] : null;
 
     // Calculate which steps need documents
-    const stepDocumentRequirements = visaApplication.workflow.steps.map((step: VisaWorkflowStep) => {
+    const stepDocumentRequirements = steps.map((step) => {
       const documentsForStep = visaApplication.documents.filter((doc: any) => doc.workflowId === step.id);
       return {
         stepId: step.id,
@@ -216,14 +294,15 @@ export class VisaApplicationsService {
       currentStep,
       nextStep,
       workflowProgress: {
-        totalSteps: visaApplication.workflow.steps.length,
+        totalSteps: steps.length,
         currentStepIndex: currentStepIndex + 1,
-        percentageComplete: ((currentStepIndex + 1) / visaApplication.workflow.steps.length) * 100,
+        percentageComplete: ((currentStepIndex + 1) / steps.length) * 100,
       },
       stepDocumentRequirements,
       metadata: {
         createdDaysAgo: Math.floor((Date.now() - new Date(visaApplication.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
         isCompleted: visaApplication.status === 'Approved' || visaApplication.status === 'Rejected',
+        workflowVersionNumber: visaApplication.workflowVersion.versionNumber,
       },
     };
   }

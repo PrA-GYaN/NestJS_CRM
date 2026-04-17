@@ -280,6 +280,20 @@ export class DashboardVisaWorkflowStepDto {
   expectedDurationDays?: number | null;
 }
 
+export class DashboardVisaWorkflowDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty({ type: DashboardVisaWorkflowStepDto, nullable: true })
+  currentStep?: DashboardVisaWorkflowStepDto | null;
+
+  @ApiProperty({ type: [DashboardVisaWorkflowStepDto] })
+  steps!: DashboardVisaWorkflowStepDto[];
+}
+
 export class DashboardVisaApplicationDto {
   @ApiProperty()
   id!: string;
@@ -302,8 +316,8 @@ export class DashboardVisaApplicationDto {
   @ApiProperty({ type: Object })
   visaType!: any;
 
-  @ApiProperty({ type: Object })
-  workflow!: any;
+  @ApiProperty({ type: DashboardVisaWorkflowDto })
+  workflow!: DashboardVisaWorkflowDto;
 
   @ApiProperty()
   createdAt!: Date;
