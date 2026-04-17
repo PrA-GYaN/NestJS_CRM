@@ -820,7 +820,7 @@ model VisaWorkflow {
   visaTypeId         String
   name               String
   description        String?
-  currentVersionId   String?  // Reference to the active version
+  currentVersionId   String?  @unique // Reference to the active version
   isActive           Boolean  @default(true)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -828,6 +828,7 @@ model VisaWorkflow {
   visaType VisaType                  @relation(fields: [visaTypeId], references: [id], onDelete: Cascade)
   currentVersion VisaWorkflowVersion? @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
   versions VisaWorkflowVersion[]
+  steps VisaWorkflowStep[]
   applications VisaApplication[]
   migrations WorkflowVersionMigration[]
 
