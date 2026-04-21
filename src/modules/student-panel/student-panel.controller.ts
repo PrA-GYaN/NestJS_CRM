@@ -36,6 +36,9 @@ import {
   VisaApplicationsQueryDto,
   DocumentsQueryDto,
   NotificationsQueryDto,
+  TasksQueryDto,
+  PaymentsQueryDto,
+  ServicesQueryDto,
   MarkNotificationReadDto,
   DashboardStatsResponseDto,
   StudentPanelServicesResponseDto,
@@ -571,16 +574,18 @@ export class StudentPanelController {
   @Get('tasks')
   @ApiOperation({
     summary: 'Get my tasks',
-    description: 'Returns tasks assigned to the student. Pass `pending=true` to show only Pending/InProgress tasks. Omit or pass `pending=false` to see all tasks.',
+    description: 'Returns tasks assigned to the student with pagination. Pass `pending=true` to show only Pending/InProgress tasks. Omit or pass `pending=false` to see all tasks.',
   })
   @ApiQuery({ name: 'pending', required: false, type: Boolean, description: 'true = only pending/in-progress; omit or false = all tasks' })
-  @ApiResponse({ status: 200, description: 'Tasks retrieved successfully' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
+  @ApiResponse({ status: 200, description: 'Paginated list of tasks' })
   getMyTasks(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,
-    @Query('pending') pending?: boolean,
+    @Query() queryDto: TasksQueryDto,
   ) {
-    return this.studentPanelService.getMyTasks(tenantId, user.studentId || user.id, pending === true);
+    return this.studentPanelService.getMyTasks(tenantId, user.studentId || user.id, queryDto);
   }
 
   @Patch('tasks/:id/complete')
@@ -605,10 +610,19 @@ export class StudentPanelController {
   // ============================================
 
   @Get('visa-applications')
-  @ApiOperation({ summary: 'Get my visa applications' })
-  @ApiResponse({ status: 200, description: 'Visa applications retrieved successfully' })
-  getMyVisaApplications(@TenantId() tenantId: string, @CurrentUser() user: any) {
-    return this.studentPanelService.getMyVisaApplications(tenantId, user.studentId || user.id);
+  @ApiOperation({
+    summary: 'Get my visa applications',
+    description: 'Returns the authenticated student\'s visa applications with pagination.',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
+  @ApiResponse({ status: 200, description: 'Paginated list of visa applications retrieved successfully' })
+  getMyVisaApplications(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Query() queryDto: VisaApplicationsQueryDto,
+  ) {
+    return this.studentPanelService.getMyVisaApplications(tenantId, user.studentId || user.id, queryDto);
   }
 
   @Get('visa-applications/detailed')
@@ -653,21 +667,39 @@ export class StudentPanelController {
   // ============================================
 
   @Get('payments')
-  @ApiOperation({ summary: 'Get my payments' })
-  @ApiResponse({ status: 200, description: 'Payments retrieved successfully' })
-  getMyPayments(@TenantId() tenantId: string, @CurrentUser() user: any) {
-    return this.studentPanelService.getMyPayments(tenantId, user.studentId || user.id);
+  @ApiOperation({
+    summary: 'Get my payments',
+    description: 'Returns the authenticated student\'s payment history with pagination.',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
+  @ApiResponse({ status: 200, description: 'Paginated list of payments retrieved successfully' })
+  getMyPayments(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Query() queryDto: PaymentsQueryDto,
+  ) {
+    return this.studentPanelService.getMyPayments(tenantId, user.studentId || user.id, queryDto);
   }
 
   @Get('services')
-  @ApiOperation({ summary: 'Get all tenant services with my assignment status' })
+  @ApiOperation({
+    summary: 'Get all tenant services with my assignment status',
+    description: 'Returns all tenant services with pagination, including which services are assigned to the student.',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
   @ApiResponse({
     status: 200,
-    description: 'Tenant services with classes, tests, and assignment status retrieved successfully',
+    description: 'Paginated list of tenant services with assignment status retrieved successfully',
     type: StudentPanelServicesResponseDto,
   })
-  getMyServices(@TenantId() tenantId: string, @CurrentUser() user: any) {
-    return this.studentPanelService.getMyServices(tenantId, user.studentId || user.id);
+  getMyServices(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @Query() queryDto: ServicesQueryDto,
+  ) {
+    return this.studentPanelService.getMyServices(tenantId, user.studentId || user.id, queryDto);
   }
 
   @Get('services/:id')
@@ -852,10 +884,13 @@ export class StudentPanelController {
   // ============================================
 
   @Get('universities')
-  @ApiOperation({ summary: 'Browse universities' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiOperation({
+    summary: 'Browse universities',
+    description: 'Returns available universities with pagination and optional search.',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by university name' })
   @ApiResponse({ status: 200, description: 'Universities retrieved successfully' })
   getUniversities(
     @TenantId() tenantId: string,
@@ -874,11 +909,14 @@ export class StudentPanelController {
   }
 
   @Get('courses')
-  @ApiOperation({ summary: 'Browse courses' })
-  @ApiQuery({ name: 'universityId', required: false, type: String })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiOperation({
+    summary: 'Browse courses',
+    description: 'Returns available courses with pagination, optional filtering by university, and search.',
+  })
+  @ApiQuery({ name: 'universityId', required: false, type: String, description: 'Filter by university ID' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by course name' })
   @ApiResponse({ status: 200, description: 'Courses retrieved successfully' })
   getCourses(
     @TenantId() tenantId: string,

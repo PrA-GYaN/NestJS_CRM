@@ -216,6 +216,19 @@ export class DocumentsQueryDto {
   @IsOptional()
   @IsString()
   verificationStatus?: string;
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ default: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 10;
 }
 
 export class NotificationsQueryDto {
@@ -236,6 +249,56 @@ export class NotificationsQueryDto {
   @Min(1)
   @Max(100)
   limit?: number = 20;
+}
+
+export class TasksQueryDto {
+  @ApiPropertyOptional({ type: Boolean, description: 'Filter for only pending/in-progress tasks' })
+  @IsOptional()
+  @IsBoolean()
+  pending?: boolean;
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ default: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 10;
+}
+
+export class PaymentsQueryDto {
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ default: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 10;
+}
+
+export class ServicesQueryDto {
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ default: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 10;
 }
 
 export class VisaApplicationsQueryDto {

@@ -18,9 +18,13 @@ import {
   VisaApplicationsQueryDto,
   DocumentsQueryDto,
   NotificationsQueryDto,
+  TasksQueryDto,
+  PaymentsQueryDto,
+  ServicesQueryDto,
   MarkNotificationReadDto,
   DashboardStatsResponseDto,
 } from './dto/student-panel.dto';
+import { AppointmentsQueryDto } from '../appointments/dto/appointment.dto';
 import { FilesService } from '../files/files.service';
 
 @Injectable()
@@ -441,18 +445,28 @@ export class StudentPanelService {
   async getMyDocuments(tenantId: string, studentId: string, queryDto: DocumentsQueryDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
+    const { documentType, verificationStatus, page = 1, limit = 10 } = queryDto;
+
     const where: any = {
       studentId,
       tenantId,
     };
 
-    if (queryDto.documentType) {
-      where.documentType = queryDto.documentType;
+    if (documentType) {
+      where.documentType = documentType;
     }
 
-    if (queryDto.verificationStatus) {
-      where.verificationStatus = queryDto.verificationStatus;
+    if (verificationStatus) {
+      where.verificationStatus = verificationStatus;
     }
+
+    // Safe pagination values
+    const safePage = Math.max(page, 1);
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const skip = (safePage - 1) * safeLimit;
+
+    // Get total count for pagination metadata
+    const total = await tenantPrisma.studentDocument.count({ where });
 
     const documents = await tenantPrisma.studentDocument.findMany({
       where,
@@ -472,9 +486,17 @@ export class StudentPanelService {
         uploadedAt: true,
         metadata: true,
       },
+      skip,
+      take: safeLimit,
     });
 
-    return documents;
+    return {
+      data: documents,
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+    };
   }
 
   async uploadDocument(tenantId: string, studentId: string, uploadDto: UploadStudentDocumentDto) {
@@ -800,15 +822,87 @@ export class StudentPanelService {
       },
     });
 
-    return appointments;
+    return {
+      data: appointments,
+      total: appointments.length,
+    };
+  }
+
+  async getMyAppointmentsWithPagination(
+    tenantId: string,
+    studentId: string,
+    queryDto: AppointmentsQueryDto,
+  ) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    const { page = 1, limit = 10 } = queryDto;
+
+    // Safe pagination values
+    const safePage = Math.max(page, 1);
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const skip = (safePage - 1) * safeLimit;
+
+    const where: any = {
+      studentId,
+      tenantId,
+    };
+
+    if (queryDto.status) {
+      where.status = queryDto.status;
+    }
+
+    if (queryDto.from || queryDto.to) {
+      where.scheduledAt = {};
+      if (queryDto.from) {
+        where.scheduledAt.gte = new Date(queryDto.from);
+      }
+      if (queryDto.to) {
+        where.scheduledAt.lte = new Date(queryDto.to);
+      }
+    }
+
+    const total = await tenantPrisma.appointment.count({ where });
+
+    const appointments = await tenantPrisma.appointment.findMany({
+      where,
+      orderBy: { scheduledAt: 'desc' },
+      include: {
+        staff: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      skip,
+      take: safeLimit,
+    });
+
+    return {
+      data: appointments,
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+    };
   }
 
   // ============================================
   // TASKS
   // ============================================
 
-  async getMyTasks(tenantId: string, studentId: string, pendingOnly: boolean = false) {
+  async getMyTasks(tenantId: string, studentId: string, queryDto?: any) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    // Handle legacy pendingOnly boolean parameter for backward compatibility
+    const pendingOnly = queryDto?.pending === true || queryDto === true;
+    const page = queryDto?.page ?? 1;
+    const limit = queryDto?.limit ?? 10;
+
+    // Safe pagination values
+    const safePage = Math.max(page, 1);
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const skip = (safePage - 1) * safeLimit;
 
     const where: any = {
       tenantId,
@@ -820,6 +914,8 @@ export class StudentPanelService {
     if (pendingOnly === true) {
       where.status = { in: ['Pending', 'InProgress'] };
     }
+
+    const total = await tenantPrisma.task.count({ where });
 
     const tasks = await tenantPrisma.task.findMany({
       where,
@@ -833,9 +929,17 @@ export class StudentPanelService {
           },
         },
       },
+      skip,
+      take: safeLimit,
     });
 
-    return tasks;
+    return {
+      data: tasks,
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+    };
   }
 
   async completeMyTask(tenantId: string, studentId: string, taskId: string) {
@@ -894,14 +998,25 @@ export class StudentPanelService {
   // VISA APPLICATIONS
   // ============================================
 
-  async getMyVisaApplications(tenantId: string, studentId: string) {
+  async getMyVisaApplications(tenantId: string, studentId: string, queryDto?: VisaApplicationsQueryDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    const page = queryDto?.page ?? 1;
+    const limit = queryDto?.limit ?? 10;
+
+    // Safe pagination values
+    const safePage = Math.max(page, 1);
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const skip = (safePage - 1) * safeLimit;
+
+    const where = {
+      studentId,
+      tenantId,
+    };
+
+    const total = await tenantPrisma.visaApplication.count({ where });
 
     const applications = await tenantPrisma.visaApplication.findMany({
-      where: {
-        studentId,
-        tenantId,
-      },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         visaType: {
@@ -927,9 +1042,17 @@ export class StudentPanelService {
           },
         },
       },
+      skip,
+      take: safeLimit,
     });
 
-    return applications;
+    return {
+      data: applications,
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+    };
   }
 
   async getMyDetailedVisaApplications(
@@ -1133,14 +1256,25 @@ export class StudentPanelService {
   // PAYMENTS & SERVICES
   // ============================================
 
-  async getMyPayments(tenantId: string, studentId: string) {
+  async getMyPayments(tenantId: string, studentId: string, queryDto?: any) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    const page = queryDto?.page ?? 1;
+    const limit = queryDto?.limit ?? 10;
+
+    // Safe pagination values
+    const safePage = Math.max(page, 1);
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const skip = (safePage - 1) * safeLimit;
+
+    const where = {
+      studentId,
+      tenantId,
+    };
+
+    const total = await tenantPrisma.payment.count({ where });
 
     const payments = await tenantPrisma.payment.findMany({
-      where: {
-        studentId,
-        tenantId,
-      },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         student: {
@@ -1160,10 +1294,12 @@ export class StudentPanelService {
           },
         },
       },
+      skip,
+      take: safeLimit,
     });
 
     // Normalize response to include student name
-    return payments.map((payment) => {
+    const normalizedPayments = payments.map((payment) => {
       const firstName = payment.student?.firstName ?? '';
       const lastName = payment.student?.lastName ?? '';
       const name = `${firstName} ${lastName}`.trim();
@@ -1178,10 +1314,25 @@ export class StudentPanelService {
           : null,
       };
     });
+
+    return {
+      data: normalizedPayments,
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+    };
   }
 
-  async getMyServices(tenantId: string, studentId: string) {
+  async getMyServices(tenantId: string, studentId: string, queryDto?: any) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    const page = queryDto?.page ?? 1;
+    const limit = queryDto?.limit ?? 10;
+
+    // Safe pagination values
+    const safePage = Math.max(page, 1);
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const skip = (safePage - 1) * safeLimit;
 
     const student = await tenantPrisma.student.findFirst({
       where: { id: studentId, tenantId },
@@ -1191,6 +1342,9 @@ export class StudentPanelService {
     if (!student) {
       throw new NotFoundException('Student not found');
     }
+
+    // Get total count for pagination
+    const total = await tenantPrisma.service.count({ where: { tenantId } });
 
     const services = await tenantPrisma.service.findMany({
       where: { tenantId },
@@ -1282,6 +1436,8 @@ export class StudentPanelService {
           },
         },
       },
+      skip,
+      take: safeLimit,
     });
 
     const mappedServices = services.map((service) => {
@@ -1357,12 +1513,20 @@ export class StudentPanelService {
       };
     });
 
+    const assignedServices = mappedServices.filter((service) => service.assignment.isAssigned).length;
+
     return {
-      tenantId,
-      studentId,
-      totalServices: mappedServices.length,
-      assignedServices: mappedServices.filter((service) => service.assignment.isAssigned).length,
-      services: mappedServices,
+      data: {
+        tenantId,
+        studentId,
+        totalServices: mappedServices.length,
+        assignedServices,
+        services: mappedServices,
+      },
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
     };
   }
 
