@@ -16,14 +16,14 @@ export class VisaApplicationsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(tenantId: string, createDto: CreateVisaApplicationDto) {
-    const { studentId, visaTypeId, courseApplicationId, destinationCountry } = createDto;
+    const { studentId, visaTypeId, courseApplicationId, destinationCountry, workflowId } = createDto;
 
     const student = await this.prisma.student.findUnique({
       where: { id: studentId, tenantId },
     });
     if (!student) throw new NotFoundException('Student not found for the given tenant');
 
-    const visaType = await this.prisma.visaType.findUnique({
+    const visaType = await (this.prisma as any).visaType.findUnique({
       where: { id: visaTypeId, tenantId },
       include: {
         workflows: {
@@ -40,7 +40,20 @@ export class VisaApplicationsService {
     });
     if (!visaType || !visaType.isActive) throw new NotFoundException('Active Visa Type not found for the given tenant');
 
-    const workflow = visaType.workflows[0];
+    // Determine which workflow to use
+    let workflow;
+    
+    if (workflowId) {
+      // If workflowId is provided, validate and use that specific workflow
+      workflow = visaType.workflows.find((w: any) => w.id === workflowId);
+      if (!workflow) {
+        throw new BadRequestException('The provided workflowId is not valid for the selected visaTypeId');
+      }
+    } else {
+      // Use default workflow (first active workflow)
+      workflow = visaType.workflows[0];
+    }
+
     if (!workflow) throw new BadRequestException('No active workflow found for this Visa Type');
 
     // Get or create active version
@@ -48,7 +61,7 @@ export class VisaApplicationsService {
     
     if (!workflowVersion) {
       // If no active version exists, try to get the latest Active version
-      workflowVersion = await this.prisma.visaWorkflowVersion.findFirst({
+      workflowVersion = await (this.prisma as any).visaWorkflowVersion.findFirst({
         where: {
           workflowId: workflow.id,
           status: 'Active',
@@ -228,7 +241,14 @@ export class VisaApplicationsService {
             description: true,
           },
         },
-        workflow: true,
+        workflow: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            currentVersionId: true,
+          },
+        },
         workflowVersion: {
           include: {
             steps: {
@@ -269,16 +289,16 @@ export class VisaApplicationsService {
       throw new NotFoundException('Visa application not found');
     }
 
-    // Enhanced response with workflow step analysis and document requirements
-    const steps = visaApplication.workflowVersion.steps;
-    const currentStepIndex = steps.findIndex((s) => s.id === visaApplication.currentStepId);
+    // Enhanced response with workflow step analysis and document requirements using actual workflow version
+    const steps = (visaApplication.workflowVersion as any)?.steps || [];
+    const currentStepIndex = steps.findIndex((s: any) => s.id === visaApplication.currentStepId);
 
     const currentStep = currentStepIndex !== -1 ? steps[currentStepIndex] : null;
-    const nextStep = currentStepIndex < steps.length - 1 ? steps[currentStepIndex + 1] : null;
+    const nextStep = currentStepIndex < steps.length - 1 ? steps[currentStepIndex + 1] : steps.length > 0 ? steps[0] : null;
 
     // Calculate which steps need documents
-    const stepDocumentRequirements = steps.map((step) => {
-      const documentsForStep = visaApplication.documents.filter((doc: any) => doc.workflowId === step.id);
+    const stepDocumentRequirements = steps.map((step: any) => {
+      const documentsForStep = (visaApplication.documents as any[]).filter((doc: any) => doc.workflowId === step.id);
       return {
         stepId: step.id,
         stepName: step.name,
@@ -289,8 +309,17 @@ export class VisaApplicationsService {
       };
     });
 
+    // Prepare response with renamed fields
+    const { workflowVersion, workflow, ...rest } = visaApplication;
+
     return {
-      ...visaApplication,
+      ...rest,
+      workflow: {
+        ...workflow,
+        defaultVersionId: (workflow as any)?.currentVersionId,
+      },
+      applicationVersionId: (workflowVersion as any)?.id,
+      workflowVersion,
       currentStep,
       nextStep,
       workflowProgress: {
@@ -302,7 +331,7 @@ export class VisaApplicationsService {
       metadata: {
         createdDaysAgo: Math.floor((Date.now() - new Date(visaApplication.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
         isCompleted: visaApplication.status === 'Approved' || visaApplication.status === 'Rejected',
-        workflowVersionNumber: visaApplication.workflowVersion.versionNumber,
+        workflowVersionNumber: (workflowVersion as any)?.versionNumber,
       },
     };
   }

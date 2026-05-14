@@ -1082,6 +1082,14 @@ export class StudentPanelService {
           orderBy: { createdAt: 'desc' },
           include: {
             workflow: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                currentVersionId: true,
+              },
+            },
+            workflowVersion: {
               include: {
                 steps: {
                   orderBy: {
@@ -1101,8 +1109,9 @@ export class StudentPanelService {
         throw new NotFoundException('No visa applications found for this student');
       }
 
-      const data = applications.map((application) => {
-        const currentStep = application.workflow.steps.find(
+      const data = applications.map((application: any) => {
+        const workflowSteps = application.workflowVersion?.steps || [];
+        const currentStep = workflowSteps.find(
           (step: any) => step.id === application.currentStepId,
         );
         return {
@@ -1114,7 +1123,13 @@ export class StudentPanelService {
             id: application.workflow.id,
             name: application.workflow.name,
             description: application.workflow.description,
-            steps: application.workflow.steps,
+            defaultVersionId: application.workflow?.currentVersionId,
+          },
+          applicationVersionId: application.workflowVersion?.id,
+          workflowVersion: {
+            id: application.workflowVersion?.id,
+            versionNumber: application.workflowVersion?.versionNumber,
+            steps: workflowSteps,
           },
           courseApplication: application.courseApplication,
           documents: application.documents.map((document: any) => ({
@@ -1142,6 +1157,14 @@ export class StudentPanelService {
       orderBy: { createdAt: 'desc' },
       include: {
         workflow: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            currentVersionId: true,
+          },
+        },
+        workflowVersion: {
           include: {
             steps: {
               orderBy: {
@@ -1159,8 +1182,9 @@ export class StudentPanelService {
       throw new NotFoundException('No visa applications found for this student');
     }
 
-    return applications.map((application) => {
-      const currentStep = application.workflow.steps.find(
+    return applications.map((application: any) => {
+      const workflowSteps = application.workflowVersion?.steps || [];
+      const currentStep = workflowSteps.find(
         (step: any) => step.id === application.currentStepId,
       );
       return {
@@ -1172,7 +1196,13 @@ export class StudentPanelService {
           id: application.workflow.id,
           name: application.workflow.name,
           description: application.workflow.description,
-          steps: application.workflow.steps,
+          defaultVersionId: application.workflow?.currentVersionId,
+        },
+        applicationVersionId: application.workflowVersion?.id,
+        workflowVersion: {
+          id: application.workflowVersion?.id,
+          versionNumber: application.workflowVersion?.versionNumber,
+          steps: workflowSteps,
         },
         courseApplication: application.courseApplication,
         documents: application.documents.map((document: any) => ({
@@ -1211,6 +1241,14 @@ export class StudentPanelService {
           },
         },
         workflow: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            currentVersionId: true,
+          },
+        },
+        workflowVersion: {
           include: {
             steps: {
               where: { isActive: true },
@@ -1230,24 +1268,34 @@ export class StudentPanelService {
       throw new ForbiddenException('You can only access your own visa applications');
     }
 
-    // Enhance response with current workflow step information
-    const currentStepIndex = application.workflow.steps.findIndex(
+    // Enhance response with current workflow step information from the actual workflow version used
+    const workflowSteps = (application.workflowVersion as any)?.steps || [];
+    const currentStepIndex = workflowSteps.findIndex(
       (step: any) => step.id === application.currentStepId,
     );
 
-    const currentStep = currentStepIndex !== -1 ? application.workflow.steps[currentStepIndex] : null;
-    const nextStep = currentStepIndex < application.workflow.steps.length - 1
-      ? application.workflow.steps[currentStepIndex + 1]
-      : null;
+    const currentStep = currentStepIndex !== -1 ? workflowSteps[currentStepIndex] : null;
+    const nextStep = currentStepIndex < workflowSteps.length - 1
+      ? workflowSteps[currentStepIndex + 1]
+      : workflowSteps.length > 0 ? workflowSteps[0] : null;
 
+    // Prepare the response with renamed workflow fields
+    const { workflow, workflowVersion, ...rest } = application;
+    
     return {
-      ...application,
+      ...rest,
+      workflow: {
+        ...workflow,
+        defaultVersionId: (workflow as any)?.currentVersionId,
+      },
+      applicationVersionId: (workflowVersion as any)?.id,
+      workflowVersion,
       currentStep,
       nextStep,
       workflowProgress: {
-        totalSteps: application.workflow.steps.length,
+        totalSteps: workflowSteps.length,
         currentStepIndex: currentStepIndex + 1,
-        percentageComplete: ((currentStepIndex + 1) / application.workflow.steps.length) * 100,
+        percentageComplete: ((currentStepIndex + 1) / workflowSteps.length) * 100,
       },
     };
   }

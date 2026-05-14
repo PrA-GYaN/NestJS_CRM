@@ -35,6 +35,14 @@ export class CreateVisaApplicationDto {
   @MaxLength(100)
   @IsOptional()
   destinationCountry?: string;
+
+    @ApiPropertyOptional({
+    description: 'The unique identifier of the workflow to use for this visa application. If not provided, the default workflow for the visa type is used. Must be a valid workflow for the selected visaTypeId.',
+    example: 'a1b2c3d4-e5f6-7890-abcd-1234567890ef',
+  })
+  @IsUUID()
+  @IsOptional()
+  workflowId?: string;
 }
 
 export class AdvanceVisaStepDto {
