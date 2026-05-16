@@ -16,7 +16,7 @@ export class VisaApplicationsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(tenantId: string, createDto: CreateVisaApplicationDto) {
-    const { studentId, visaTypeId, courseApplicationId, destinationCountry, workflowId } = createDto;
+    const { studentId, visaTypeId, courseApplicationId, destinationCountry, workflowId, workflowVersionId } = createDto;
 
     const student = await this.prisma.student.findUnique({
       where: { id: studentId, tenantId },
@@ -41,7 +41,7 @@ export class VisaApplicationsService {
     if (!visaType || !visaType.isActive) throw new NotFoundException('Active Visa Type not found for the given tenant');
 
     // Determine which workflow to use
-    let workflow;
+    let workflow: any;
     
     if (workflowId) {
       // If workflowId is provided, validate and use that specific workflow
@@ -57,7 +57,23 @@ export class VisaApplicationsService {
     if (!workflow) throw new BadRequestException('No active workflow found for this Visa Type');
 
     // Get or create active version
-    let workflowVersion = workflow.currentVersion;
+    let workflowVersion: any = workflow.currentVersion;
+
+    if (workflowVersionId) {
+      workflowVersion = await (this.prisma as any).visaWorkflowVersion.findFirst({
+        where: {
+          id: workflowVersionId,
+          workflowId: workflow.id,
+        },
+        include: {
+          steps: { where: { stepOrder: 1, isActive: true }, orderBy: { stepOrder: 'asc' } },
+        },
+      });
+
+      if (!workflowVersion) {
+        throw new BadRequestException('The provided workflowVersionId is not valid for the selected workflowId');
+      }
+    }
     
     if (!workflowVersion) {
       // If no active version exists, try to get the latest Active version

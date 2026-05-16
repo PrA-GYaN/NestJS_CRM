@@ -43,6 +43,14 @@ export class CreateVisaApplicationDto {
   @IsUUID()
   @IsOptional()
   workflowId?: string;
+
+    @ApiPropertyOptional({
+      description: 'The unique identifier of the workflow version to use for this visa application. If not provided, the workflow\'s current default version is used.',
+      example: 'b2c3d4e5-f6a7-8901-bcde-2345678901fa',
+    })
+    @IsUUID()
+    @IsOptional()
+    workflowVersionId?: string;
 }
 
 export class AdvanceVisaStepDto {
