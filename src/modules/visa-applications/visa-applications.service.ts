@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, PreconditionFailedException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, PreconditionFailedException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateVisaApplicationDto, AdvanceVisaStepDto, DefaultFilterDto } from './dto/visa-application.dto';
 import { VisaStatus, Prisma } from '@prisma/tenant-client';
@@ -42,7 +42,7 @@ export class VisaApplicationsService {
 
     // Determine which workflow to use
     let workflow: any;
-    
+
     if (workflowId) {
       // If workflowId is provided, validate and use that specific workflow
       workflow = visaType.workflows.find((w: any) => w.id === workflowId);
@@ -74,7 +74,7 @@ export class VisaApplicationsService {
         throw new BadRequestException('The provided workflowVersionId is not valid for the selected workflowId');
       }
     }
-    
+
     if (!workflowVersion) {
       // If no active version exists, try to get the latest Active version
       workflowVersion = await (this.prisma as any).visaWorkflowVersion.findFirst({
@@ -309,8 +309,8 @@ export class VisaApplicationsService {
     const steps = (visaApplication.workflowVersion as any)?.steps || [];
     const currentStepIndex = steps.findIndex((s: any) => s.id === visaApplication.currentStepId);
 
-    const currentStep = currentStepIndex !== -1 ? steps[currentStepIndex] : null;
-    const nextStep = currentStepIndex < steps.length - 1 ? steps[currentStepIndex + 1] : steps.length > 0 ? steps[0] : null;
+    // const currentStep = currentStepIndex !== -1 ? steps[currentStepIndex] : null;
+    // const nextStep = currentStepIndex < steps.length - 1 ? steps[currentStepIndex + 1] : steps.length > 0 ? steps[0] : null;
 
     // Calculate which steps need documents
     const stepDocumentRequirements = steps.map((step: any) => {
@@ -332,12 +332,12 @@ export class VisaApplicationsService {
       ...rest,
       workflow: {
         ...workflow,
-        defaultVersionId: (workflow as any)?.currentVersionId,
+        // defaultVersionId: (workflow as any)?.currentVersionId,
       },
-      applicationVersionId: (workflowVersion as any)?.id,
+      // applicationVersionId: (workflowVersion as any)?.id,
       workflowVersion,
-      currentStep,
-      nextStep,
+      // currentStep,
+      // nextStep,
       workflowProgress: {
         totalSteps: steps.length,
         currentStepIndex: currentStepIndex + 1,
@@ -350,5 +350,46 @@ export class VisaApplicationsService {
         workflowVersionNumber: (workflowVersion as any)?.versionNumber,
       },
     };
+  }
+
+  async delete(tenantId: string, id: string) {
+    try {
+      return await this.prisma.$transaction(async (tx: any) => {
+        const visaApplication = await tx.visaApplication.findFirst({
+          where: { id, tenantId },
+          select: { id: true },
+        });
+
+        if (!visaApplication) {
+          throw new NotFoundException('Visa application not found');
+        }
+
+        await tx.fileUpload.deleteMany({
+          where: {
+            tenantId,
+            visaApplicationId: id,
+          },
+        });
+
+        await tx.visaDocument.deleteMany({
+          where: {
+            tenantId,
+            visaApplicationId: id,
+          },
+        });
+
+        await tx.visaApplication.delete({
+          where: { id },
+        });
+
+        return { message: 'Visa application deleted successfully' };
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException('Deletion failed');
+    }
   }
 }

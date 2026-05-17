@@ -1,8 +1,9 @@
-import { Controller, Post, Body, Param, Get, Query, Patch, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Body, Param, Get, Query, Patch, Delete, UseGuards, Req, ParseUUIDPipe } from '@nestjs/common';
 import { VisaApplicationsService } from './visa-applications.service';
 import { CreateVisaApplicationDto, AdvanceVisaStepDto, DefaultFilterDto } from './dto/visa-application.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { CanDelete } from '../../common/decorators/permissions.decorator';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 
 @ApiTags('Visa Applications')
 @ApiBearerAuth()
@@ -50,5 +51,22 @@ export class VisaApplicationsController {
   @ApiResponse({ status: 404, description: 'Visa application not found' })
   async findOne(@Req() req: any, @Param('id') id: string) {
     return this.visaApplicationsService.findOne(req.user?.tenantId || req.headers['x-tenant-id'], id);
+  }
+
+  @Delete(':id')
+  @UseGuards(PermissionsGuard)
+  @CanDelete('visa-applications')
+  @ApiOperation({ summary: 'Delete a visa application and related records' })
+  @ApiParam({ name: 'id', description: 'Visa application UUID' })
+  @ApiResponse({ status: 200, description: 'Visa application deleted successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid visa application ID' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires visa-applications:delete permission' })
+  @ApiResponse({ status: 404, description: 'Visa application not found' })
+  @ApiResponse({ status: 500, description: 'Deletion failed' })
+  async delete(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.visaApplicationsService.delete(req.user?.tenantId || req.headers['x-tenant-id'], id);
   }
 }
