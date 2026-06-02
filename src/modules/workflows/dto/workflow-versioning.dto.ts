@@ -6,7 +6,6 @@ export enum WorkflowVersionStatus {
   Draft = 'Draft',
   Active = 'Active',
   Deprecated = 'Deprecated',
-  Archived = 'Archived',
 }
 
 export enum MigrationStrategyDto {
@@ -221,55 +220,6 @@ export class DefineStepMappingDto {
   @ValidateNested({ each: true })
   @Type(() => StepMappingDto)
   mappings!: StepMappingDto[];
-}
-
-// ============================================
-// MERGE VERSION OPERATION DTOs
-// ============================================
-
-export class MergeWorkflowVersionsDto {
-  @ApiProperty({
-    description: 'Source workflow version ID to merge from',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @IsString()
-  @IsNotEmpty()
-  @IsUUID()
-  sourceVersionId!: string;
-
-  @ApiProperty({
-    description: 'Target workflow version ID to merge into',
-    example: '223e4567-e89b-12d3-a456-426614174000',
-  })
-  @IsString()
-  @IsNotEmpty()
-  @IsUUID()
-  targetVersionId!: string;
-
-  @ApiPropertyOptional({
-    description: 'Description of the merge operation',
-    example: 'Merged Australian and NZ visa requirements',
-  })
-  @IsString()
-  @IsOptional()
-  description?: string;
-
-  @ApiPropertyOptional({
-    description: 'Steps to include from source (by step IDs). If empty, includes all.',
-    example: ['step-1', 'step-2'],
-  })
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  includeStepIds?: string[];
-
-  @ApiPropertyOptional({
-    description: 'How to resolve conflicts: keep source, keep target, or manual',
-    example: 'keep-target',
-  })
-  @IsString()
-  @IsOptional()
-  conflictResolution?: 'keep-source' | 'keep-target' | 'manual';
 }
 
 // ============================================

@@ -20,7 +20,6 @@ import {
   ActivateWorkflowVersionDto,
   DeprecateWorkflowVersionDto,
   DefineStepMappingDto,
-  MigrationStrategyDto,
   MigrateApplicationDto,
   BulkMigrateApplicationsDto,
   ForcedMigrationDto,
@@ -30,7 +29,13 @@ import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
+import { WorkflowResponseFactory } from './utils/workflow-response.builder';
+import {
+  WorkflowVersionOperationCode,
+  WorkflowMigrationOperationCode,
+} from './dto/workflow-error-codes';
 
 @ApiTags('Workflow Versioning')
 @ApiBearerAuth()
@@ -55,11 +60,17 @@ export class WorkflowVersioningController {
   @ApiResponse({ status: 201, description: 'Workflow version created successfully' })
   @ApiResponse({ status: 404, description: 'Workflow not found' })
   @ApiResponse({ status: 400, description: 'Invalid steps configuration' })
-  createWorkflowVersion(
+  async createWorkflowVersion(
     @TenantId() tenantId: string,
+    @CurrentUser() user: { id: string },
     @Body() createDto: CreateWorkflowVersionDto,
   ) {
-    return this.versioningService.createWorkflowVersion(tenantId, createDto);
+    const version = await this.versioningService.createWorkflowVersion(tenantId, createDto, user?.id);
+    return WorkflowResponseFactory.created(
+      version,
+      'Workflow version created successfully',
+      WorkflowVersionOperationCode.VERSION_CREATED,
+    );
   }
 
   @Post('from-current')
@@ -71,11 +82,17 @@ export class WorkflowVersioningController {
   })
   @ApiResponse({ status: 201, description: 'Version created from current workflow' })
   @ApiResponse({ status: 404, description: 'Workflow not found' })
-  createVersionFromCurrent(
+  async createVersionFromCurrent(
     @TenantId() tenantId: string,
+    @CurrentUser() user: { id: string },
     @Body() createDto: CreateVersionFromCurrentDto,
   ) {
-    return this.versioningService.createVersionFromCurrent(tenantId, createDto);
+    const version = await this.versioningService.createVersionFromCurrent(tenantId, createDto, user?.id);
+    return WorkflowResponseFactory.created(
+      version,
+      'Version created from current workflow structure',
+      WorkflowVersionOperationCode.VERSION_CREATED,
+    );
   }
 
   @Get(':versionId')
@@ -84,8 +101,16 @@ export class WorkflowVersioningController {
   @ApiParam({ name: 'versionId', description: 'Workflow Version ID' })
   @ApiResponse({ status: 200, description: 'Returns version details with steps' })
   @ApiResponse({ status: 404, description: 'Version not found' })
-  getWorkflowVersion(@TenantId() tenantId: string, @Param('versionId') versionId: string) {
-    return this.versioningService.getWorkflowVersion(tenantId, versionId);
+  async getWorkflowVersion(
+    @TenantId() tenantId: string,
+    @Param('versionId') versionId: string,
+  ) {
+    const version = await this.versioningService.getWorkflowVersion(tenantId, versionId);
+    return WorkflowResponseFactory.success(
+      version,
+      'Workflow version retrieved successfully',
+      WorkflowVersionOperationCode.VERSION_RETRIEVED,
+    );
   }
 
   @Get('workflow/:workflowId/versions')
@@ -94,12 +119,24 @@ export class WorkflowVersioningController {
   @ApiParam({ name: 'workflowId', description: 'Workflow ID' })
   @ApiResponse({ status: 200, description: 'Returns paginated list of workflow versions' })
   @ApiResponse({ status: 404, description: 'Workflow not found' })
-  getWorkflowVersions(
+  async getWorkflowVersions(
     @TenantId() tenantId: string,
     @Param('workflowId') workflowId: string,
     @Query() paginationDto: PaginationDto,
   ) {
-    return this.versioningService.getWorkflowVersions(tenantId, workflowId, paginationDto);
+    const result = await this.versioningService.getWorkflowVersions(
+      tenantId,
+      workflowId,
+      paginationDto,
+    );
+    return WorkflowResponseFactory.list(
+      result.data,
+      result.total,
+      result.page,
+      result.limit,
+      'Workflow versions retrieved successfully',
+      WorkflowVersionOperationCode.VERSIONS_RETRIEVED,
+    );
   }
 
   @Put(':versionId/activate')
@@ -109,15 +146,20 @@ export class WorkflowVersioningController {
   @ApiResponse({ status: 200, description: 'Version activated successfully' })
   @ApiResponse({ status: 404, description: 'Version not found' })
   @ApiResponse({ status: 400, description: 'Cannot activate deprecated or archived version' })
-  activateVersion(
+  async activateVersion(
     @TenantId() tenantId: string,
     @Param('versionId') versionId: string,
     @Body() activateDto: ActivateWorkflowVersionDto,
   ) {
-    return this.versioningService.activateWorkflowVersion(tenantId, {
+    const version = await this.versioningService.activateWorkflowVersion(tenantId, {
       ...activateDto,
       versionId,
     });
+    return WorkflowResponseFactory.updated(
+      version,
+      'Workflow version activated successfully',
+      WorkflowVersionOperationCode.VERSION_ACTIVATED,
+    );
   }
 
   @Put(':versionId/deprecate')
@@ -127,15 +169,20 @@ export class WorkflowVersioningController {
   @ApiResponse({ status: 200, description: 'Version deprecated successfully' })
   @ApiResponse({ status: 404, description: 'Version not found' })
   @ApiResponse({ status: 400, description: 'Version is already deprecated' })
-  deprecateVersion(
+  async deprecateVersion(
     @TenantId() tenantId: string,
     @Param('versionId') versionId: string,
     @Body() deprecateDto: DeprecateWorkflowVersionDto,
   ) {
-    return this.versioningService.deprecateWorkflowVersion(tenantId, {
+    const version = await this.versioningService.deprecateWorkflowVersion(tenantId, {
       ...deprecateDto,
       versionId,
     });
+    return WorkflowResponseFactory.updated(
+      version,
+      'Workflow version deprecated successfully',
+      WorkflowVersionOperationCode.VERSION_DEPRECATED,
+    );
   }
 
   @Delete(':versionId')
@@ -148,8 +195,13 @@ export class WorkflowVersioningController {
     status: 409,
     description: 'Cannot delete version with active applications',
   })
-  deleteVersion(@TenantId() tenantId: string, @Param('versionId') versionId: string) {
-    return this.versioningService.deleteWorkflowVersion(tenantId, versionId);
+  async deleteVersion(@TenantId() tenantId: string, @Param('versionId') versionId: string) {
+    await this.versioningService.deleteWorkflowVersion(tenantId, versionId);
+    return WorkflowResponseFactory.deleted(
+      null,
+      'Workflow version deleted successfully',
+      WorkflowVersionOperationCode.VERSION_DELETED,
+    );
   }
 
   @Get(':versionId/history')
@@ -158,8 +210,16 @@ export class WorkflowVersioningController {
   @ApiParam({ name: 'versionId', description: 'Workflow Version ID' })
   @ApiResponse({ status: 200, description: 'Returns version changelog' })
   @ApiResponse({ status: 404, description: 'Version not found' })
-  getVersionHistory(@TenantId() tenantId: string, @Param('versionId') versionId: string) {
-    return this.versioningService.getVersionHistory(tenantId, versionId);
+  async getVersionHistory(
+    @TenantId() tenantId: string,
+    @Param('versionId') versionId: string,
+  ) {
+    const history = await this.versioningService.getVersionHistory(tenantId, versionId);
+    return WorkflowResponseFactory.success(
+      history,
+      'Version history retrieved successfully',
+      WorkflowVersionOperationCode.VERSION_HISTORY_RETRIEVED,
+    );
   }
 
   // ============ STEP MAPPING ENDPOINTS ============
@@ -174,11 +234,16 @@ export class WorkflowVersioningController {
   })
   @ApiResponse({ status: 201, description: 'Step mappings defined successfully' })
   @ApiResponse({ status: 404, description: 'One or both versions not found' })
-  defineStepMappings(
+  async defineStepMappings(
     @TenantId() tenantId: string,
     @Body() defineMappingDto: DefineStepMappingDto,
   ) {
-    return this.versioningService.defineStepMappings(tenantId, defineMappingDto);
+    const mappings = await this.versioningService.defineStepMappings(tenantId, defineMappingDto);
+    return WorkflowResponseFactory.created(
+      mappings,
+      'Step mappings defined successfully',
+      WorkflowVersionOperationCode.STEP_MAPPINGS_DEFINED,
+    );
   }
 
   @Get('step-mappings/:fromVersionId/:toVersionId')
@@ -188,12 +253,21 @@ export class WorkflowVersioningController {
   @ApiParam({ name: 'toVersionId', description: 'Target Workflow Version ID' })
   @ApiResponse({ status: 200, description: 'Returns step mappings and version details' })
   @ApiResponse({ status: 404, description: 'One or both versions not found' })
-  getStepMappings(
+  async getStepMappings(
     @TenantId() tenantId: string,
     @Param('fromVersionId') fromVersionId: string,
     @Param('toVersionId') toVersionId: string,
   ) {
-    return this.versioningService.getStepMappings(tenantId, fromVersionId, toVersionId);
+    const mappings = await this.versioningService.getStepMappings(
+      tenantId,
+      fromVersionId,
+      toVersionId,
+    );
+    return WorkflowResponseFactory.success(
+      mappings,
+      'Step mappings retrieved successfully',
+      WorkflowVersionOperationCode.STEP_MAPPINGS_RETRIEVED,
+    );
   }
 
   // ============ MIGRATION ENDPOINTS ============
@@ -208,17 +282,22 @@ export class WorkflowVersioningController {
   @ApiResponse({ status: 200, description: 'Application migrated successfully' })
   @ApiResponse({ status: 404, description: 'Application or version not found' })
   @ApiResponse({ status: 409, description: 'Application is completed, cannot migrate' })
-  migrateApplication(
+  async migrateApplication(
     @TenantId() tenantId: string,
     @Body() migrateDto: MigrateApplicationDto,
   ) {
-    return this.migrationService.migrateApplication(
+    const result = await this.migrationService.migrateApplication(
       tenantId,
       migrateDto.applicationId,
       migrateDto.toVersionId,
       migrateDto.strategy,
       migrateDto.targetStepId,
       migrateDto.notes,
+    );
+    return WorkflowResponseFactory.success(
+      result,
+      'Application migrated to new workflow version successfully',
+      WorkflowMigrationOperationCode.MIGRATION_COMPLETED,
     );
   }
 
@@ -232,17 +311,22 @@ export class WorkflowVersioningController {
   })
   @ApiResponse({ status: 200, description: 'Bulk migration executed' })
   @ApiResponse({ status: 404, description: 'One or both versions not found' })
-  bulkMigrateApplications(
+  async bulkMigrateApplications(
     @TenantId() tenantId: string,
     @Body() bulkMigrateDto: BulkMigrateApplicationsDto,
   ) {
-    return this.migrationService.bulkMigrateApplications(
+    const result = await this.migrationService.bulkMigrateApplications(
       tenantId,
       bulkMigrateDto.fromVersionId,
       bulkMigrateDto.toVersionId,
       bulkMigrateDto.strategy,
       bulkMigrateDto.statusFilters,
       bulkMigrateDto.validateMappings,
+    );
+    return WorkflowResponseFactory.success(
+      result,
+      'Bulk migration completed successfully',
+      WorkflowMigrationOperationCode.MIGRATION_COMPLETED,
     );
   }
 
@@ -256,7 +340,7 @@ export class WorkflowVersioningController {
   })
   @ApiResponse({ status: 200, description: 'Forced migration executed' })
   @ApiResponse({ status: 404, description: 'One or both versions not found' })
-  forcedMigration(
+  async forcedMigration(
     @TenantId() tenantId: string,
     @Body() forcedMigrationDto: ForcedMigrationDto,
   ) {
@@ -264,11 +348,16 @@ export class WorkflowVersioningController {
       throw new Error('Force parameter must be true for forced migration');
     }
 
-    return this.migrationService.forcedMigration(
+    const result = await this.migrationService.forcedMigration(
       tenantId,
       forcedMigrationDto.fromVersionId,
       forcedMigrationDto.toVersionId,
       forcedMigrationDto.adminReason,
+    );
+    return WorkflowResponseFactory.success(
+      result,
+      'Forced migration executed successfully',
+      WorkflowMigrationOperationCode.MIGRATION_FORCED,
     );
   }
 
@@ -278,11 +367,16 @@ export class WorkflowVersioningController {
   @ApiParam({ name: 'migrationId', description: 'Migration ID' })
   @ApiResponse({ status: 200, description: 'Returns migration progress details' })
   @ApiResponse({ status: 404, description: 'Migration not found' })
-  getMigrationProgress(
+  async getMigrationProgress(
     @TenantId() tenantId: string,
     @Param('migrationId') migrationId: string,
   ) {
-    return this.analyticsService.getMigrationProgress(tenantId, migrationId);
+    const progress = await this.analyticsService.getMigrationProgress(tenantId, migrationId);
+    return WorkflowResponseFactory.success(
+      progress,
+      'Migration progress retrieved successfully',
+      WorkflowMigrationOperationCode.MIGRATION_PROGRESS_RETRIEVED,
+    );
   }
 
   @Get('validate-mappings/:fromVersionId/:toVersionId')
@@ -292,12 +386,21 @@ export class WorkflowVersioningController {
   @ApiParam({ name: 'toVersionId', description: 'Target Version ID' })
   @ApiResponse({ status: 200, description: 'Validation successful' })
   @ApiResponse({ status: 400, description: 'Incompatible steps found' })
-  validateVersionMappings(
+  async validateVersionMappings(
     @TenantId() tenantId: string,
     @Param('fromVersionId') fromVersionId: string,
     @Param('toVersionId') toVersionId: string,
   ) {
-    return this.migrationService.validateVersionMappings(tenantId, fromVersionId, toVersionId);
+    const result = await this.migrationService.validateVersionMappings(
+      tenantId,
+      fromVersionId,
+      toVersionId,
+    );
+    return WorkflowResponseFactory.success(
+      result,
+      'Version mappings validation successful',
+      WorkflowMigrationOperationCode.MIGRATION_VALIDATED,
+    );
   }
 
   @Get('application/:applicationId/migration-history')
@@ -305,11 +408,19 @@ export class WorkflowVersioningController {
   @ApiOperation({ summary: 'Get application migration history' })
   @ApiParam({ name: 'applicationId', description: 'Visa Application ID' })
   @ApiResponse({ status: 200, description: 'Returns migration history for application' })
-  getApplicationMigrationHistory(
+  async getApplicationMigrationHistory(
     @TenantId() tenantId: string,
     @Param('applicationId') applicationId: string,
   ) {
-    return this.migrationService.getApplicationMigrationHistory(tenantId, applicationId);
+    const history = await this.migrationService.getApplicationMigrationHistory(
+      tenantId,
+      applicationId,
+    );
+    return WorkflowResponseFactory.success(
+      history,
+      'Application migration history retrieved successfully',
+      WorkflowMigrationOperationCode.MIGRATION_HISTORY_RETRIEVED,
+    );
   }
 
   // ============ ANALYTICS & DASHBOARD ENDPOINTS ============
@@ -318,8 +429,13 @@ export class WorkflowVersioningController {
   @CanRead('workflows')
   @ApiOperation({ summary: 'Get workflows dashboard overview' })
   @ApiResponse({ status: 200, description: 'Returns dashboard overview of all workflows' })
-  getWorkflowsDashboard(@TenantId() tenantId: string) {
-    return this.analyticsService.getWorkflowsDashboard(tenantId);
+  async getWorkflowsDashboard(@TenantId() tenantId: string) {
+    const dashboard = await this.analyticsService.getWorkflowsDashboard(tenantId);
+    return WorkflowResponseFactory.success(
+      dashboard,
+      'Workflows dashboard retrieved successfully',
+      WorkflowVersionOperationCode.ANALYTICS_RETRIEVED,
+    );
   }
 
   @Get('analytics/workflow/:workflowId')
@@ -332,11 +448,16 @@ export class WorkflowVersioningController {
   @ApiParam({ name: 'workflowId', description: 'Workflow ID' })
   @ApiResponse({ status: 200, description: 'Returns detailed version analytics' })
   @ApiResponse({ status: 404, description: 'Workflow not found' })
-  getWorkflowAnalytics(
+  async getWorkflowAnalytics(
     @TenantId() tenantId: string,
     @Param('workflowId') workflowId: string,
   ) {
-    return this.analyticsService.getWorkflowVersionAnalytics(tenantId, workflowId);
+    const analytics = await this.analyticsService.getWorkflowVersionAnalytics(tenantId, workflowId);
+    return WorkflowResponseFactory.success(
+      analytics,
+      'Workflow analytics retrieved successfully',
+      WorkflowVersionOperationCode.ANALYTICS_RETRIEVED,
+    );
   }
 
   @Get('analytics/safe-to-delete')
@@ -346,8 +467,13 @@ export class WorkflowVersioningController {
     description: 'Get list of workflow versions that have no applications and can be safely deleted',
   })
   @ApiResponse({ status: 200, description: 'Returns list of deletable versions' })
-  getSafeToDeleteVersions(@TenantId() tenantId: string) {
-    return this.analyticsService.getSafeToDeleteVersions(tenantId);
+  async getSafeToDeleteVersions(@TenantId() tenantId: string) {
+    const deletable = await this.analyticsService.getSafeToDeleteVersions(tenantId);
+    return WorkflowResponseFactory.success(
+      deletable,
+      'Safe-to-delete versions identified',
+      WorkflowVersionOperationCode.ANALYTICS_RETRIEVED,
+    );
   }
 
   @Get('analytics/version/:versionId/lifecycle')
@@ -356,11 +482,16 @@ export class WorkflowVersioningController {
   @ApiParam({ name: 'versionId', description: 'Workflow Version ID' })
   @ApiResponse({ status: 200, description: 'Returns lifecycle statistics' })
   @ApiResponse({ status: 404, description: 'Version not found' })
-  getVersionLifecycleStats(
+  async getVersionLifecycleStats(
     @TenantId() tenantId: string,
     @Param('versionId') versionId: string,
   ) {
-    return this.analyticsService.getVersionLifecycleStats(tenantId, versionId);
+    const stats = await this.analyticsService.getVersionLifecycleStats(tenantId, versionId);
+    return WorkflowResponseFactory.success(
+      stats,
+      'Version lifecycle statistics retrieved successfully',
+      WorkflowVersionOperationCode.ANALYTICS_RETRIEVED,
+    );
   }
 
   @Get('analytics/version/:versionId/applications')
@@ -369,12 +500,21 @@ export class WorkflowVersioningController {
   @ApiParam({ name: 'versionId', description: 'Workflow Version ID' })
   @ApiResponse({ status: 200, description: 'Returns applications using the version' })
   @ApiResponse({ status: 404, description: 'Version not found' })
-  getApplicationsByVersion(
+  async getApplicationsByVersion(
     @TenantId() tenantId: string,
     @Param('versionId') versionId: string,
     @Query() filters?: any,
   ) {
-    return this.analyticsService.getApplicationsByVersion(tenantId, versionId, filters);
+    const applications = await this.analyticsService.getApplicationsByVersion(
+      tenantId,
+      versionId,
+      filters,
+    );
+    return WorkflowResponseFactory.success(
+      applications,
+      'Applications using version retrieved successfully',
+      WorkflowVersionOperationCode.ANALYTICS_RETRIEVED,
+    );
   }
 
   @Get('analytics/compare/:versionId1/:versionId2')
@@ -384,11 +524,20 @@ export class WorkflowVersioningController {
   @ApiParam({ name: 'versionId2', description: 'Second Workflow Version ID' })
   @ApiResponse({ status: 200, description: 'Returns detailed comparison' })
   @ApiResponse({ status: 404, description: 'One or both versions not found' })
-  compareVersions(
+  async compareVersions(
     @TenantId() tenantId: string,
     @Param('versionId1') versionId1: string,
     @Param('versionId2') versionId2: string,
   ) {
-    return this.analyticsService.compareVersions(tenantId, versionId1, versionId2);
+    const comparison = await this.analyticsService.compareVersions(
+      tenantId,
+      versionId1,
+      versionId2,
+    );
+    return WorkflowResponseFactory.success(
+      comparison,
+      'Version comparison completed successfully',
+      WorkflowVersionOperationCode.ANALYTICS_RETRIEVED,
+    );
   }
 }

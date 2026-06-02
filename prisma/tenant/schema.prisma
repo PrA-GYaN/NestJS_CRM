@@ -784,7 +784,6 @@ enum WorkflowVersionStatus {
   Draft
   Active
   Deprecated
-  Archived
 }
 
 enum MigrationStrategy {
@@ -839,30 +838,32 @@ model VisaWorkflow {
 }
 
 model VisaWorkflowVersion {
-  id              String                    @id @default(uuid())
-  tenantId        String
-  workflowId      String
-  versionNumber   Int                       // e.g., 1, 2, 3
-  status          WorkflowVersionStatus    @default(Draft)
-  description     String?                   // What changed in this version
-  createdBy       String?                   // User who created this version
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
-  deprecatedAt    DateTime?                 // When was this version deprecated
-  deprecatedReason String?                  // Why was it deprecated
+  id               String                    @id @default(uuid())
+  tenantId         String
+  workflowId       String
+  versionNumber    Int                       // e.g., 1, 2, 3
+  status           WorkflowVersionStatus     @default(Draft)
+  description      String?                   // What changed in this version
+  createdBy        String?                   // User who created this version
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  deprecatedAt     DateTime?                 // When was this version deprecated
+  deprecatedReason String?                   // Why was it deprecated
+  deletedAt        DateTime?                 // Soft-delete timestamp (null = not deleted)
 
-  workflow        VisaWorkflow              @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  currentVersionOf VisaWorkflow?            @relation("CurrentVersion")
-  steps           VisaWorkflowVersionStep[]
-  applications    VisaApplication[]         // Applications using this version
-  migrationFrom   WorkflowVersionMigration[] @relation("FromVersion")
-  migrationTo     WorkflowVersionMigration[] @relation("ToVersion")
-  history         WorkflowVersionHistory[]
+  workflow         VisaWorkflow               @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  currentVersionOf VisaWorkflow?              @relation("CurrentVersion")
+  steps            VisaWorkflowVersionStep[]
+  applications     VisaApplication[]          // Applications using this version
+  migrationFrom    WorkflowVersionMigration[] @relation("FromVersion")
+  migrationTo      WorkflowVersionMigration[] @relation("ToVersion")
+  history          WorkflowVersionHistory[]
 
   @@unique([workflowId, versionNumber])
   @@index([tenantId])
   @@index([tenantId, workflowId])
   @@index([workflowId, status])
+  @@index([workflowId, deletedAt])
   @@map("visa_workflow_versions")
 }
 
@@ -972,7 +973,8 @@ model ApplicationMigrationLog {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  migration WorkflowVersionMigration @relation(fields: [migrationId], references: [id], onDelete: Cascade)
+  application VisaApplication           @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  migration   WorkflowVersionMigration  @relation(fields: [migrationId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([applicationId])
@@ -993,6 +995,7 @@ model WorkflowVersionHistory {
 
   @@index([tenantId])
   @@index([versionId])
+  @@index([versionId, createdAt])
   @@map("workflow_version_history")
 }
 
@@ -1017,9 +1020,10 @@ model VisaApplication {
   student           Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
   visaType          VisaType          @relation(fields: [visaTypeId], references: [id], onDelete: Restrict)
   courseApplication CourseApplication? @relation(fields: [courseApplicationId], references: [id], onDelete: SetNull)
-  workflow          VisaWorkflow      @relation(fields: [workflowId], references: [id], onDelete: Restrict)
-  workflowVersion   VisaWorkflowVersion @relation(fields: [workflowVersionId], references: [id], onDelete: Restrict)
+  workflow          VisaWorkflow             @relation(fields: [workflowId], references: [id], onDelete: Restrict)
+  workflowVersion   VisaWorkflowVersion      @relation(fields: [workflowVersionId], references: [id], onDelete: Restrict)
   documents         VisaDocument[]
+  migrationLogs     ApplicationMigrationLog[]
 
   @@unique([tenantId, courseApplicationId]) // Ensure max one active VisaApplication per CourseApplication
   @@index([tenantId])

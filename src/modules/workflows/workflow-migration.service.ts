@@ -1,11 +1,13 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { MigrationStrategyDto } from './dto';
+import {
+  WorkflowVersionNotFoundException,
+  CompletedApplicationMigrationException,
+  InvalidMigrationStrategyException,
+  IncompatibleVersionMigrationException,
+  WorkflowOperationFailedException,
+} from './exceptions';
 
 @Injectable()
 export class WorkflowMigrationService {
@@ -35,7 +37,11 @@ export class WorkflowMigrationService {
     });
 
     if (!application) {
-      throw new NotFoundException('Visa application not found');
+      throw new WorkflowOperationFailedException(
+        'migrate_application',
+        'Visa application not found',
+        { tenantId, applicationId, toVersionId },
+      );
     }
 
     // Get target version
@@ -45,12 +51,20 @@ export class WorkflowMigrationService {
     });
 
     if (!targetVersion) {
-      throw new NotFoundException('Target workflow version not found');
+      throw new WorkflowVersionNotFoundException(toVersionId, {
+        tenantId,
+        operation: 'migrate_to_version',
+        applicationId,
+      });
     }
 
     // Can't migrate if application is completed
     if (application.status === 'Approved' || application.status === 'Rejected') {
-      throw new ConflictException('Cannot migrate a completed application');
+      throw new CompletedApplicationMigrationException(applicationId, {
+        tenantId,
+        currentStatus: application.status,
+        toVersionId,
+      });
     }
 
     // Determine new step ID based on strategy
@@ -58,13 +72,22 @@ export class WorkflowMigrationService {
 
     if (strategy === MigrationStrategyDto.RemapStep) {
       if (!targetStepId) {
-        throw new BadRequestException('Target step ID is required for RemapStep strategy');
+        throw new InvalidMigrationStrategyException(strategy, {
+          tenantId,
+          applicationId,
+          reason: 'Target step ID is required for RemapStep strategy',
+          validStrategies: Object.values(MigrationStrategyDto),
+        });
       }
 
       // Verify target step exists in target version
       const targetStep = targetVersion.steps.find((s) => s.id === targetStepId);
       if (!targetStep) {
-        throw new BadRequestException('Target step not found in target version');
+        throw new WorkflowOperationFailedException(
+          'remap_step',
+          `Target step not found in target version. Step ID: ${targetStepId}`,
+          { tenantId, applicationId, targetStepId, toVersionId },
+        );
       }
 
       newStepId = targetStepId;
@@ -181,7 +204,16 @@ export class WorkflowMigrationService {
     ]);
 
     if (!fromVersion || !toVersion) {
-      throw new NotFoundException('One or both workflow versions not found');
+      throw new WorkflowVersionNotFoundException(
+        !fromVersion ? fromVersionId : toVersionId,
+        {
+          tenantId,
+          operation: 'bulk_migrate_applications',
+          fromVersionId,
+          toVersionId,
+          missingVersion: !fromVersion ? 'fromVersion' : 'toVersion',
+        },
+      );
     }
 
     // Validate mappings if required
@@ -342,7 +374,16 @@ export class WorkflowMigrationService {
     ]);
 
     if (!fromVersion || !toVersion) {
-      throw new NotFoundException('One or both workflow versions not found');
+      throw new WorkflowVersionNotFoundException(
+        !fromVersion ? fromVersionId : toVersionId,
+        {
+          tenantId,
+          operation: 'validate_version_mappings',
+          fromVersionId,
+          toVersionId,
+          missingVersion: !fromVersion ? 'fromVersion' : 'toVersion',
+        },
+      );
     }
 
     // Check for compatible mappings
@@ -374,8 +415,19 @@ export class WorkflowMigrationService {
     }
 
     if (incompatibleSteps.length > 0) {
-      throw new BadRequestException(
-        `Incompatible steps found. Cannot safely migrate. ${incompatibleSteps.length} step(s) have no mappings.`,
+      throw new IncompatibleVersionMigrationException(
+        fromVersionId,
+        toVersionId,
+        {
+          tenantId,
+          incompatibleStepsCount: incompatibleSteps.length,
+          incompatibleSteps,
+          suggestions: [
+            'Define step mappings for incompatible steps',
+            'Review version structure differences',
+            'Use RemapStep strategy for manual remapping',
+          ],
+        },
       );
     }
 
@@ -424,7 +476,11 @@ export class WorkflowMigrationService {
     });
 
     if (!migration) {
-      throw new NotFoundException('Migration not found');
+      throw new WorkflowOperationFailedException(
+        'get_migration_statistics',
+        `Migration not found: ${migrationId}`,
+        { tenantId, migrationId },
+      );
     }
 
     const logs = migration.applicationMigrations;
