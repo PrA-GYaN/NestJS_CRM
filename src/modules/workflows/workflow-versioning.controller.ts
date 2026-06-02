@@ -198,7 +198,6 @@ export class WorkflowVersioningController {
   async deleteVersion(@TenantId() tenantId: string, @Param('versionId') versionId: string) {
     await this.versioningService.deleteWorkflowVersion(tenantId, versionId);
     return WorkflowResponseFactory.deleted(
-      null,
       'Workflow version deleted successfully',
       WorkflowVersionOperationCode.VERSION_DELETED,
     );

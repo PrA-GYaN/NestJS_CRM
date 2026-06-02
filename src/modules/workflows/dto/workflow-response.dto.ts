@@ -82,7 +82,7 @@ export class WorkflowResponse<T = any> {
     statusCode: number = 200,
     traceId?: string,
   ): WorkflowResponse<T> {
-    return new WorkflowResponse(success, statusCode, message, code, data, undefined, traceId);
+    return new WorkflowResponse(true, statusCode, message, code, data, undefined, traceId);
   }
 
   /**

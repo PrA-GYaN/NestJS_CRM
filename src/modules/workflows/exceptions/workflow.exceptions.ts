@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { WorkflowErrorDetail } from './workflow-response.dto';
-import { WorkflowErrorType } from './workflow-error-codes';
+import { WorkflowErrorDetail } from '../dto/workflow-response.dto';
+import { WorkflowErrorType } from '../dto/workflow-error-codes';
 
 /**
  * Base exception class for all workflow-related errors
@@ -221,7 +221,7 @@ export class WorkflowMinimumStepsException extends WorkflowException {
   ) {
     super(
       `Workflow requires at least ${minimumRequired} step(s). Provided: ${stepsProvided}`,
-      'STEP_MINIMUM_REQUIRED',
+      'VERSION_MINIMUM_STEPS_REQUIRED',
       WorkflowErrorType.VALIDATION_ERROR,
       HttpStatus.BAD_REQUEST,
       { ...context, stepsProvided, minimumRequired },

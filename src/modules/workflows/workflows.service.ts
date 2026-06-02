@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException as NestBadRequestException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client/runtime/library';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { CreateWorkflowDto, UpdateWorkflowDto, CreateWorkflowStepDto, UpdateWorkflowStepDto } from './dto';
 import { PaginationDto } from '../../common/dto/common.dto';

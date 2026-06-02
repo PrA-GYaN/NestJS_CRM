@@ -218,7 +218,7 @@ export class WorkflowExceptionFilter implements ExceptionFilter {
       }
     });
 
-    return Object.keys(errors).length > 0 ? errors : undefined;
+    return Object.keys(errors).length > 0 ? errors : {};
   }
 
   /**

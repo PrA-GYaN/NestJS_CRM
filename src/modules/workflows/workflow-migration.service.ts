@@ -39,6 +39,8 @@ export class WorkflowMigrationService {
     if (!application) {
       throw new WorkflowOperationFailedException(
         'migrate_application',
+        'visa_application',
+        applicationId,
         'Visa application not found',
         { tenantId, applicationId, toVersionId },
       );
@@ -51,20 +53,24 @@ export class WorkflowMigrationService {
     });
 
     if (!targetVersion) {
-      throw new WorkflowVersionNotFoundException(toVersionId, {
-        tenantId,
-        operation: 'migrate_to_version',
-        applicationId,
-      });
+      throw new WorkflowVersionNotFoundException(
+        toVersionId,
+        undefined,
+        {
+          tenantId,
+          operation: 'migrate_to_version',
+          applicationId,
+        },
+      );
     }
 
     // Can't migrate if application is completed
     if (application.status === 'Approved' || application.status === 'Rejected') {
-      throw new CompletedApplicationMigrationException(applicationId, {
-        tenantId,
-        currentStatus: application.status,
-        toVersionId,
-      });
+      throw new CompletedApplicationMigrationException(
+        applicationId,
+        application.status,
+        { tenantId, toVersionId },
+      );
     }
 
     // Determine new step ID based on strategy
@@ -72,12 +78,15 @@ export class WorkflowMigrationService {
 
     if (strategy === MigrationStrategyDto.RemapStep) {
       if (!targetStepId) {
-        throw new InvalidMigrationStrategyException(strategy, {
-          tenantId,
-          applicationId,
-          reason: 'Target step ID is required for RemapStep strategy',
-          validStrategies: Object.values(MigrationStrategyDto),
-        });
+        throw new InvalidMigrationStrategyException(
+          strategy,
+          Object.values(MigrationStrategyDto),
+          {
+            tenantId,
+            applicationId,
+            reason: 'Target step ID is required for RemapStep strategy',
+          },
+        );
       }
 
       // Verify target step exists in target version
@@ -85,6 +94,8 @@ export class WorkflowMigrationService {
       if (!targetStep) {
         throw new WorkflowOperationFailedException(
           'remap_step',
+          'workflow_step',
+          targetStepId,
           `Target step not found in target version. Step ID: ${targetStepId}`,
           { tenantId, applicationId, targetStepId, toVersionId },
         );
@@ -206,6 +217,7 @@ export class WorkflowMigrationService {
     if (!fromVersion || !toVersion) {
       throw new WorkflowVersionNotFoundException(
         !fromVersion ? fromVersionId : toVersionId,
+        undefined,
         {
           tenantId,
           operation: 'bulk_migrate_applications',
@@ -376,6 +388,7 @@ export class WorkflowMigrationService {
     if (!fromVersion || !toVersion) {
       throw new WorkflowVersionNotFoundException(
         !fromVersion ? fromVersionId : toVersionId,
+        undefined,
         {
           tenantId,
           operation: 'validate_version_mappings',
@@ -418,16 +431,17 @@ export class WorkflowMigrationService {
       throw new IncompatibleVersionMigrationException(
         fromVersionId,
         toVersionId,
+        'Incompatible steps detected',
         {
           tenantId,
           incompatibleStepsCount: incompatibleSteps.length,
           incompatibleSteps,
-          suggestions: [
-            'Define step mappings for incompatible steps',
-            'Review version structure differences',
-            'Use RemapStep strategy for manual remapping',
-          ],
         },
+        [
+          'Define step mappings for incompatible steps',
+          'Review version structure differences',
+          'Use RemapStep strategy for manual remapping',
+        ],
       );
     }
 
@@ -478,6 +492,8 @@ export class WorkflowMigrationService {
     if (!migration) {
       throw new WorkflowOperationFailedException(
         'get_migration_statistics',
+        'workflow_migration',
+        migrationId,
         `Migration not found: ${migrationId}`,
         { tenantId, migrationId },
       );

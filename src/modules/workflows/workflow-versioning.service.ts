@@ -5,7 +5,6 @@ import {
   ActivateWorkflowVersionDto,
   DeprecateWorkflowVersionDto,
   DefineStepMappingDto,
-  MergeWorkflowVersionsDto,
   CreateVersionFromCurrentDto,
   WorkflowVersionStatus,
 } from './dto';
