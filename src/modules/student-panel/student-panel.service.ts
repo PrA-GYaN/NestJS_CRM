@@ -272,7 +272,7 @@ export class StudentPanelService {
         where: { id: studentId, tenantId },
         select: { profileCompleteness: true },
       }),
-      // Detailed visa applications with workflow and steps
+      // Detailed visa applications with workflow version steps
       tenantPrisma.visaApplication.findMany({
         where: {
           studentId,
@@ -298,6 +298,10 @@ export class StudentPanelService {
             select: {
               id: true,
               name: true,
+            },
+          },
+          workflowVersion: {
+            select: {
               steps: {
                 where: { isActive: true },
                 orderBy: { stepOrder: 'asc' },
@@ -382,10 +386,9 @@ export class StudentPanelService {
       }),
     ]);
 
-    const visaApplicationsDetailed = visaApplications.map((application) => {
-      const currentStep = application.workflow.steps.find(
-        (step) => step.id === application.currentStepId,
-      );
+    const visaApplicationsDetailed = visaApplications.map((application: any) => {
+      const steps = application.workflowVersion?.steps ?? [];
+      const currentStep = steps.find((step: any) => step.id === application.currentStepId) ?? null;
 
       return {
         id: application.id,
@@ -399,7 +402,7 @@ export class StudentPanelService {
           id: application.workflow.id,
           name: application.workflow.name,
           currentStep,
-          steps: application.workflow.steps,
+          steps,
         },
         createdAt: application.createdAt,
         updatedAt: application.updatedAt,
@@ -1275,9 +1278,9 @@ export class StudentPanelService {
     );
 
     const currentStep = currentStepIndex !== -1 ? workflowSteps[currentStepIndex] : null;
-    const nextStep = currentStepIndex < workflowSteps.length - 1
+    const nextStep = (currentStepIndex !== -1 && currentStepIndex < workflowSteps.length - 1)
       ? workflowSteps[currentStepIndex + 1]
-      : workflowSteps.length > 0 ? workflowSteps[0] : null;
+      : null;
 
     // Prepare the response with renamed workflow fields
     const { workflow, workflowVersion, ...rest } = application;

@@ -579,10 +579,10 @@ async function seedFirstTenantData() {
                 },
             }));
 
-        const visaStep = await tenantPrisma.visaWorkflowStep.upsert({
+        const visaStep = await tenantPrisma.visaWorkflowVersionStep.upsert({
             where: {
-                workflowId_stepOrder: {
-                    workflowId: visaWorkflow.id,
+                versionId_stepOrder: {
+                    versionId: workflowVersion.id,
                     stepOrder: 1,
                 },
             },
@@ -593,7 +593,7 @@ async function seedFirstTenantData() {
             },
             create: {
                 tenantId,
-                workflowId: visaWorkflow.id,
+                versionId: workflowVersion.id,
                 name: 'Document Collection',
                 description: 'Collect all required documents for visa filing',
                 stepOrder: 1,

@@ -179,6 +179,16 @@ export class VisaApplicationsService {
           remarks: notes,
         });
 
+        if (nextStep) {
+          history.push({
+            stepId: nextStep.id,
+            status: 'Started',
+            timestamp: new Date().toISOString(),
+            matchedSLA: true,
+            remarks: 'Step started',
+          });
+        }
+
         // Determine updated status
         const updatedStatus =
           nextStep

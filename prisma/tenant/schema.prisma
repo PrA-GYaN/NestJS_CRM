@@ -827,7 +827,6 @@ model VisaWorkflow {
   visaType VisaType                  @relation(fields: [visaTypeId], references: [id], onDelete: Cascade)
   currentVersion VisaWorkflowVersion? @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
   versions VisaWorkflowVersion[]
-  steps VisaWorkflowStep[]
   applications VisaApplication[]
   migrations WorkflowVersionMigration[]
 
@@ -891,28 +890,6 @@ model VisaWorkflowVersionStep {
   @@map("visa_workflow_version_steps")
 }
 
-// For backward compatibility, keep the original step table but deprecate it
-model VisaWorkflowStep {
-  id                   String   @id @default(uuid())
-  tenantId             String
-  workflowId           String
-  name                 String
-  description          String?
-  stepOrder            Int
-  requiresDocument     Boolean  @default(false)
-  isActive             Boolean  @default(true)
-  expectedDurationDays Int?     // SLA in days
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  workflow VisaWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-
-  @@unique([workflowId, stepOrder])
-  @@index([tenantId])
-  @@index([tenantId, workflowId])
-  @@index([workflowId])
-  @@map("visa_workflow_steps")
-}
 
 model StepMapping {
   id              String   @id @default(uuid())

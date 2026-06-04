@@ -10,7 +10,7 @@ export class VisaDocumentsService {
   private async getVisaApplicationOrThrow(tenantId: string, visaApplicationId: string) {
     const visaApplication = await this.prisma.visaApplication.findFirst({
       where: { id: visaApplicationId, tenantId },
-      select: { id: true, studentId: true, workflowId: true },
+      select: { id: true, studentId: true, workflowId: true, workflowVersionId: true },
     });
 
     if (!visaApplication) {
@@ -47,17 +47,17 @@ export class VisaDocumentsService {
   }
 
   /**
-   * Validate documents for a specific workflow
+   * Validate documents for a specific workflow version
    * Checks if all required documents for the current workflow step are present
    */
   private async validateWorkflowDocuments(
     tenantId: string,
     visaApplicationId: string,
-    workflowId: string,
+    workflowVersionId: string,
     currentFieldDocumentType?: DocumentType,
   ) {
-    const workflowSteps = await this.prisma.visaWorkflowStep.findMany({
-      where: { workflowId, isActive: true, requiresDocument: true },
+    const workflowSteps = await (this.prisma as any).visaWorkflowVersionStep.findMany({
+      where: { versionId: workflowVersionId, isActive: true, requiresDocument: true },
       orderBy: { stepOrder: 'asc' },
     });
 
@@ -114,9 +114,9 @@ export class VisaDocumentsService {
       filePath = dto.filePath;
     }
 
-    // Validate workflow-specific documents if workflowId is provided
-    if (dto.workflowId) {
-      await this.validateWorkflowDocuments(tenantId, dto.visaApplicationId, dto.workflowId, documentType);
+    // Validate workflow-specific documents using the application's locked version
+    if (visaApplication.workflowVersionId) {
+      await this.validateWorkflowDocuments(tenantId, dto.visaApplicationId, visaApplication.workflowVersionId, documentType);
     }
 
     return this.prisma.visaDocument.create({
@@ -309,16 +309,16 @@ export class VisaDocumentsService {
   }
 
   /**
-   * Check if a visa application has all required documents for a workflow step
+   * Check if a visa application has all required documents for a workflow version step
    */
   async checkWorkflowStepDocumentRequirements(
     tenantId: string,
     visaApplicationId: string,
-    workflowId: string,
+    workflowVersionId: string,
     stepOrder: number,
   ) {
-    const step = await this.prisma.visaWorkflowStep.findFirst({
-      where: { workflowId, stepOrder, tenantId },
+    const step = await (this.prisma as any).visaWorkflowVersionStep.findFirst({
+      where: { versionId: workflowVersionId, stepOrder, tenantId },
     });
 
     if (!step) {
@@ -329,7 +329,8 @@ export class VisaDocumentsService {
       return { hasFulfilled: true, requiredButMissing: false };
     }
 
-    const documents = await this.getWorkflowDocuments(tenantId, visaApplicationId, workflowId);
+    const application = await this.getVisaApplicationOrThrow(tenantId, visaApplicationId);
+    const documents = await this.getWorkflowDocuments(tenantId, visaApplicationId, application.workflowId);
 
     return {
       hasFulfilled: documents.length > 0,

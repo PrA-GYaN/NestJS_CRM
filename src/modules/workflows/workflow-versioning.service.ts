@@ -114,30 +114,28 @@ export class WorkflowVersioningService {
   }
 
   /**
-   * Create a new version from current workflow structure (legacy VisaWorkflowStep)
+   * Create a new version by copying steps from the latest existing version
    */
   async createVersionFromCurrent(tenantId: string, createDto: CreateVersionFromCurrentDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
-    // Verify workflow exists
     const workflow = await tenantPrisma.visaWorkflow.findFirst({
       where: { id: createDto.workflowId, tenantId },
-      include: { steps: { orderBy: { stepOrder: 'asc' } } },
     });
 
     if (!workflow) {
       throw new WorkflowNotFoundException(createDto.workflowId, { tenantId });
     }
 
-    // Get next version number
-    const lastVersion = await tenantPrisma.visaWorkflowVersion.findFirst({
-      where: { workflowId: createDto.workflowId },
-      orderBy: { versionNumber: 'desc' },
+    // Find the latest version to copy steps from (prefer Active, then latest by version number)
+    const sourceVersion = await tenantPrisma.visaWorkflowVersion.findFirst({
+      where: { workflowId: createDto.workflowId, tenantId },
+      orderBy: [{ status: 'asc' }, { versionNumber: 'desc' }],
+      include: { steps: { orderBy: { stepOrder: 'asc' } } },
     });
 
-    const nextVersionNumber = (lastVersion?.versionNumber || 0) + 1;
+    const nextVersionNumber = (sourceVersion?.versionNumber ?? 0) + 1;
 
-    // Create version from existing steps
     const version = await tenantPrisma.visaWorkflowVersion.create({
       data: {
         tenantId,
@@ -145,28 +143,27 @@ export class WorkflowVersioningService {
         versionNumber: nextVersionNumber,
         status: WorkflowVersionStatus.Draft,
         description: createDto.description,
-        steps: {
-          createMany: {
-            data: workflow.steps.map((step) => ({
-              tenantId,
-              name: step.name,
-              description: step.description,
-              stepOrder: step.stepOrder,
-              requiresDocument: step.requiresDocument,
-              isActive: step.isActive,
-              expectedDurationDays: step.expectedDurationDays,
-            })),
-          },
-        },
+        steps: sourceVersion?.steps?.length
+          ? {
+              createMany: {
+                data: sourceVersion.steps.map((step: any) => ({
+                  tenantId,
+                  name: step.name,
+                  description: step.description,
+                  stepOrder: step.stepOrder,
+                  requiresDocument: step.requiresDocument,
+                  isActive: step.isActive,
+                  expectedDurationDays: step.expectedDurationDays,
+                })),
+              },
+            }
+          : undefined,
       },
       include: {
-        steps: {
-          orderBy: { stepOrder: 'asc' },
-        },
+        steps: { orderBy: { stepOrder: 'asc' } },
       },
     });
 
-    // Add to history
     await tenantPrisma.workflowVersionHistory.create({
       data: {
         tenantId,
@@ -174,8 +171,8 @@ export class WorkflowVersioningService {
         changeType: 'created',
         changeDetails: {
           versionNumber: version.versionNumber,
-          stepsCount: workflow.steps.length,
-          source: 'legacy_workflow_steps',
+          stepsCount: sourceVersion?.steps?.length ?? 0,
+          source: sourceVersion ? `version_${sourceVersion.versionNumber}` : 'empty',
         },
       },
     });
@@ -281,53 +278,68 @@ export class WorkflowVersioningService {
       );
     }
 
-    if ((version.status as WorkflowVersionStatus) === WorkflowVersionStatus.Archived) {
-      throw new WorkflowVersionStateTransitionException(
-        activateDto.versionId,
-        version.status,
-        WorkflowVersionStatus.Active,
-        { tenantId },
-      );
-    }
-
-    // Update workflow's current version
-    const updatedWorkflow = await tenantPrisma.visaWorkflow.update({
-      where: { id: version.workflowId },
-      data: {
-        currentVersionId: activateDto.versionId,
-      },
-    });
-
-    // Update version status to Active
-    const updatedVersion = await tenantPrisma.visaWorkflowVersion.update({
-      where: { id: activateDto.versionId },
-      data: {
-        status: WorkflowVersionStatus.Active,
-      },
-      include: {
-        steps: {
-          orderBy: { stepOrder: 'asc' },
+    // Enforce one-active-version rule: deprecate any currently Active version
+    const updatedVersion = await tenantPrisma.$transaction(async (tx: any) => {
+      const currentlyActive = await tx.visaWorkflowVersion.findFirst({
+        where: {
+          workflowId: version.workflowId,
+          status: WorkflowVersionStatus.Active,
+          id: { not: activateDto.versionId },
         },
-        _count: {
-          select: {
-            applications: true,
+      });
+
+      if (currentlyActive) {
+        await tx.visaWorkflowVersion.update({
+          where: { id: currentlyActive.id },
+          data: {
+            status: WorkflowVersionStatus.Deprecated,
+            deprecatedAt: new Date(),
+            deprecatedReason: `Superseded by version ${version.versionNumber}`,
+          },
+        });
+        await tx.workflowVersionHistory.create({
+          data: {
+            tenantId,
+            versionId: currentlyActive.id,
+            changeType: 'deprecated',
+            changeDetails: {
+              reason: `Superseded by version ${version.versionNumber}`,
+              deprecatedAt: new Date().toISOString(),
+            },
+          },
+        });
+      }
+
+      // Update workflow's current version pointer
+      await tx.visaWorkflow.update({
+        where: { id: version.workflowId },
+        data: { currentVersionId: activateDto.versionId },
+      });
+
+      // Activate the target version
+      const activated = await tx.visaWorkflowVersion.update({
+        where: { id: activateDto.versionId },
+        data: { status: WorkflowVersionStatus.Active },
+        include: {
+          steps: { orderBy: { stepOrder: 'asc' } },
+          _count: { select: { applications: true } },
+        },
+      });
+
+      await tx.workflowVersionHistory.create({
+        data: {
+          tenantId,
+          versionId: activated.id,
+          changeType: 'updated',
+          changeDetails: {
+            action: 'activated',
+            previousStatus: version.status,
+            newStatus: WorkflowVersionStatus.Active,
           },
         },
-      },
-    });
+      });
 
-    // Add to history
-    await tenantPrisma.workflowVersionHistory.create({
-      data: {
-        tenantId,
-        versionId: updatedVersion.id,
-        changeType: 'updated',
-        changeDetails: {
-          action: 'activated',
-          previousStatus: version.status,
-          newStatus: WorkflowVersionStatus.Active,
-        },
-      },
+      return activated;
     });
 
     return this.formatVersionResponse(updatedVersion, updatedVersion._count?.applications || 0);
