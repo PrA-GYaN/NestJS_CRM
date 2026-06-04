@@ -1,6 +1,74 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
+ * Detailed error information structure
+ * Provides comprehensive context for debugging and frontend handling
+ */
+export class WorkflowErrorDetail {
+  @ApiProperty({
+    description: 'Machine-readable error code for specific error handling',
+    example: 'WORKFLOW_NOT_FOUND',
+  })
+  code: string;
+
+  @ApiProperty({
+    description: 'Detailed technical error message',
+    example: 'Workflow with ID xyz123 does not exist in tenant abc',
+  })
+  message: string;
+
+  @ApiPropertyOptional({
+    description: 'Error type/category for classification',
+    enum: ['VALIDATION_ERROR', 'NOT_FOUND', 'CONFLICT', 'OPERATION_FAILED', 'UNAUTHORIZED', 'FORBIDDEN', 'SYSTEM_ERROR'],
+    example: 'NOT_FOUND',
+  })
+  type?: string;
+
+  @ApiPropertyOptional({
+    description: 'Additional error context and details',
+    example: { resourceId: 'wf_123', resourceType: 'workflow' },
+  })
+  context?: Record<string, any>;
+
+  @ApiPropertyOptional({
+    description: 'Suggested actions to resolve the error',
+    example: ['Create the workflow first', 'Check the workflow ID'],
+    type: [String],
+  })
+  suggestions?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Field-level validation errors',
+    example: { name: ['Field is required'], steps: ['At least one step required'] },
+  })
+  validationErrors?: Record<string, string[]>;
+
+  @ApiPropertyOptional({
+    description: 'Documentation URL for this error',
+    example: 'https://docs.example.com/errors/WORKFLOW_NOT_FOUND',
+  })
+  docUrl?: string;
+
+  constructor(
+    code: string,
+    message: string,
+    type?: string,
+    context?: Record<string, any>,
+    suggestions?: string[],
+    validationErrors?: Record<string, string[]>,
+    docUrl?: string,
+  ) {
+    this.code = code;
+    this.message = message;
+    this.type = type;
+    this.context = context;
+    this.suggestions = suggestions;
+    this.validationErrors = validationErrors;
+    this.docUrl = docUrl;
+  }
+}
+
+/**
  * Standard response envelope for all workflow operations
  * Provides consistent structure for frontend consumption
  * Includes success status, data, and detailed error information
@@ -96,74 +164,6 @@ export class WorkflowResponse<T = any> {
     traceId?: string,
   ): WorkflowResponse {
     return new WorkflowResponse(false, statusCode, message, code, null, errorDetail, traceId);
-  }
-}
-
-/**
- * Detailed error information structure
- * Provides comprehensive context for debugging and frontend handling
- */
-export class WorkflowErrorDetail {
-  @ApiProperty({
-    description: 'Machine-readable error code for specific error handling',
-    example: 'WORKFLOW_NOT_FOUND',
-  })
-  code: string;
-
-  @ApiProperty({
-    description: 'Detailed technical error message',
-    example: 'Workflow with ID xyz123 does not exist in tenant abc',
-  })
-  message: string;
-
-  @ApiPropertyOptional({
-    description: 'Error type/category for classification',
-    enum: ['VALIDATION_ERROR', 'NOT_FOUND', 'CONFLICT', 'OPERATION_FAILED', 'UNAUTHORIZED', 'FORBIDDEN', 'SYSTEM_ERROR'],
-    example: 'NOT_FOUND',
-  })
-  type?: string;
-
-  @ApiPropertyOptional({
-    description: 'Additional error context and details',
-    example: { resourceId: 'wf_123', resourceType: 'workflow' },
-  })
-  context?: Record<string, any>;
-
-  @ApiPropertyOptional({
-    description: 'Suggested actions to resolve the error',
-    example: ['Create the workflow first', 'Check the workflow ID'],
-    type: [String],
-  })
-  suggestions?: string[];
-
-  @ApiPropertyOptional({
-    description: 'Field-level validation errors',
-    example: { name: ['Field is required'], steps: ['At least one step required'] },
-  })
-  validationErrors?: Record<string, string[]>;
-
-  @ApiPropertyOptional({
-    description: 'Documentation URL for this error',
-    example: 'https://docs.example.com/errors/WORKFLOW_NOT_FOUND',
-  })
-  docUrl?: string;
-
-  constructor(
-    code: string,
-    message: string,
-    type?: string,
-    context?: Record<string, any>,
-    suggestions?: string[],
-    validationErrors?: Record<string, string[]>,
-    docUrl?: string,
-  ) {
-    this.code = code;
-    this.message = message;
-    this.type = type;
-    this.context = context;
-    this.suggestions = suggestions;
-    this.validationErrors = validationErrors;
-    this.docUrl = docUrl;
   }
 }
 

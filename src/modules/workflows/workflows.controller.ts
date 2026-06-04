@@ -11,9 +11,7 @@ import {
   ParseArrayPipe,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { IsOptional, IsBoolean } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { WorkflowsService } from './workflows.service';
 import { CreateWorkflowDto, UpdateWorkflowDto, CreateWorkflowStepDto, UpdateWorkflowStepDto, WorkflowResponse, WorkflowListResponse } from './dto';
 import { ReorderStepItemDto } from './dto/reorder-workflow-steps.dto';
@@ -24,17 +22,6 @@ import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
 import { WorkflowResponseBuilder, WorkflowResponseFactory } from './utils/workflow-response.builder';
 import { WorkflowOperationCode, WorkflowStepOperationCode } from './dto/workflow-error-codes';
-
-class GetWorkflowsDto extends PaginationDto {
-  @IsOptional()
-  @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === 'true' || value === true) return true;
-    if (value === 'false' || value === false) return false;
-    return undefined;
-  })
-  isActive?: boolean;
-}
 
 @ApiTags('Workflows')
 @ApiBearerAuth()
@@ -66,11 +53,10 @@ export class WorkflowsController {
   @Get()
   @CanRead('workflows')
   @ApiOperation({ summary: 'Get all workflows with pagination' })
-  @ApiQuery({ name: 'isActive', required: false, type: Boolean, description: 'Filter by active status' })
   @ApiResponse({ status: 200, description: 'Returns paginated list of workflows', type: WorkflowListResponse })
   async getAllWorkflows(
     @TenantId() tenantId: string,
-    @Query() paginationDto: GetWorkflowsDto,
+    @Query() paginationDto: PaginationDto,
   ): Promise<WorkflowListResponse<any>> {
     const result = await this.workflowsService.getAllWorkflows(tenantId, paginationDto);
     return WorkflowResponseFactory.list(

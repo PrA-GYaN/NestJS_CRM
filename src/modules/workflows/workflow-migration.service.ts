@@ -39,10 +39,10 @@ export class WorkflowMigrationService {
     if (!application) {
       throw new WorkflowOperationFailedException(
         'migrate_application',
-        'visa_application',
+        'application',
         applicationId,
         'Visa application not found',
-        { tenantId, applicationId, toVersionId },
+        { tenantId, toVersionId },
       );
     }
 
@@ -53,15 +53,11 @@ export class WorkflowMigrationService {
     });
 
     if (!targetVersion) {
-      throw new WorkflowVersionNotFoundException(
-        toVersionId,
-        undefined,
-        {
-          tenantId,
-          operation: 'migrate_to_version',
-          applicationId,
-        },
-      );
+      throw new WorkflowVersionNotFoundException(toVersionId, undefined, {
+        tenantId,
+        operation: 'migrate_to_version',
+        applicationId,
+      });
     }
 
     // Can't migrate if application is completed
@@ -81,11 +77,7 @@ export class WorkflowMigrationService {
         throw new InvalidMigrationStrategyException(
           strategy,
           Object.values(MigrationStrategyDto),
-          {
-            tenantId,
-            applicationId,
-            reason: 'Target step ID is required for RemapStep strategy',
-          },
+          { tenantId, applicationId, reason: 'Target step ID is required for RemapStep strategy' },
         );
       }
 
@@ -96,8 +88,8 @@ export class WorkflowMigrationService {
           'remap_step',
           'workflow_step',
           targetStepId,
-          `Target step not found in target version. Step ID: ${targetStepId}`,
-          { tenantId, applicationId, targetStepId, toVersionId },
+          'Target step not found in target version',
+          { tenantId, applicationId, toVersionId },
         );
       }
 
@@ -431,7 +423,7 @@ export class WorkflowMigrationService {
       throw new IncompatibleVersionMigrationException(
         fromVersionId,
         toVersionId,
-        'Incompatible steps detected',
+        `${incompatibleSteps.length} step(s) are incompatible between versions`,
         {
           tenantId,
           incompatibleStepsCount: incompatibleSteps.length,
@@ -492,10 +484,10 @@ export class WorkflowMigrationService {
     if (!migration) {
       throw new WorkflowOperationFailedException(
         'get_migration_statistics',
-        'workflow_migration',
+        'migration',
         migrationId,
-        `Migration not found: ${migrationId}`,
-        { tenantId, migrationId },
+        'Migration record not found',
+        { tenantId },
       );
     }
 

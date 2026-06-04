@@ -20,6 +20,7 @@ import {
   ActivateWorkflowVersionDto,
   DeprecateWorkflowVersionDto,
   DefineStepMappingDto,
+  MigrationStrategyDto,
   MigrateApplicationDto,
   BulkMigrateApplicationsDto,
   ForcedMigrationDto,
@@ -29,7 +30,6 @@ import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
 import { WorkflowResponseFactory } from './utils/workflow-response.builder';
 import {
@@ -62,10 +62,9 @@ export class WorkflowVersioningController {
   @ApiResponse({ status: 400, description: 'Invalid steps configuration' })
   async createWorkflowVersion(
     @TenantId() tenantId: string,
-    @CurrentUser() user: { id: string },
     @Body() createDto: CreateWorkflowVersionDto,
   ) {
-    const version = await this.versioningService.createWorkflowVersion(tenantId, createDto, user?.id);
+    const version = await this.versioningService.createWorkflowVersion(tenantId, createDto);
     return WorkflowResponseFactory.created(
       version,
       'Workflow version created successfully',
@@ -84,10 +83,9 @@ export class WorkflowVersioningController {
   @ApiResponse({ status: 404, description: 'Workflow not found' })
   async createVersionFromCurrent(
     @TenantId() tenantId: string,
-    @CurrentUser() user: { id: string },
     @Body() createDto: CreateVersionFromCurrentDto,
   ) {
-    const version = await this.versioningService.createVersionFromCurrent(tenantId, createDto, user?.id);
+    const version = await this.versioningService.createVersionFromCurrent(tenantId, createDto);
     return WorkflowResponseFactory.created(
       version,
       'Version created from current workflow structure',

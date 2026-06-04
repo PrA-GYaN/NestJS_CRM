@@ -221,7 +221,7 @@ export class WorkflowMinimumStepsException extends WorkflowException {
   ) {
     super(
       `Workflow requires at least ${minimumRequired} step(s). Provided: ${stepsProvided}`,
-      'VERSION_MINIMUM_STEPS_REQUIRED',
+      'STEP_MINIMUM_REQUIRED',
       WorkflowErrorType.VALIDATION_ERROR,
       HttpStatus.BAD_REQUEST,
       { ...context, stepsProvided, minimumRequired },
@@ -439,11 +439,12 @@ export class WorkflowVersionStateTransitionException extends WorkflowException {
  */
 function getValidTransitions(currentStatus: string): string[] {
   const transitions: Record<string, string[]> = {
-    Draft: ['Active'],
-    Active: ['Deprecated'],
-    Deprecated: [],
+    DRAFT: ['ACTIVE', 'ARCHIVED'],
+    ACTIVE: ['DEPRECATED', 'ARCHIVED'],
+    DEPRECATED: ['ACTIVE', 'ARCHIVED'],
+    ARCHIVED: [],
   };
-  return transitions[currentStatus] ?? [];
+  return transitions[currentStatus] || [];
 }
 
 /**

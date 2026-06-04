@@ -6,6 +6,7 @@ export enum WorkflowVersionStatus {
   Draft = 'Draft',
   Active = 'Active',
   Deprecated = 'Deprecated',
+  Archived = 'Archived',
 }
 
 export enum MigrationStrategyDto {

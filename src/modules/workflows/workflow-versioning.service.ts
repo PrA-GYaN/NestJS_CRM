@@ -25,7 +25,7 @@ export class WorkflowVersioningService {
   /**
    * Create a new workflow version from scratch
    */
-  async createWorkflowVersion(tenantId: string, createDto: CreateWorkflowVersionDto, userId?: string) {
+  async createWorkflowVersion(tenantId: string, createDto: CreateWorkflowVersionDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     // Verify workflow exists
@@ -37,9 +37,9 @@ export class WorkflowVersioningService {
       throw new WorkflowNotFoundException(createDto.workflowId, { tenantId });
     }
 
-    // Get next version number (exclude soft-deleted versions)
+    // Get next version number
     const lastVersion = await tenantPrisma.visaWorkflowVersion.findFirst({
-      where: { workflowId: createDto.workflowId, deletedAt: null },
+      where: { workflowId: createDto.workflowId },
       orderBy: { versionNumber: 'desc' },
     });
 
@@ -76,7 +76,6 @@ export class WorkflowVersioningService {
         versionNumber: nextVersionNumber,
         status: WorkflowVersionStatus.Draft,
         description: createDto.description,
-        createdBy: userId ?? null,
         steps: {
           createMany: {
             data: sortedSteps.map((step) => ({
@@ -117,7 +116,7 @@ export class WorkflowVersioningService {
   /**
    * Create a new version from current workflow structure (legacy VisaWorkflowStep)
    */
-  async createVersionFromCurrent(tenantId: string, createDto: CreateVersionFromCurrentDto, userId?: string) {
+  async createVersionFromCurrent(tenantId: string, createDto: CreateVersionFromCurrentDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     // Verify workflow exists
@@ -130,9 +129,9 @@ export class WorkflowVersioningService {
       throw new WorkflowNotFoundException(createDto.workflowId, { tenantId });
     }
 
-    // Get next version number (exclude soft-deleted)
+    // Get next version number
     const lastVersion = await tenantPrisma.visaWorkflowVersion.findFirst({
-      where: { workflowId: createDto.workflowId, deletedAt: null },
+      where: { workflowId: createDto.workflowId },
       orderBy: { versionNumber: 'desc' },
     });
 
@@ -146,7 +145,6 @@ export class WorkflowVersioningService {
         versionNumber: nextVersionNumber,
         status: WorkflowVersionStatus.Draft,
         description: createDto.description,
-        createdBy: userId ?? null,
         steps: {
           createMany: {
             data: workflow.steps.map((step) => ({
@@ -204,7 +202,7 @@ export class WorkflowVersioningService {
 
     const [versions, total] = await Promise.all([
       tenantPrisma.visaWorkflowVersion.findMany({
-        where: { workflowId, tenantId, deletedAt: null },
+        where: { workflowId, tenantId },
         skip,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
@@ -220,7 +218,7 @@ export class WorkflowVersioningService {
         },
       }),
       tenantPrisma.visaWorkflowVersion.count({
-        where: { workflowId, tenantId, deletedAt: null },
+        where: { workflowId, tenantId },
       }),
     ]);
 
@@ -240,10 +238,16 @@ export class WorkflowVersioningService {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     const version = await tenantPrisma.visaWorkflowVersion.findFirst({
-      where: { id: versionId, tenantId, deletedAt: null },
+      where: { id: versionId, tenantId },
       include: {
-        steps: { orderBy: { stepOrder: 'asc' } },
-        _count: { select: { applications: true } },
+        steps: {
+          orderBy: { stepOrder: 'asc' },
+        },
+        _count: {
+          select: {
+            applications: true,
+          },
+        },
       },
     });
 
@@ -255,8 +259,7 @@ export class WorkflowVersioningService {
   }
 
   /**
-   * Activate a workflow version (set as current).
-   * Atomically deprecates any previously active version in the same transaction.
+   * Activate a workflow version (set as current)
    */
   async activateWorkflowVersion(tenantId: string, activateDto: ActivateWorkflowVersionDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
@@ -278,43 +281,47 @@ export class WorkflowVersioningService {
       );
     }
 
-    // Single transaction: deactivate previous active versions → activate new → update pointer
-    const updatedVersion = await tenantPrisma.$transaction(async (tx) => {
-      // Step 1: Deprecate all currently active versions of this workflow (except the one being activated)
-      await tx.visaWorkflowVersion.updateMany({
-        where: {
-          workflowId: version.workflowId,
-          status: WorkflowVersionStatus.Active,
-          id: { not: activateDto.versionId },
-        },
-        data: { status: WorkflowVersionStatus.Deprecated },
-      });
+    if ((version.status as WorkflowVersionStatus) === WorkflowVersionStatus.Archived) {
+      throw new WorkflowVersionStateTransitionException(
+        activateDto.versionId,
+        version.status,
+        WorkflowVersionStatus.Active,
+        { tenantId },
+      );
+    }
 
-      // Step 2: Activate the target version
-      const activated = await tx.visaWorkflowVersion.update({
-        where: { id: activateDto.versionId },
-        data: { status: WorkflowVersionStatus.Active },
-        include: {
-          steps: { orderBy: { stepOrder: 'asc' } },
-          _count: { select: { applications: true } },
-        },
-      });
-
-      // Step 3: Update the workflow's current-version pointer
-      await tx.visaWorkflow.update({
-        where: { id: version.workflowId },
-        data: { currentVersionId: activateDto.versionId },
-      });
-
-      return activated;
+    // Update workflow's current version
+    const updatedWorkflow = await tenantPrisma.visaWorkflow.update({
+      where: { id: version.workflowId },
+      data: {
+        currentVersionId: activateDto.versionId,
+      },
     });
 
-    // Add to history outside the transaction (non-critical audit)
+    // Update version status to Active
+    const updatedVersion = await tenantPrisma.visaWorkflowVersion.update({
+      where: { id: activateDto.versionId },
+      data: {
+        status: WorkflowVersionStatus.Active,
+      },
+      include: {
+        steps: {
+          orderBy: { stepOrder: 'asc' },
+        },
+        _count: {
+          select: {
+            applications: true,
+          },
+        },
+      },
+    });
+
+    // Add to history
     await tenantPrisma.workflowVersionHistory.create({
       data: {
         tenantId,
         versionId: updatedVersion.id,
-        changeType: 'activated',
+        changeType: 'updated',
         changeDetails: {
           action: 'activated',
           previousStatus: version.status,
@@ -386,16 +393,19 @@ export class WorkflowVersioningService {
   }
 
   /**
-   * Soft-delete a workflow version (only if no applications use it).
-   * Uses soft delete so the audit history is preserved.
+   * Delete a workflow version (only if no applications use it)
    */
   async deleteWorkflowVersion(tenantId: string, versionId: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     const version = await tenantPrisma.visaWorkflowVersion.findFirst({
-      where: { id: versionId, tenantId, deletedAt: null },
+      where: { id: versionId, tenantId },
       include: {
-        _count: { select: { applications: true } },
+        _count: {
+          select: {
+            applications: true,
+          },
+        },
       },
     });
 
@@ -403,8 +413,9 @@ export class WorkflowVersioningService {
       throw new WorkflowVersionNotFoundException(versionId, undefined, { tenantId });
     }
 
-    if ((version._count?.applications ?? 0) > 0) {
-      const appCount = version._count?.applications ?? 0;
+    // Check if any applications use this version
+    if ((version._count?.applications || 0) > 0) {
+      const appCount = version._count?.applications || 0;
       throw new WorkflowOperationFailedException(
         'delete',
         'workflow_version',
@@ -419,24 +430,21 @@ export class WorkflowVersioningService {
       );
     }
 
-    // Write history BEFORE the soft-delete so the record survives
+    // Delete version (cascade will delete steps and mappings)
+    await tenantPrisma.visaWorkflowVersion.delete({
+      where: { id: versionId },
+    });
+
+    // Add to history
     await tenantPrisma.workflowVersionHistory.create({
       data: {
         tenantId,
         versionId,
-        changeType: 'deleted',
+        changeType: 'updated',
         changeDetails: {
           action: 'deleted',
-          versionNumber: version.versionNumber,
-          previousStatus: version.status,
         },
       },
-    });
-
-    // Soft delete — sets deletedAt timestamp, preserving steps, history, and mappings
-    await tenantPrisma.visaWorkflowVersion.update({
-      where: { id: versionId },
-      data: { deletedAt: new Date() },
     });
   }
 
