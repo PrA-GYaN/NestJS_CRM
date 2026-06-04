@@ -69,7 +69,6 @@ export class VisaDocumentsService {
       where: {
         tenantId,
         visaApplicationId,
-        workflowId,
       },
       select: { documentType: true },
     });

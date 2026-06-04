@@ -132,8 +132,10 @@ export class VisaTypesService {
         workflows: {
           where: { isActive: true },
           include: {
-            steps: {
-              orderBy: { stepOrder: 'asc' },
+            currentVersion: {
+              include: {
+                steps: { orderBy: { stepOrder: 'asc' } },
+              },
             },
           },
         },
