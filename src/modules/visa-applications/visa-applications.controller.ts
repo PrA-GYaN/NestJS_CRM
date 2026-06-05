@@ -1,8 +1,8 @@
 import { Controller, Post, Body, Param, Get, Query, Patch, Delete, UseGuards, Req, ParseUUIDPipe } from '@nestjs/common';
 import { VisaApplicationsService } from './visa-applications.service';
-import { CreateVisaApplicationDto, AdvanceVisaStepDto, DefaultFilterDto } from './dto/visa-application.dto';
+import { CreateVisaApplicationDto, AdvanceVisaStepDto, DefaultFilterDto, UpdateVisaApplicationDto } from './dto/visa-application.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
-import { CanDelete } from '../../common/decorators/permissions.decorator';
+import { CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 
 @ApiTags('Visa Applications')
@@ -28,7 +28,6 @@ export class VisaApplicationsController {
   @ApiOperation({ summary: 'Advance the step of an existing Visa Application safely' })
   @ApiResponse({ status: 200, description: 'The step was successfully advanced' })
   @ApiResponse({ status: 400, description: 'Cannot advance an application that is already Approved or Rejected' })
-  @ApiResponse({ status: 409, description: 'Concurrency conflict (step mismatch or concurrent request detected)' })
   @ApiResponse({ status: 412, description: 'Precondition failed (Missing required documents)' })
   async advanceStep(
     @Req() req: any,
@@ -36,6 +35,23 @@ export class VisaApplicationsController {
     @Body() advanceDto: AdvanceVisaStepDto,
   ) {
     return this.visaApplicationsService.advanceStep(req.user?.tenantId || req.headers['x-tenant-id'], id, advanceDto);
+  }
+
+  @Patch(':id')
+  @UseGuards(PermissionsGuard)
+  @CanUpdate('visa-applications')
+  @ApiOperation({ summary: 'Update a Visa Application' })
+  @ApiParam({ name: 'id', description: 'Visa application UUID' })
+  @ApiResponse({ status: 200, description: 'Visa application updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid payload' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires visa-applications:update permission' })
+  @ApiResponse({ status: 404, description: 'Visa application not found' })
+  async update(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() updateDto: UpdateVisaApplicationDto,
+  ) {
+    return this.visaApplicationsService.update(req.user?.tenantId || req.headers['x-tenant-id'], id, updateDto);
   }
 
   @Get()

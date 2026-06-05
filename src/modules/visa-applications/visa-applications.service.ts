@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, PreconditionFailedException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { CreateVisaApplicationDto, AdvanceVisaStepDto, DefaultFilterDto } from './dto/visa-application.dto';
+import { CreateVisaApplicationDto, AdvanceVisaStepDto, DefaultFilterDto, UpdateVisaApplicationDto } from './dto/visa-application.dto';
 import { VisaStatus, Prisma } from '@prisma/tenant-client';
 
 export interface HistoryEntry {
@@ -134,7 +134,7 @@ export class VisaApplicationsService {
   }
 
   async advanceStep(tenantId: string, id: string, advanceDto: AdvanceVisaStepDto) {
-    const { expectedStepId, notes } = advanceDto;
+    const { notes } = advanceDto;
 
     return this.prisma.$transaction(
       async (tx: any) => {
@@ -148,8 +148,6 @@ export class VisaApplicationsService {
         if (!app) throw new NotFoundException('Visa Application not found');
         if (app.status === 'Approved' || app.status === 'Rejected')
           throw new BadRequestException(`Cannot advance a visa application that is ${app.status}`);
-        if (app.currentStepId !== expectedStepId)
-          throw new ConflictException('The workflow step state has changed since you loaded it.');
 
         const stepIndex = app.workflowVersion.steps.findIndex((s: any) => s.id === app.currentStepId);
         if (stepIndex === -1) throw new BadRequestException('Current step not found in the workflow version steps');
@@ -401,5 +399,62 @@ export class VisaApplicationsService {
 
       throw new InternalServerErrorException('Deletion failed');
     }
+  }
+
+  async update(tenantId: string, id: string, updateDto: UpdateVisaApplicationDto) {
+    const existing = await this.prisma.visaApplication.findFirst({
+      where: { id, tenantId },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Visa application not found');
+    }
+
+    const { submissionDate, decisionDate, ...rest } = updateDto;
+
+    const data: any = {
+      ...rest,
+      ...(submissionDate && { submissionDate: new Date(submissionDate) }),
+      ...(decisionDate && { decisionDate: new Date(decisionDate) }),
+      version: { increment: 1 },
+    };
+
+    return this.prisma.visaApplication.update({
+      where: { id, version: existing.version },
+      data,
+      include: {
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+        visaType: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+        workflow: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+        workflowVersion: {
+          include: {
+            steps: {
+              where: { isActive: true },
+              orderBy: { stepOrder: 'asc' },
+            },
+          },
+        },
+      },
+    });
   }
 }

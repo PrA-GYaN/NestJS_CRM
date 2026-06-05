@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsUUID, IsString, IsOptional, IsNotEmpty, MaxLength, IsNumber, Min, IsInt, Max } from 'class-validator';
+import { IsUUID, IsString, IsOptional, IsNotEmpty, MaxLength, IsNumber, Min, IsInt, Max, IsEnum, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
+import { VisaStatus } from '@prisma/tenant-client';
 
 export class CreateVisaApplicationDto {
   @ApiProperty({
@@ -54,14 +55,6 @@ export class CreateVisaApplicationDto {
 }
 
 export class AdvanceVisaStepDto {
-  @ApiProperty({
-    description: 'The ID of the step the client expects to advance to (serves as a concurrency check)',
-    example: 'b1d0a0d4-7c3d-4c3d-a5d5-a7b6a4a2a1a0',
-  })
-  @IsUUID()
-  @IsNotEmpty()
-  expectedStepId!: string;
-
   @ApiPropertyOptional({
     description: 'Optional remarks or notes detailing the progression of the step',
     example: 'Biometric verification cleared successfully.',
@@ -132,4 +125,61 @@ export class DefaultFilterDto {
   @IsString()
   @IsOptional()
   sortOrder?: string;
+}
+
+export class UpdateVisaApplicationDto {
+  @ApiPropertyOptional({
+    description: 'The unique identifier of the Visa Type',
+  })
+  @IsUUID()
+  @IsOptional()
+  visaTypeId?: string;
+
+  @ApiPropertyOptional({
+    description: 'The unique identifier of the linked Course Application',
+  })
+  @IsUUID()
+  @IsOptional()
+  courseApplicationId?: string;
+
+  @ApiPropertyOptional({
+    description: 'The destination country for the visa',
+    example: 'Australia',
+  })
+  @IsString()
+  @MaxLength(100)
+  @IsOptional()
+  destinationCountry?: string;
+
+  @ApiPropertyOptional({
+    description: 'Visa application status',
+    enum: VisaStatus,
+    example: 'Approved',
+  })
+  @IsEnum(VisaStatus)
+  @IsOptional()
+  status?: VisaStatus;
+
+  @ApiPropertyOptional({
+    description: 'Current workflow step ID',
+  })
+  @IsUUID()
+  @IsOptional()
+  currentStepId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Date when the visa application was submitted',
+    example: '2025-06-01T00:00:00.000Z',
+  })
+  @IsDateString()
+  @IsOptional()
+  submissionDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Date when a decision was made on the visa application',
+    example: '2025-06-15T00:00:00.000Z',
+  })
+  @IsDateString()
+  @IsOptional()
+  decisionDate?: string;
 }
