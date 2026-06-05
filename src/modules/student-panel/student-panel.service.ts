@@ -1273,14 +1273,28 @@ export class StudentPanelService {
 
     // Enhance response with current workflow step information from the actual workflow version used
     const workflowSteps = (application.workflowVersion as any)?.steps || [];
-    const currentStepIndex = workflowSteps.findIndex(
-      (step: any) => step.id === application.currentStepId,
-    );
+    const totalSteps = workflowSteps.length;
 
-    const currentStep = currentStepIndex !== -1 ? workflowSteps[currentStepIndex] : null;
-    const nextStep = (currentStepIndex !== -1 && currentStepIndex < workflowSteps.length - 1)
-      ? workflowSteps[currentStepIndex + 1]
-      : null;
+    let currentStepIndex: number;
+    let currentStep: any;
+    let nextStep: any;
+
+    if (application.currentStepId === null) {
+      // All steps completed — set progress to 100%
+      currentStepIndex = totalSteps;
+      currentStep = null;
+      nextStep = null;
+    } else {
+      currentStepIndex = workflowSteps.findIndex(
+        (step: any) => step.id === application.currentStepId,
+      );
+      currentStep = currentStepIndex !== -1 ? workflowSteps[currentStepIndex] : null;
+      nextStep = (currentStepIndex !== -1 && currentStepIndex < totalSteps - 1)
+        ? workflowSteps[currentStepIndex + 1]
+        : null;
+    }
+
+    const progressIndex = Math.min(currentStepIndex, totalSteps);
 
     // Prepare the response with renamed workflow fields
     const { workflow, workflowVersion, ...rest } = application;
@@ -1296,9 +1310,9 @@ export class StudentPanelService {
       currentStep,
       nextStep,
       workflowProgress: {
-        totalSteps: workflowSteps.length,
-        currentStepIndex: currentStepIndex + 1,
-        percentageComplete: ((currentStepIndex + 1) / workflowSteps.length) * 100,
+        totalSteps,
+        currentStepIndex: progressIndex,
+        percentageComplete: totalSteps > 0 ? (progressIndex / totalSteps) * 100 : 0,
       },
     };
   }
