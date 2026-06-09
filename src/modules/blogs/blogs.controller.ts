@@ -18,7 +18,13 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { Public } from '../../common/decorators/public.decorator';
-import { CanCreate, CanRead, CanUpdate, CanDelete, RequirePermissions } from '../../common/decorators/permissions.decorator';
+import {
+  CanCreate,
+  CanRead,
+  CanUpdate,
+  CanDelete,
+  RequirePermissions,
+} from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Content Management - Blogs')
 @ApiBearerAuth()
@@ -98,7 +104,8 @@ export class BlogsController {
   @Get('public/slug/:slug')
   @ApiOperation({
     summary: 'Get published blog by slug (Public)',
-    description: 'Public endpoint to access published blog posts by slug. Only returns published posts.',
+    description:
+      'Public endpoint to access published blog posts by slug. Only returns published posts.',
   })
   @ApiParam({ name: 'slug', description: 'Blog post slug' })
   getPublicBlogBySlug(@TenantId() tenantId: string, @Param('slug') slug: string) {

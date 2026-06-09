@@ -19,7 +19,15 @@ export class WorkflowErrorDetail {
 
   @ApiPropertyOptional({
     description: 'Error type/category for classification',
-    enum: ['VALIDATION_ERROR', 'NOT_FOUND', 'CONFLICT', 'OPERATION_FAILED', 'UNAUTHORIZED', 'FORBIDDEN', 'SYSTEM_ERROR'],
+    enum: [
+      'VALIDATION_ERROR',
+      'NOT_FOUND',
+      'CONFLICT',
+      'OPERATION_FAILED',
+      'UNAUTHORIZED',
+      'FORBIDDEN',
+      'SYSTEM_ERROR',
+    ],
     example: 'NOT_FOUND',
   })
   type?: string;

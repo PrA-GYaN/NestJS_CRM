@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { ActivityLogsService } from '../activity-logs/activity-logs.service';
 import { ActivityAction } from '../activity-logs/dto/activity-log.dto';
@@ -146,16 +142,11 @@ export class PaymentsService {
 
     // Determine cycle status
     const cycleStatus =
-      totalPaidSum === 0
-        ? 'Pending'
-        : totalPaidSum < totalAmount
-          ? 'PartiallyPaid'
-          : 'Completed';
+      totalPaidSum === 0 ? 'Pending' : totalPaidSum < totalAmount ? 'PartiallyPaid' : 'Completed';
 
     const isConsistent = payments.every(
       (p) =>
-        this.toDecimal(p.status === 'Completed' ? 0 : p.remainingAmount) >=
-        remainingBalance - 0.01, // Allow 1 cent rounding
+        this.toDecimal(p.status === 'Completed' ? 0 : p.remainingAmount) >= remainingBalance - 0.01, // Allow 1 cent rounding
     );
 
     return {
@@ -483,8 +474,7 @@ export class PaymentsService {
     if (status) where.status = status;
     if (paymentType) where.paymentType = paymentType;
     if (paymentMethod) where.paymentMethod = paymentMethod;
-    if (invoiceNumber)
-      where.invoiceNumber = { contains: invoiceNumber, mode: 'insensitive' };
+    if (invoiceNumber) where.invoiceNumber = { contains: invoiceNumber, mode: 'insensitive' };
     if (dueDateFrom || dueDateTo) {
       where.dueDate = {};
       if (dueDateFrom) where.dueDate.gte = new Date(dueDateFrom);
@@ -509,9 +499,7 @@ export class PaymentsService {
       tenantPrisma.payment.count({ where }),
     ]);
 
-    const normalizedPayments = payments.map((payment) =>
-      this.normalizePaymentResponse(payment),
-    );
+    const normalizedPayments = payments.map((payment) => this.normalizePaymentResponse(payment));
 
     return {
       data: normalizedPayments,
@@ -565,9 +553,7 @@ export class PaymentsService {
       .reduce((sum, p) => sum + this.toDecimal(p.paidAmount), 0);
 
     const latestPayment = payments[payments.length - 1];
-    const remainingBalance = latestPayment
-      ? this.toDecimal(latestPayment.remainingAmount)
-      : 0;
+    const remainingBalance = latestPayment ? this.toDecimal(latestPayment.remainingAmount) : 0;
 
     return {
       studentId,
@@ -603,11 +589,7 @@ export class PaymentsService {
    * Get detailed payment cycle information for a student and service.
    * Shows current cycle and all previous cycles with their summaries.
    */
-  async getPaymentCycleInfo(
-    tenantId: string,
-    studentId: string,
-    serviceId: string | null,
-  ) {
+  async getPaymentCycleInfo(tenantId: string, studentId: string, serviceId: string | null) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     // Get current cycle (strict determination)
@@ -623,10 +605,7 @@ export class PaymentsService {
     });
 
     // Group by cycle
-    const cycleMap = new Map<
-      number,
-      { payments: any[]; totalAmount: number; totalPaid: number }
-    >();
+    const cycleMap = new Map<number, { payments: any[]; totalAmount: number; totalPaid: number }>();
 
     allPayments.forEach((payment) => {
       if (!cycleMap.has(payment.paymentCycle)) {
@@ -706,9 +685,7 @@ export class PaymentsService {
       tenantPrisma.payment.count({ where }),
     ]);
 
-    const normalizedPayments = payments.map((payment) =>
-      this.normalizePaymentResponse(payment),
-    );
+    const normalizedPayments = payments.map((payment) => this.normalizePaymentResponse(payment));
 
     return {
       data: normalizedPayments,
@@ -723,12 +700,7 @@ export class PaymentsService {
   // UPDATE
   // ─────────────────────────────────────────────────────────────────
 
-  async updatePayment(
-    tenantId: string,
-    id: string,
-    dto: UpdatePaymentDto,
-    updaterId?: string,
-  ) {
+  async updatePayment(tenantId: string, id: string, dto: UpdatePaymentDto, updaterId?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const existing = await this.getPaymentById(tenantId, id);
 
@@ -855,11 +827,7 @@ export class PaymentsService {
       : fromDate;
 
     // Build WHERE filter for current period
-    const buildWhereClause = (
-      dateStart: Date,
-      dateEnd: Date,
-      includeStatus?: boolean,
-    ) => {
+    const buildWhereClause = (dateStart: Date, dateEnd: Date, includeStatus?: boolean) => {
       const where: Record<string, any> = {
         tenantId,
         paymentDate: {
@@ -966,8 +934,7 @@ export class PaymentsService {
     const previousRevenue = comparisonCompletedCycles.reduce((sum, c) => sum + c.totalAmount, 0);
 
     const revenueChange = totalRevenue - previousRevenue;
-    const revenueChangePercent =
-      previousRevenue > 0 ? (revenueChange / previousRevenue) * 100 : 0;
+    const revenueChangePercent = previousRevenue > 0 ? (revenueChange / previousRevenue) * 100 : 0;
 
     // Total pending amount = remaining balance from incomplete cycles
     const totalPendingAmount = incompleteCycles.reduce((sum, c) => sum + c.remainingAmount, 0);
@@ -982,8 +949,7 @@ export class PaymentsService {
     );
 
     // Collection Rate = Number of completed cycles / Total cycles * 100
-    const collectionRate =
-      cycleMap.size > 0 ? (completedCycles.length / cycleMap.size) * 100 : 0;
+    const collectionRate = cycleMap.size > 0 ? (completedCycles.length / cycleMap.size) * 100 : 0;
 
     const totalOverdueAmount = overduePayments.reduce(
       (sum, p) => sum + this.toDecimal(p.remainingAmount),
@@ -993,8 +959,7 @@ export class PaymentsService {
     // Calculate averages based on actual payments (not cycle totals)
     const averagePaymentAmount =
       allPayments.length > 0
-        ? allPayments.reduce((sum, p) => sum + this.toDecimal(p.paidAmount), 0) /
-          allPayments.length
+        ? allPayments.reduce((sum, p) => sum + this.toDecimal(p.paidAmount), 0) / allPayments.length
         : 0;
 
     // Calculate median based on actual payments

@@ -16,7 +16,14 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { Response } from 'express';
 import { Multer } from 'multer';
 import { FilesService } from './files.service';
@@ -52,9 +59,17 @@ export class FilesController {
         category: {
           type: 'string',
           enum: [
-            'Passport', 'Transcript', 'VisaForm', 'Photo', 'Certificate',
-            'OfferLetter', 'AcademicDocument', 'FinancialDocument',
-            'LanguageTestResult', 'RecommendationLetter', 'Other',
+            'Passport',
+            'Transcript',
+            'VisaForm',
+            'Photo',
+            'Certificate',
+            'OfferLetter',
+            'AcademicDocument',
+            'FinancialDocument',
+            'LanguageTestResult',
+            'RecommendationLetter',
+            'Other',
           ],
           description: 'File category (required)',
         },
@@ -67,13 +82,15 @@ export class FilesController {
           type: 'string',
           format: 'uuid',
           nullable: true,
-          description: '(Optional) Associate file with a visa application. Leave empty for general or course-specific uploads.',
+          description:
+            '(Optional) Associate file with a visa application. Leave empty for general or course-specific uploads.',
         },
         courseId: {
           type: 'string',
           format: 'uuid',
           nullable: true,
-          description: '(Optional) Associate file with a course. Leave empty for general or visa-specific uploads.',
+          description:
+            '(Optional) Associate file with a course. Leave empty for general or visa-specific uploads.',
         },
         metadata: {
           type: 'object',
@@ -84,8 +101,14 @@ export class FilesController {
     },
   })
   @ApiResponse({ status: 201, description: 'File uploaded successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid file, missing required field, or file size exceeded' })
-  @ApiResponse({ status: 403, description: 'Students may only upload documents for their own studentId' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid file, missing required field, or file size exceeded',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Students may only upload documents for their own studentId',
+  })
   @UseInterceptors(FileInterceptor('file'))
   uploadFile(
     @TenantId() tenantId: string,
@@ -99,7 +122,9 @@ export class FilesController {
         throw new BadRequestException('studentId is required');
       }
       if (uploadDto.studentId !== (user.studentId || user.id)) {
-        throw new ForbiddenException('Students can only upload documents for their own student record');
+        throw new ForbiddenException(
+          'Students can only upload documents for their own student record',
+        );
       }
     }
 

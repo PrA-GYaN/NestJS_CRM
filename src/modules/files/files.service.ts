@@ -87,7 +87,7 @@ export class FilesService {
         throw new NotFoundException('Course not found');
       }
     }
-    
+
     // Generate secure filename
     const fileExt = path.extname(file.originalname);
     const fileHash = crypto.randomBytes(16).toString('hex');
@@ -103,7 +103,7 @@ export class FilesService {
     // Save file
     const filePath = path.join(fullPath, storedFileName);
     await fs.writeFile(filePath, file.buffer);
-    
+
     // Log file storage path
     this.logger.log(
       `File stored at path: ${filePath} (Relative: ${path.join(folderPath, storedFileName)}) | Original: ${file.originalname} | Size: ${file.size} bytes | Tenant: ${tenantId}`,
@@ -239,12 +239,7 @@ export class FilesService {
   /**
    * Update stored file record metadata/associations (partial or full)
    */
-  async updateFileRecord(
-    tenantId: string,
-    fileId: string,
-    updateDto: UpdateFileDto,
-    user?: any,
-  ) {
+  async updateFileRecord(tenantId: string, fileId: string, updateDto: UpdateFileDto, user?: any) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     const existingFile = await tenantPrisma.fileUpload.findFirst({
@@ -262,7 +257,9 @@ export class FilesService {
       }
 
       if (updateDto.studentId && updateDto.studentId !== allowedStudentId) {
-        throw new ForbiddenException('Students can only keep document records on their own student profile');
+        throw new ForbiddenException(
+          'Students can only keep document records on their own student profile',
+        );
       }
     }
 

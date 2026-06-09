@@ -1,4 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 import { TenantService } from '../tenant/tenant.service';
@@ -107,20 +113,18 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
-    const userPermissions = userWithRole.role.rolePermissions.map(
-      (rp: any) => rp.permission.name,
-    );
+    const userPermissions = userWithRole.role.rolePermissions.map((rp: any) => rp.permission.name);
 
-    const hasPermission = requiredPermissions.every((permission: string) => 
-      userPermissions.includes(permission)
+    const hasPermission = requiredPermissions.every((permission: string) =>
+      userPermissions.includes(permission),
     );
 
     if (!hasPermission) {
       // Log permission failure
       this.logger.warn(
         `Permission denied for user ${user.id} (${user.email}): ` +
-        `Required [${requiredPermissions.join(', ')}], ` +
-        `Has [${userPermissions.join(', ')}]`
+          `Required [${requiredPermissions.join(', ')}], ` +
+          `Has [${userPermissions.join(', ')}]`,
       );
 
       // Log to audit trail
@@ -146,7 +150,7 @@ export class PermissionsGuard implements CanActivate {
       }
 
       throw new ForbiddenException(
-        `Insufficient permissions. Required: ${requiredPermissions.join(', ')}`
+        `Insufficient permissions. Required: ${requiredPermissions.join(', ')}`,
       );
     }
 

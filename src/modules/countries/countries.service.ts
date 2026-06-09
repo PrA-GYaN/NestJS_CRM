@@ -172,7 +172,7 @@ export class CountriesService {
 
   async getCountryUniversities(tenantId: string, countryId: string, paginationDto: PaginationDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    
+
     // Verify country exists and belongs to tenant
     await this.getCountryById(tenantId, countryId);
 
@@ -215,7 +215,7 @@ export class CountriesService {
 
   async getCountryVisaTypes(tenantId: string, countryId: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    
+
     // Verify country exists and belongs to tenant
     await this.getCountryById(tenantId, countryId);
 

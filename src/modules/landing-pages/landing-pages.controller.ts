@@ -12,13 +12,23 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { LandingPagesService } from './landing-pages.service';
-import { CreateLandingPageDto, UpdateLandingPageDto, PublishLandingPageDto } from './dto/landing-page.dto';
+import {
+  CreateLandingPageDto,
+  UpdateLandingPageDto,
+  PublishLandingPageDto,
+} from './dto/landing-page.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { Public } from '../../common/decorators/public.decorator';
-import { CanCreate, CanRead, CanUpdate, CanDelete, RequirePermissions } from '../../common/decorators/permissions.decorator';
+import {
+  CanCreate,
+  CanRead,
+  CanUpdate,
+  CanDelete,
+  RequirePermissions,
+} from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Content Management - Landing Pages')
 @ApiBearerAuth()
@@ -33,7 +43,10 @@ export class LandingPagesController {
     summary: 'Create new landing page',
     description: 'Creates a new landing page for the current tenant. Page starts in Draft status.',
   })
-  createLandingPage(@TenantId() tenantId: string, @Body() createLandingPageDto: CreateLandingPageDto) {
+  createLandingPage(
+    @TenantId() tenantId: string,
+    @Body() createLandingPageDto: CreateLandingPageDto,
+  ) {
     return this.landingPagesService.createLandingPage(tenantId, createLandingPageDto);
   }
 
@@ -98,7 +111,8 @@ export class LandingPagesController {
   @Get('public/slug/:slug')
   @ApiOperation({
     summary: 'Get published landing page by slug (Public)',
-    description: 'Public endpoint to access published landing pages by slug. Only returns published pages.',
+    description:
+      'Public endpoint to access published landing pages by slug. Only returns published pages.',
   })
   @ApiParam({ name: 'slug', description: 'Landing page slug' })
   getPublicLandingPageBySlug(@TenantId() tenantId: string, @Param('slug') slug: string) {

@@ -40,14 +40,9 @@ export class WorkflowExceptionFilter implements ExceptionFilter {
 
     // Log exception for debugging
     if (exception instanceof Error) {
-      this.logger.error(
-        `[${traceId}] ${exception.message}`,
-        exception.stack,
-      );
+      this.logger.error(`[${traceId}] ${exception.message}`, exception.stack);
     } else {
-      this.logger.error(
-        `[${traceId}] Unknown error: ${JSON.stringify(exception)}`,
-      );
+      this.logger.error(`[${traceId}] Unknown error: ${JSON.stringify(exception)}`);
     }
 
     // Handle WorkflowException (our domain exceptions)
@@ -151,10 +146,7 @@ export class WorkflowExceptionFilter implements ExceptionFilter {
         'An internal server error occurred. Our team has been notified.',
         errorType,
         { ...context, originalError: exception.message },
-        [
-          'Try your request again',
-          'Contact support with trace ID: ' + traceId,
-        ],
+        ['Try your request again', 'Contact support with trace ID: ' + traceId],
         undefined,
         this.getDocumentationUrl(code),
       );
@@ -185,15 +177,7 @@ export class WorkflowExceptionFilter implements ExceptionFilter {
     );
 
     // Log workflow response for monitoring
-    this.logWorkflowError(
-      traceId,
-      statusCode,
-      code,
-      message,
-      request.method,
-      request.url,
-      context,
-    );
+    this.logWorkflowError(traceId, statusCode, code, message, request.method, request.url, context);
 
     // Send response
     response.status(statusCode).json(workflowResponse);
@@ -295,10 +279,7 @@ export class WorkflowExceptionFilter implements ExceptionFilter {
       ],
     };
 
-    return suggestions[status] || [
-      'Review error details',
-      'Contact support for assistance',
-    ];
+    return suggestions[status] || ['Review error details', 'Contact support for assistance'];
   }
 
   /**

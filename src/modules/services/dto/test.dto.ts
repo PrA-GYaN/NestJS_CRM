@@ -38,12 +38,18 @@ export class CreateTestDto {
   @IsNotEmpty()
   type!: TestType;
 
-  @ApiPropertyOptional({ description: 'Test description', example: 'International English Language Testing System' })
+  @ApiPropertyOptional({
+    description: 'Test description',
+    example: 'International English Language Testing System',
+  })
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Date and time when the test will be conducted', example: '2026-05-15T10:00:00Z' })
+  @ApiPropertyOptional({
+    description: 'Date and time when the test will be conducted',
+    example: '2026-05-15T10:00:00Z',
+  })
   @IsOptional()
   @IsISO8601()
   scheduledDate?: string;
@@ -124,14 +130,20 @@ export class UpdateTestDto {
 }
 
 export class AssignTestToStudentDto {
-  @ApiProperty({ description: 'Student ID to assign the test to', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiProperty({
+    description: 'Student ID to assign the test to',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   @IsUUID()
   @IsNotEmpty()
   studentId!: string;
 }
 
 export class UpdateTestAssignmentDto {
-  @ApiPropertyOptional({ enum: ['Pending', 'Completed', 'Graded'], description: 'Assignment status' })
+  @ApiPropertyOptional({
+    enum: ['Pending', 'Completed', 'Graded'],
+    description: 'Assignment status',
+  })
   @IsOptional()
   @IsEnum(['Pending', 'Completed', 'Graded'])
   status?: 'Pending' | 'Completed' | 'Graded';

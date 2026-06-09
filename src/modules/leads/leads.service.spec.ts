@@ -76,9 +76,7 @@ describe('LeadsService', () => {
 
       const result = await service.createLead(mockTenantId, createLeadDto);
 
-      expect(mockTenantService.getTenantPrisma).toHaveBeenCalledWith(
-        mockTenantId,
-      );
+      expect(mockTenantService.getTenantPrisma).toHaveBeenCalledWith(mockTenantId);
       expect(mockPrismaService.lead.create).toHaveBeenCalledWith({
         data: {
           ...createLeadDto,
@@ -209,7 +207,7 @@ describe('LeadsService', () => {
       };
 
       mockPrismaService.lead.findFirst.mockResolvedValue(mockLead);
-      
+
       const mockStudent = {
         id: 'student-123',
         tenantId: mockTenantId,
@@ -243,9 +241,9 @@ describe('LeadsService', () => {
         status: 'Converted',
       });
 
-      await expect(
-        service.convertToStudent(mockTenantId, mockLead.id, {}),
-      ).rejects.toThrow('Lead already converted');
+      await expect(service.convertToStudent(mockTenantId, mockLead.id, {})).rejects.toThrow(
+        'Lead already converted',
+      );
     });
   });
 });

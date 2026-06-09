@@ -129,9 +129,33 @@ export class AssignCounselorDto {
 
 export class UploadDocumentDto {
   @ApiProperty({
-    enum: ['Passport', 'Transcript', 'VisaForm', 'Photo', 'Certificate', 'OfferLetter', 'AcademicDocument', 'FinancialDocument', 'LanguageTestResult', 'RecommendationLetter', 'Other'],
+    enum: [
+      'Passport',
+      'Transcript',
+      'VisaForm',
+      'Photo',
+      'Certificate',
+      'OfferLetter',
+      'AcademicDocument',
+      'FinancialDocument',
+      'LanguageTestResult',
+      'RecommendationLetter',
+      'Other',
+    ],
   })
-  @IsEnum(['Passport', 'Transcript', 'VisaForm', 'Photo', 'Certificate', 'OfferLetter', 'AcademicDocument', 'FinancialDocument', 'LanguageTestResult', 'RecommendationLetter', 'Other'])
+  @IsEnum([
+    'Passport',
+    'Transcript',
+    'VisaForm',
+    'Photo',
+    'Certificate',
+    'OfferLetter',
+    'AcademicDocument',
+    'FinancialDocument',
+    'LanguageTestResult',
+    'RecommendationLetter',
+    'Other',
+  ])
   documentType!: string;
 
   @ApiProperty()
@@ -162,10 +186,34 @@ export class UploadDocumentDto {
 
 export class UpdateStudentDocumentDto {
   @ApiPropertyOptional({
-    enum: ['Passport', 'Transcript', 'VisaForm', 'Photo', 'Certificate', 'OfferLetter', 'AcademicDocument', 'FinancialDocument', 'LanguageTestResult', 'RecommendationLetter', 'Other'],
+    enum: [
+      'Passport',
+      'Transcript',
+      'VisaForm',
+      'Photo',
+      'Certificate',
+      'OfferLetter',
+      'AcademicDocument',
+      'FinancialDocument',
+      'LanguageTestResult',
+      'RecommendationLetter',
+      'Other',
+    ],
   })
   @IsOptional()
-  @IsEnum(['Passport', 'Transcript', 'VisaForm', 'Photo', 'Certificate', 'OfferLetter', 'AcademicDocument', 'FinancialDocument', 'LanguageTestResult', 'RecommendationLetter', 'Other'])
+  @IsEnum([
+    'Passport',
+    'Transcript',
+    'VisaForm',
+    'Photo',
+    'Certificate',
+    'OfferLetter',
+    'AcademicDocument',
+    'FinancialDocument',
+    'LanguageTestResult',
+    'RecommendationLetter',
+    'Other',
+  ])
   documentType?: string;
 
   @ApiPropertyOptional({ description: 'Document file path' })

@@ -62,11 +62,10 @@ export class WorkflowMigrationService {
 
     // Can't migrate if application is completed
     if (application.status === 'Approved' || application.status === 'Rejected') {
-      throw new CompletedApplicationMigrationException(
-        applicationId,
-        application.status,
-        { tenantId, toVersionId },
-      );
+      throw new CompletedApplicationMigrationException(applicationId, application.status, {
+        tenantId,
+        toVersionId,
+      });
     }
 
     // Determine new step ID based on strategy
@@ -74,11 +73,11 @@ export class WorkflowMigrationService {
 
     if (strategy === MigrationStrategyDto.RemapStep) {
       if (!targetStepId) {
-        throw new InvalidMigrationStrategyException(
-          strategy,
-          Object.values(MigrationStrategyDto),
-          { tenantId, applicationId, reason: 'Target step ID is required for RemapStep strategy' },
-        );
+        throw new InvalidMigrationStrategyException(strategy, Object.values(MigrationStrategyDto), {
+          tenantId,
+          applicationId,
+          reason: 'Target step ID is required for RemapStep strategy',
+        });
       }
 
       // Verify target step exists in target version
@@ -96,9 +95,13 @@ export class WorkflowMigrationService {
       newStepId = targetStepId;
     } else if (strategy === MigrationStrategyDto.KeepCurrentStep) {
       // Find equivalent step in target version by order
-      const currentStep = application.workflowVersion.steps.find((s) => s.id === application.currentStepId);
+      const currentStep = application.workflowVersion.steps.find(
+        (s) => s.id === application.currentStepId,
+      );
       if (currentStep) {
-        const equivalentStep = targetVersion.steps.find((s) => s.stepOrder === currentStep.stepOrder);
+        const equivalentStep = targetVersion.steps.find(
+          (s) => s.stepOrder === currentStep.stepOrder,
+        );
         newStepId = equivalentStep?.id || targetVersion.steps[0]?.id;
       } else {
         newStepId = targetVersion.steps[0]?.id || null;
@@ -273,7 +276,9 @@ export class WorkflowMigrationService {
           // Find equivalent step by order
           const currentStep = fromVersion.steps.find((s) => s.id === app.currentStepId);
           if (currentStep) {
-            const equivalentStep = toVersion.steps.find((s) => s.stepOrder === currentStep.stepOrder);
+            const equivalentStep = toVersion.steps.find(
+              (s) => s.stepOrder === currentStep.stepOrder,
+            );
             newStepId = equivalentStep?.id || toVersion.steps[0]?.id;
           } else {
             newStepId = toVersion.steps[0]?.id;

@@ -12,13 +12,22 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { ScholarshipsService } from './scholarships.service';
-import { CreateScholarshipDto, UpdateScholarshipDto, PublishScholarshipDto } from './dto/scholarship.dto';
+import {
+  CreateScholarshipDto,
+  UpdateScholarshipDto,
+  PublishScholarshipDto,
+} from './dto/scholarship.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { Public } from '../../common/decorators/public.decorator';
-import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
+import {
+  CanCreate,
+  CanRead,
+  CanUpdate,
+  CanDelete,
+} from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Content Management - Scholarships')
 @ApiBearerAuth()
@@ -31,9 +40,13 @@ export class ScholarshipsController {
   @CanCreate('scholarships')
   @ApiOperation({
     summary: 'Create new scholarship',
-    description: 'Creates a new scholarship for the current tenant. Scholarship starts in Draft status.',
+    description:
+      'Creates a new scholarship for the current tenant. Scholarship starts in Draft status.',
   })
-  createScholarship(@TenantId() tenantId: string, @Body() createScholarshipDto: CreateScholarshipDto) {
+  createScholarship(
+    @TenantId() tenantId: string,
+    @Body() createScholarshipDto: CreateScholarshipDto,
+  ) {
     return this.scholarshipsService.createScholarship(tenantId, createScholarshipDto);
   }
 
@@ -107,7 +120,8 @@ export class ScholarshipsController {
   @Get('public/slug/:slug')
   @ApiOperation({
     summary: 'Get published scholarship by slug (Public)',
-    description: 'Public endpoint to access published scholarships by slug. Only returns published scholarships.',
+    description:
+      'Public endpoint to access published scholarships by slug. Only returns published scholarships.',
   })
   @ApiParam({ name: 'slug', description: 'Scholarship slug' })
   getPublicScholarshipBySlug(@TenantId() tenantId: string, @Param('slug') slug: string) {

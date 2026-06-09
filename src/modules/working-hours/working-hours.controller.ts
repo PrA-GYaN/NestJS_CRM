@@ -1,20 +1,5 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiResponse,
-} from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { WorkingHoursService } from './working-hours.service';
 import {
   CreateWorkingHoursDto,
@@ -55,10 +40,7 @@ export class WorkingHoursController {
     status: 409,
     description: 'Conflict - Working hours already exist for this day',
   })
-  createWorkingHours(
-    @TenantId() tenantId: string,
-    @Body() createDto: CreateWorkingHoursDto,
-  ) {
+  createWorkingHours(@TenantId() tenantId: string, @Body() createDto: CreateWorkingHoursDto) {
     return this.workingHoursService.create(tenantId, createDto);
   }
 
@@ -70,10 +52,7 @@ export class WorkingHoursController {
     description: 'Working hours retrieved successfully',
     type: [WorkingHoursResponseDto],
   })
-  getAllWorkingHours(
-    @TenantId() tenantId: string,
-    @Query() queryDto: WorkingHoursQueryDto,
-  ) {
+  getAllWorkingHours(@TenantId() tenantId: string, @Query() queryDto: WorkingHoursQueryDto) {
     return this.workingHoursService.findAll(tenantId, queryDto);
   }
 
@@ -86,10 +65,7 @@ export class WorkingHoursController {
     type: WorkingHoursResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Working hours not found' })
-  getWorkingHoursById(
-    @TenantId() tenantId: string,
-    @Param() params: IdParamDto,
-  ) {
+  getWorkingHoursById(@TenantId() tenantId: string, @Param() params: IdParamDto) {
     return this.workingHoursService.findOne(tenantId, params.id);
   }
 
@@ -128,10 +104,7 @@ export class WorkingHoursController {
       },
     },
   })
-  bulkUpsertWorkingHours(
-    @TenantId() tenantId: string,
-    @Body() bulkDto: BulkWorkingHoursDto,
-  ) {
+  bulkUpsertWorkingHours(@TenantId() tenantId: string, @Body() bulkDto: BulkWorkingHoursDto) {
     return this.workingHoursService.bulkUpsert(tenantId, bulkDto);
   }
 
@@ -144,10 +117,7 @@ export class WorkingHoursController {
     type: WorkingHoursResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Working hours not found' })
-  deleteWorkingHours(
-    @TenantId() tenantId: string,
-    @Param() params: IdParamDto,
-  ) {
+  deleteWorkingHours(@TenantId() tenantId: string, @Param() params: IdParamDto) {
     return this.workingHoursService.remove(tenantId, params.id);
   }
 }

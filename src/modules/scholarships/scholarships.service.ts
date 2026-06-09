@@ -115,7 +115,11 @@ export class ScholarshipsService {
     return scholarship;
   }
 
-  async updateScholarship(tenantId: string, id: string, updateScholarshipDto: UpdateScholarshipDto) {
+  async updateScholarship(
+    tenantId: string,
+    id: string,
+    updateScholarshipDto: UpdateScholarshipDto,
+  ) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     // Check if scholarship exists

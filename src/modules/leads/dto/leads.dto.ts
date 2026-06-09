@@ -1,11 +1,4 @@
-import {
-  IsString,
-  IsEmail,
-  IsEnum,
-  IsUUID,
-  IsNotEmpty,
-  IsOptional,
-} from 'class-validator';
+import { IsString, IsEmail, IsEnum, IsUUID, IsNotEmpty, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationDto } from '../../../common/dto/common.dto';
 
@@ -124,7 +117,9 @@ export class UpdateLeadDto {
   @IsString()
   studyInterests?: string;
 
-  @ApiPropertyOptional({ enum: ['New', 'Contacted', 'Qualified', 'Converted', 'NotInterested', 'NotReachable'] })
+  @ApiPropertyOptional({
+    enum: ['New', 'Contacted', 'Qualified', 'Converted', 'NotInterested', 'NotReachable'],
+  })
   @IsOptional()
   @IsEnum(['New', 'Contacted', 'Qualified', 'Converted', 'NotInterested', 'NotReachable'])
   status?: 'New' | 'Contacted' | 'Qualified' | 'Converted' | 'NotInterested' | 'NotReachable';

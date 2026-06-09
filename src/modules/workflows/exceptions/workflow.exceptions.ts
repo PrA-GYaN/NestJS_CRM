@@ -60,14 +60,8 @@ export class WorkflowException extends HttpException {
  * Exception for workflow not found errors
  */
 export class WorkflowNotFoundException extends WorkflowException {
-  constructor(
-    workflowId?: string,
-    context?: Record<string, any>,
-    traceId?: string,
-  ) {
-    const message = workflowId
-      ? `Workflow with ID ${workflowId} not found`
-      : 'Workflow not found';
+  constructor(workflowId?: string, context?: Record<string, any>, traceId?: string) {
+    const message = workflowId ? `Workflow with ID ${workflowId} not found` : 'Workflow not found';
 
     super(
       message,
@@ -179,11 +173,7 @@ export class WorkflowStepOrderConflictException extends WorkflowException {
  * Exception for invalid workflow step order sequence
  */
 export class WorkflowStepOrderSequenceException extends WorkflowException {
-  constructor(
-    providedOrders: number[],
-    context?: Record<string, any>,
-    traceId?: string,
-  ) {
+  constructor(providedOrders: number[], context?: Record<string, any>, traceId?: string) {
     const sortedOrders = [...providedOrders].sort((a, b) => a - b);
     const missing = [];
     for (let i = 0; i < sortedOrders.length; i++) {
@@ -240,14 +230,8 @@ export class WorkflowMinimumStepsException extends WorkflowException {
  * Exception for visa type not found
  */
 export class VisaTypeNotFoundException extends WorkflowException {
-  constructor(
-    visaTypeId?: string,
-    context?: Record<string, any>,
-    traceId?: string,
-  ) {
-    const message = visaTypeId
-      ? `Visa type ${visaTypeId} not found`
-      : 'Visa type not found';
+  constructor(visaTypeId?: string, context?: Record<string, any>, traceId?: string) {
+    const message = visaTypeId ? `Visa type ${visaTypeId} not found` : 'Visa type not found';
 
     super(
       message,

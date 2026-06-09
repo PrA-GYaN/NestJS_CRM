@@ -59,7 +59,10 @@ export class ChangePasswordDto {
   @MinLength(6)
   currentPassword!: string;
 
-  @ApiProperty({ description: 'New password (min 8 chars, must contain uppercase, lowercase, and number or special character)' })
+  @ApiProperty({
+    description:
+      'New password (min 8 chars, must contain uppercase, lowercase, and number or special character)',
+  })
   @IsString()
   @MinLength(8)
   @Matches(/((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, {

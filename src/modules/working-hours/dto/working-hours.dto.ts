@@ -1,11 +1,4 @@
-import {
-  IsString,
-  IsBoolean,
-  IsEnum,
-  IsOptional,
-  Matches,
-  IsNotEmpty,
-} from 'class-validator';
+import { IsString, IsBoolean, IsEnum, IsOptional, Matches, IsNotEmpty } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum DayOfWeekEnum {

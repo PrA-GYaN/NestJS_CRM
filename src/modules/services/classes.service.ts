@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { PaginationDto } from '../../common/dto/common.dto';
 import {
@@ -55,9 +60,7 @@ export class ClassesService {
       }
 
       if (timing.endTime <= timing.startTime) {
-        throw new BadRequestException(
-          `endTime must be later than startTime for ${timing.day}`,
-        );
+        throw new BadRequestException(`endTime must be later than startTime for ${timing.day}`);
       }
 
       uniqueDays.add(timing.day);
@@ -144,7 +147,14 @@ export class ClassesService {
         enrollments: {
           include: {
             student: {
-              select: { id: true, firstName: true, lastName: true, email: true, phone: true, status: true },
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+                status: true,
+              },
             },
           },
           orderBy: { createdAt: 'desc' },
@@ -177,7 +187,9 @@ export class ClassesService {
       ...(dto.description !== undefined && { description: dto.description }),
       ...(dto.schedule !== undefined && { schedule: this.normalizeSchedule(dto.schedule) }),
       ...(dto.studentCapacity !== undefined && { studentCapacity: dto.studentCapacity }),
-      ...(dto.reservationDurationMinutes !== undefined && { reservationDurationMinutes: dto.reservationDurationMinutes }),
+      ...(dto.reservationDurationMinutes !== undefined && {
+        reservationDurationMinutes: dto.reservationDurationMinutes,
+      }),
       ...(dto.instructorId !== undefined && { instructor: { connect: { id: dto.instructorId } } }),
     };
 
@@ -375,7 +387,7 @@ export class ClassesService {
           // Exclude Approved requests as they are already in enrolled response
           NOT: { status: 'Approved' },
         },
-      })
+      }),
     ]);
 
     return {
@@ -443,7 +455,9 @@ export class ClassesService {
       ]);
 
       if (activeEnrollments + otherPendingReservations >= cls.studentCapacity) {
-        throw new ConflictException('Cannot approve request because class capacity has been reached');
+        throw new ConflictException(
+          'Cannot approve request because class capacity has been reached',
+        );
       }
 
       const existingEnrollment = await tx.classEnrollment.findUnique({
@@ -613,7 +627,14 @@ export class ClassesService {
         orderBy: { [sortBy]: sortOrder },
         include: {
           student: {
-            select: { id: true, firstName: true, lastName: true, email: true, phone: true, status: true },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              status: true,
+            },
           },
         },
       }),

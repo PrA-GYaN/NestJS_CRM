@@ -27,7 +27,12 @@ import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
-import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
+import {
+  CanCreate,
+  CanRead,
+  CanUpdate,
+  CanDelete,
+} from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Templates & Messaging - Email Templates')
 @ApiBearerAuth()
@@ -40,7 +45,8 @@ export class EmailTemplatesController {
   @CanCreate('templates')
   @ApiOperation({
     summary: 'Create email template (tenant-scoped)',
-    description: 'Creates a new email template for the current tenant ONLY. Cannot be shared across tenants.',
+    description:
+      'Creates a new email template for the current tenant ONLY. Cannot be shared across tenants.',
   })
   createEmailTemplate(@TenantId() tenantId: string, @Body() createDto: CreateEmailTemplateDto) {
     return this.templatesService.createEmailTemplate(tenantId, createDto);
@@ -126,7 +132,8 @@ export class SmsTemplatesController {
   @Post()
   @ApiOperation({
     summary: 'Create SMS template (tenant-scoped)',
-    description: 'Creates a new SMS template for the current tenant ONLY. Cannot be shared across tenants.',
+    description:
+      'Creates a new SMS template for the current tenant ONLY. Cannot be shared across tenants.',
   })
   createSmsTemplate(@TenantId() tenantId: string, @Body() createDto: CreateSmsTemplateDto) {
     return this.templatesService.createSmsTemplate(tenantId, createDto);

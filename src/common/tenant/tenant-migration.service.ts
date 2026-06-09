@@ -31,10 +31,10 @@ export class TenantMigrationService {
 
       // Check if database exists
       const checkCmd = `psql "${adminDbUrl}" -tAc "SELECT 1 FROM pg_database WHERE datname='${database}'"`;
-      
+
       try {
         const { stdout } = await execAsync(checkCmd);
-        
+
         if (stdout.trim() === '1') {
           this.logger.log(`Database ${database} already exists`);
           return;
@@ -142,7 +142,9 @@ export class TenantMigrationService {
   /**
    * Check if migrations are needed
    */
-  async checkMigrationStatus(config: TenantDatabaseConfig): Promise<{ pending: boolean; migrations: string[] }> {
+  async checkMigrationStatus(
+    config: TenantDatabaseConfig,
+  ): Promise<{ pending: boolean; migrations: string[] }> {
     const { host, port, user, password, database } = config;
 
     try {
@@ -159,8 +161,9 @@ export class TenantMigrationService {
       });
 
       // Parse output to determine if migrations are pending
-      const pending = stdout.includes('following migration have not yet been applied') || 
-                     stdout.includes('Database schema is not up to date');
+      const pending =
+        stdout.includes('following migration have not yet been applied') ||
+        stdout.includes('Database schema is not up to date');
 
       return {
         pending,

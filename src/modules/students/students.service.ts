@@ -1,23 +1,32 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { TenantService } from '../../common/tenant/tenant.service';
-import { CreateStudentDto, UpdateStudentDto, UploadDocumentDto, UpdateStudentDocumentDto, AssignCounselorDto } from './dto/students.dto';
+import {
+  CreateStudentDto,
+  UpdateStudentDto,
+  UploadDocumentDto,
+  UpdateStudentDocumentDto,
+  AssignCounselorDto,
+} from './dto/students.dto';
 import { PaginationDto } from '../../common/dto/common.dto';
 import { DocumentType, DocumentVerificationStatus } from '@prisma/tenant-client';
 
 @Injectable()
 export class StudentsService {
-  constructor(
-    private tenantService: TenantService,
-  ) { }
+  constructor(private tenantService: TenantService) {}
 
   private sanitizeApplicantResponse(student: any) {
     const counselorRoleName = student.assignedCounselor?.role?.name?.toLowerCase();
 
     return {
       id: student.id,
-      firstName:student.firstName,
-      lastName:student.lastName,
+      firstName: student.firstName,
+      lastName: student.lastName,
       name: `${student.firstName} ${student.lastName}`,
       email: student.email,
       phone: student.phone,
@@ -63,7 +72,13 @@ export class StudentsService {
 
   async getAllStudents(tenantId: string, paginationDto: PaginationDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      search,
+    } = paginationDto;
     const skip = (page - 1) * limit;
 
     const where = {
@@ -240,7 +255,9 @@ export class StudentsService {
         filePath: uploadDocumentDto.filePath,
         fileName: uploadDocumentDto.fileName,
         fileSize: uploadDocumentDto.fileSize,
-        expiryDate: uploadDocumentDto.expiryDate ? new Date(uploadDocumentDto.expiryDate) : undefined,
+        expiryDate: uploadDocumentDto.expiryDate
+          ? new Date(uploadDocumentDto.expiryDate)
+          : undefined,
         metadata: uploadDocumentDto.metadata,
       },
     });
@@ -317,7 +334,9 @@ export class StudentsService {
       ...(updateDocumentDto.verificationStatus !== undefined && {
         verificationStatus: updateDocumentDto.verificationStatus as DocumentVerificationStatus,
       }),
-      ...(updateDocumentDto.verifiedBy !== undefined && { verifiedBy: updateDocumentDto.verifiedBy }),
+      ...(updateDocumentDto.verifiedBy !== undefined && {
+        verifiedBy: updateDocumentDto.verifiedBy,
+      }),
       ...(updateDocumentDto.verificationDate !== undefined && {
         verificationDate: new Date(updateDocumentDto.verificationDate),
       }),

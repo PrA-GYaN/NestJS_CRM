@@ -40,7 +40,9 @@ export class VisaDocumentsService {
     }
 
     if (studentDocument.studentId !== visaApplication.studentId) {
-      throw new BadRequestException('Student document does not belong to the same student as the visa application');
+      throw new BadRequestException(
+        'Student document does not belong to the same student as the visa application',
+      );
     }
 
     return studentDocument;
@@ -73,8 +75,10 @@ export class VisaDocumentsService {
       select: { documentType: true },
     });
 
-    const existingDocTypes = new Set<DocumentType | null>(existingDocs.map(d => d.documentType).filter(Boolean));
-    
+    const existingDocTypes = new Set<DocumentType | null>(
+      existingDocs.map((d) => d.documentType).filter(Boolean),
+    );
+
     if (currentFieldDocumentType) {
       existingDocTypes.add(currentFieldDocumentType);
     }
@@ -86,7 +90,9 @@ export class VisaDocumentsService {
     const hasDirectFields = !!dto.documentType || !!dto.filePath;
 
     if (dto.studentDocumentId && hasDirectFields) {
-      throw new BadRequestException('Provide either studentDocumentId OR documentType/filePath, not both');
+      throw new BadRequestException(
+        'Provide either studentDocumentId OR documentType/filePath, not both',
+      );
     }
 
     const visaApplication = await this.getVisaApplicationOrThrow(tenantId, dto.visaApplicationId);
@@ -107,7 +113,9 @@ export class VisaDocumentsService {
       studentDocumentRef = sourceDocument.id;
     } else {
       if (!dto.documentType || !dto.filePath) {
-        throw new BadRequestException('documentType and filePath are required when studentDocumentId is not provided');
+        throw new BadRequestException(
+          'documentType and filePath are required when studentDocumentId is not provided',
+        );
       }
       documentType = dto.documentType as DocumentType;
       filePath = dto.filePath;
@@ -115,7 +123,12 @@ export class VisaDocumentsService {
 
     // Validate workflow-specific documents using the application's locked version
     if (visaApplication.workflowVersionId) {
-      await this.validateWorkflowDocuments(tenantId, dto.visaApplicationId, visaApplication.workflowVersionId, documentType);
+      await this.validateWorkflowDocuments(
+        tenantId,
+        dto.visaApplicationId,
+        visaApplication.workflowVersionId,
+        documentType,
+      );
     }
 
     return this.prisma.visaDocument.create({
@@ -202,7 +215,9 @@ export class VisaDocumentsService {
     }
 
     if (dto.studentDocumentId && (dto.documentType || dto.filePath)) {
-      throw new BadRequestException('When studentDocumentId is provided, do not provide documentType/filePath');
+      throw new BadRequestException(
+        'When studentDocumentId is provided, do not provide documentType/filePath',
+      );
     }
 
     const targetVisaApplicationId = dto.visaApplicationId || existing.visaApplicationId;
@@ -286,11 +301,7 @@ export class VisaDocumentsService {
    * Get documents for a specific visa application and workflow
    * Used for workflow-specific validation
    */
-  async getWorkflowDocuments(
-    tenantId: string,
-    visaApplicationId: string,
-    workflowId: string,
-  ) {
+  async getWorkflowDocuments(tenantId: string, visaApplicationId: string, workflowId: string) {
     return this.prisma.visaDocument.findMany({
       where: {
         tenantId,
@@ -329,7 +340,11 @@ export class VisaDocumentsService {
     }
 
     const application = await this.getVisaApplicationOrThrow(tenantId, visaApplicationId);
-    const documents = await this.getWorkflowDocuments(tenantId, visaApplicationId, application.workflowId);
+    const documents = await this.getWorkflowDocuments(
+      tenantId,
+      visaApplicationId,
+      application.workflowId,
+    );
 
     return {
       hasFulfilled: documents.length > 0,
@@ -338,4 +353,3 @@ export class VisaDocumentsService {
     };
   }
 }
-

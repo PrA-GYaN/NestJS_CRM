@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import * as bcrypt from 'bcrypt';
 import { Subject } from 'rxjs';
@@ -154,7 +159,10 @@ export class StudentPanelService {
     }
 
     // Step 4: Verify current password is correct
-    const isCurrentPasswordValid = await bcrypt.compare(changePasswordDto.currentPassword, passwordField);
+    const isCurrentPasswordValid = await bcrypt.compare(
+      changePasswordDto.currentPassword,
+      passwordField,
+    );
     if (!isCurrentPasswordValid) {
       throw new BadRequestException('Current password is incorrect');
     }
@@ -171,8 +179,8 @@ export class StudentPanelService {
       },
     });
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       message: 'Password changed successfully',
       timestamp: new Date().toISOString(),
     };
@@ -570,7 +578,11 @@ export class StudentPanelService {
   // COURSE APPLICATIONS
   // ============================================
 
-  async getMyCourseApplications(tenantId: string, studentId: string, queryDto: StudentApplicationsQueryDto) {
+  async getMyCourseApplications(
+    tenantId: string,
+    studentId: string,
+    queryDto: StudentApplicationsQueryDto,
+  ) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const { page = 1, limit = 10, status } = queryDto;
     const skip = (page - 1) * limit;
@@ -629,7 +641,11 @@ export class StudentPanelService {
     };
   }
 
-  async createCourseApplication(tenantId: string, studentId: string, createDto: CreateCourseApplicationDto) {
+  async createCourseApplication(
+    tenantId: string,
+    studentId: string,
+    createDto: CreateCourseApplicationDto,
+  ) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     // Verify course and university exist
@@ -780,7 +796,9 @@ export class StudentPanelService {
 
     // Cannot withdraw accepted or rejected applications
     if (['Accepted', 'Rejected', 'Withdrawn'].includes(application.status)) {
-      throw new BadRequestException(`Cannot withdraw ${application.status.toLowerCase()} application`);
+      throw new BadRequestException(
+        `Cannot withdraw ${application.status.toLowerCase()} application`,
+      );
     }
 
     await tenantPrisma.courseApplication.update({
@@ -1001,7 +1019,11 @@ export class StudentPanelService {
   // VISA APPLICATIONS
   // ============================================
 
-  async getMyVisaApplications(tenantId: string, studentId: string, queryDto?: VisaApplicationsQueryDto) {
+  async getMyVisaApplications(
+    tenantId: string,
+    studentId: string,
+    queryDto?: VisaApplicationsQueryDto,
+  ) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const page = queryDto?.page ?? 1;
     const limit = queryDto?.limit ?? 10;
@@ -1187,9 +1209,7 @@ export class StudentPanelService {
 
     return applications.map((application: any) => {
       const workflowSteps = application.workflowVersion?.steps || [];
-      const currentStep = workflowSteps.find(
-        (step: any) => step.id === application.currentStepId,
-      );
+      const currentStep = workflowSteps.find((step: any) => step.id === application.currentStepId);
       return {
         id: application.id,
         status: application.status,
@@ -1289,16 +1309,17 @@ export class StudentPanelService {
         (step: any) => step.id === application.currentStepId,
       );
       currentStep = currentStepIndex !== -1 ? workflowSteps[currentStepIndex] : null;
-      nextStep = (currentStepIndex !== -1 && currentStepIndex < totalSteps - 1)
-        ? workflowSteps[currentStepIndex + 1]
-        : null;
+      nextStep =
+        currentStepIndex !== -1 && currentStepIndex < totalSteps - 1
+          ? workflowSteps[currentStepIndex + 1]
+          : null;
     }
 
     const progressIndex = Math.min(currentStepIndex, totalSteps);
 
     // Prepare the response with renamed workflow fields
     const { workflow, workflowVersion, ...rest } = application;
-    
+
     return {
       ...rest,
       workflow: {
@@ -1578,7 +1599,9 @@ export class StudentPanelService {
       };
     });
 
-    const assignedServices = mappedServices.filter((service) => service.assignment.isAssigned).length;
+    const assignedServices = mappedServices.filter(
+      (service) => service.assignment.isAssigned,
+    ).length;
 
     return {
       data: {
@@ -1780,11 +1803,7 @@ export class StudentPanelService {
    * Returns current cycle info, remaining balance, and completion status.
    * Follows the strict independent payment cycle logic.
    */
-  async getServicePaymentStatus(
-    tenantId: string,
-    studentId: string,
-    serviceId: string | null,
-  ) {
+  async getServicePaymentStatus(tenantId: string, studentId: string, serviceId: string | null) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     // Helper to convert Decimal to number
@@ -1829,7 +1848,10 @@ export class StudentPanelService {
 
     // Calculate cycle totals (convert Decimal to number)
     const totalServiceCost = toDecimal(currentCyclePayments[0]?.totalAmount);
-    const totalPaidInCycle = currentCyclePayments.reduce((sum, p) => sum + toDecimal(p.paidAmount), 0);
+    const totalPaidInCycle = currentCyclePayments.reduce(
+      (sum, p) => sum + toDecimal(p.paidAmount),
+      0,
+    );
     const remainingBalance = totalServiceCost - totalPaidInCycle;
 
     // Determine cycle status (follows strict spec logic)
@@ -1850,10 +1872,7 @@ export class StudentPanelService {
       status: string;
       paymentDates: Date[];
     }> = [];
-    const cycleMap = new Map<
-      number,
-      { payments: typeof payments; totalPaid: number }
-    >();
+    const cycleMap = new Map<number, { payments: typeof payments; totalPaid: number }>();
 
     payments.forEach((p) => {
       if (!cycleMap.has(p.paymentCycle)) {
@@ -1985,7 +2004,11 @@ export class StudentPanelService {
         totalServiceCost: Number(totalServiceCost),
         totalPaidAcrossAllCycles: totalPaid,
         remainingInCurrentCycle: Math.max(0, remainingInCurrentCycle),
-        currentCycleStatus: isServiceCompleted ? 'Completed' : remainingInCurrentCycle > 0 ? 'PartiallyPaid' : 'Pending',
+        currentCycleStatus: isServiceCompleted
+          ? 'Completed'
+          : remainingInCurrentCycle > 0
+            ? 'PartiallyPaid'
+            : 'Pending',
         completedCycles: completedCycleCount,
         canMakePayment: remainingInCurrentCycle > 0,
       });
@@ -2045,7 +2068,11 @@ export class StudentPanelService {
     };
   }
 
-  async markNotificationsAsRead(tenantId: string, studentId: string, markReadDto: MarkNotificationReadDto) {
+  async markNotificationsAsRead(
+    tenantId: string,
+    studentId: string,
+    markReadDto: MarkNotificationReadDto,
+  ) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     await tenantPrisma.studentNotification.updateMany({
@@ -2159,7 +2186,13 @@ export class StudentPanelService {
     return university;
   }
 
-  async getCourses(tenantId: string, universityId?: string, page: number = 1, limit: number = 10, search?: string) {
+  async getCourses(
+    tenantId: string,
+    universityId?: string,
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+  ) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const skip = (page - 1) * limit;
 
@@ -2258,13 +2291,17 @@ export class StudentPanelService {
     return Math.round(completeness);
   }
 
-  private async createNotification(tenantId: string, studentId: string, data: {
-    type: string;
-    title: string;
-    message: string;
-    actionUrl?: string;
-    metadata?: any;
-  }) {
+  private async createNotification(
+    tenantId: string,
+    studentId: string,
+    data: {
+      type: string;
+      title: string;
+      message: string;
+      actionUrl?: string;
+      metadata?: any;
+    },
+  ) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     const notification = await tenantPrisma.studentNotification.create({

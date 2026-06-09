@@ -42,6 +42,7 @@ model User {
   counselorStudents Student[]       @relation("AssignedCounselor")
   notifications     Notification[]
   activityLogs      ActivityLog[]
+  staffProfile      StaffProfile?
 
   @@unique([tenantId, email])
   @@index([tenantId, email])
@@ -134,8 +135,12 @@ model Lead {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  assignedUser User?     @relation("AssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
-  students     Student[]
+  assignedViaQueue Boolean?  @default(false)
+
+  assignedUser     User?              @relation("AssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  students         Student[]
+  queueItems       QueueItem[]
+  assignmentHistory AssignmentHistory[]
 
   @@index([tenantId, status])
   @@index([tenantId, email])
@@ -1489,6 +1494,7 @@ enum ActivityAction {
   Login
   Logout
   AccessDenied
+  Call
 }
 
 model ActivityLog {
@@ -1509,4 +1515,146 @@ model ActivityLog {
   @@index([tenantId, timestamp])
   @@index([tenantId, entityType])
   @@map("activity_logs")
+}
+
+// ============================================
+// STAFF & WORKFORCE MANAGEMENT MODULE
+// ============================================
+
+enum StaffStatus {
+  Available
+  Busy
+  OnLeave
+  Offline
+}
+
+enum StaffType {
+  Counselor
+  AdmissionOfficer
+  VisaOfficer
+  DocumentationOfficer
+  FinanceOfficer
+  Other
+}
+
+model StaffProfile {
+  id           String      @id @default(uuid())
+  tenantId     String
+  userId       String      @unique
+  staffType    StaffType
+  status       StaffStatus @default(Available)
+  maxWorkload  Int         @default(100)
+  department   String?
+  joinedAt     DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  queueItems       QueueItem[]
+  assignedLeads    AssignmentHistory[] @relation("ToStaff")
+  fromAssignments  AssignmentHistory[] @relation("FromStaff")
+
+  @@unique([tenantId, userId])
+  @@index([tenantId, staffType])
+  @@index([tenantId, status])
+  @@index([tenantId, staffType, status])
+  @@map("staff_profiles")
+}
+
+// ============================================
+// QUEUE MANAGEMENT MODULE
+// ============================================
+
+enum QueueType {
+  NewLead
+  RevisitLead
+  ManualAssignment
+}
+
+enum QueueItemStatus {
+  Waiting
+  Assigned
+  InProgress
+  Completed
+  Skipped
+  Reassigned
+}
+
+model Queue {
+  id          String    @id @default(uuid())
+  tenantId    String
+  type        QueueType @unique
+  name        String
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  items QueueItem[]
+
+  @@index([tenantId, type])
+  @@map("queues")
+}
+
+model QueueItem {
+  id         String          @id @default(uuid())
+  tenantId   String
+  queueId     String
+  leadId      String
+  assignedTo String?         // StaffProfile ID
+  status     QueueItemStatus @default(Waiting)
+  priority   Priority        @default(Medium)
+  enteredAt  DateTime        @default(now())
+  assignedAt DateTime?
+  completedAt DateTime?
+  notes      String?
+  metadata   Json?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  queue         Queue         @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  lead          Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignedStaff StaffProfile? @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, queueId])
+  @@index([tenantId, leadId])
+  @@index([tenantId, assignedTo])
+  @@index([tenantId, status])
+  @@map("queue_items")
+}
+
+// ============================================
+// ASSIGNMENT HISTORY MODULE
+// ============================================
+
+enum AssignmentReason {
+  InitialAssignment
+  AutomaticAssignment
+  ManualAssignment
+  Reassignment
+  RevisitAssignment
+}
+
+model AssignmentHistory {
+  id               String           @id @default(uuid())
+  tenantId         String
+  leadId           String
+  fromStaffId      String?
+  toStaffId        String
+  reason           AssignmentReason
+  previousReason    AssignmentReason?
+  reassignmentNote String?
+  assignedBy       String?
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+
+  lead      Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  fromStaff StaffProfile? @relation("FromStaff", fields: [fromStaffId], references: [id], onDelete: SetNull)
+  toStaff   StaffProfile  @relation("ToStaff", fields: [toStaffId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, toStaffId])
+  @@index([tenantId, fromStaffId])
+  @@index([tenantId, createdAt])
+  @@map("assignment_history")
 }

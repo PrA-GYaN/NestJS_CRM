@@ -1,7 +1,12 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { TemplatesService } from '../templates/templates.service';
-import { SendEmailDto, SendSmsDto, TriggerEventMessageDto, MessageStatus } from './dto/messaging.dto';
+import {
+  SendEmailDto,
+  SendSmsDto,
+  TriggerEventMessageDto,
+  MessageStatus,
+} from './dto/messaging.dto';
 import { PaginationDto } from '../../common/dto/common.dto';
 import { TemplateStatus } from '../templates/dto/email-template.dto';
 
@@ -34,10 +39,7 @@ export class MessagingService {
       template.subject,
       sendEmailDto.variables,
     );
-    const body = this.templatesService.substituteVariables(
-      template.body,
-      sendEmailDto.variables,
-    );
+    const body = this.templatesService.substituteVariables(template.body, sendEmailDto.variables);
 
     // Log the message
     const messageLog = await tenantPrisma.messageLog.create({
@@ -85,7 +87,9 @@ export class MessagingService {
         },
       });
 
-      throw new BadRequestException('Failed to send email: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      throw new BadRequestException(
+        'Failed to send email: ' + (error instanceof Error ? error.message : 'Unknown error'),
+      );
     }
   }
 
@@ -107,10 +111,7 @@ export class MessagingService {
     }
 
     // Substitute variables
-    const body = this.templatesService.substituteVariables(
-      template.body,
-      sendSmsDto.variables,
-    );
+    const body = this.templatesService.substituteVariables(template.body, sendSmsDto.variables);
 
     // Log the message
     const messageLog = await tenantPrisma.messageLog.create({
@@ -156,7 +157,9 @@ export class MessagingService {
         },
       });
 
-      throw new BadRequestException('Failed to send SMS: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      throw new BadRequestException(
+        'Failed to send SMS: ' + (error instanceof Error ? error.message : 'Unknown error'),
+      );
     }
   }
 
@@ -303,7 +306,7 @@ export class MessagingService {
     // TODO: Replace with actual email service integration
     console.log(`[EMAIL SIMULATION] To: ${to}, Subject: ${subject}`);
     console.log(`Body: ${body.substring(0, 100)}...`);
-    
+
     // Simulate async operation
     return new Promise((resolve) => setTimeout(resolve, 100));
   }
@@ -312,7 +315,7 @@ export class MessagingService {
     // TODO: Replace with actual SMS service integration
     console.log(`[SMS SIMULATION] To: ${to}`);
     console.log(`Body: ${body}`);
-    
+
     // Simulate async operation
     return new Promise((resolve) => setTimeout(resolve, 100));
   }

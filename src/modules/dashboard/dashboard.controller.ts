@@ -15,13 +15,14 @@ export class DashboardController {
 
   @Get('overview')
   @CanRead('dashboard')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get comprehensive dashboard overview',
-    description: 'Returns aggregated statistics for leads, students, visas, tasks, appointments, payments, and more'
+    description:
+      'Returns aggregated statistics for leads, students, visas, tasks, appointments, payments, and more',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Returns comprehensive dashboard data including all key metrics' 
+  @ApiResponse({
+    status: 200,
+    description: 'Returns comprehensive dashboard data including all key metrics',
   })
   getDashboardOverview(@TenantId() tenantId: string) {
     return this.dashboardService.getDashboardOverview(tenantId);

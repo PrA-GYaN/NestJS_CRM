@@ -30,7 +30,7 @@ export class TenantPrismaFactory {
 
     // Create new connection
     this.logger.log(`Creating new connection for tenant: ${tenantId}`);
-    
+
     const prisma = new TenantPrismaClient({
       datasources: {
         db: {
@@ -43,7 +43,7 @@ export class TenantPrismaFactory {
     try {
       // Test connection
       await prisma.$connect();
-      
+
       // Cache the connection
       this.tenantConnections.set(tenantId, {
         prisma,
@@ -75,7 +75,7 @@ export class TenantPrismaFactory {
    */
   async closeAllConnections(): Promise<void> {
     this.logger.log(`Closing ${this.tenantConnections.size} tenant connections...`);
-    
+
     const promises = Array.from(this.tenantConnections.entries()).map(
       async ([tenantId, connection]) => {
         try {
@@ -84,7 +84,7 @@ export class TenantPrismaFactory {
         } catch (error) {
           this.logger.error(`Error closing connection for tenant ${tenantId}:`, error);
         }
-      }
+      },
     );
 
     await Promise.all(promises);
@@ -101,7 +101,7 @@ export class TenantPrismaFactory {
 
     for (const [tenantId, connection] of this.tenantConnections.entries()) {
       const timeSinceLastAccess = now.getTime() - connection.lastAccessed.getTime();
-      
+
       if (timeSinceLastAccess > this.CONNECTION_TIMEOUT) {
         staleConnections.push(tenantId);
       }
@@ -109,7 +109,7 @@ export class TenantPrismaFactory {
 
     if (staleConnections.length > 0) {
       this.logger.log(`Cleaning up ${staleConnections.length} stale connections`);
-      
+
       for (const tenantId of staleConnections) {
         await this.closeTenantConnection(tenantId);
       }

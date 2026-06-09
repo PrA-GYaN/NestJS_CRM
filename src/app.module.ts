@@ -50,6 +50,8 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { VisaApplicationsModule } from './modules/visa-applications/visa-applications.module';
 import { CourseApplicationsModule } from './modules/course-applications/course-applications.module';
 import { VisaDocumentsModule } from './modules/visa-documents/visa-documents.module';
+import { StaffModule } from './modules/staff/staff.module';
+import { QueueModule } from './modules/queue/queue.module';
 
 @Module({
   imports: [
@@ -91,6 +93,8 @@ import { VisaDocumentsModule } from './modules/visa-documents/visa-documents.mod
     VisaApplicationsModule,
     VisaDocumentsModule,
     CourseApplicationsModule,
+    StaffModule,
+    QueueModule,
   ],
   providers: [
     {

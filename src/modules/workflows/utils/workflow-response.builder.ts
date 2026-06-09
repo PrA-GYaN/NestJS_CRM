@@ -22,15 +22,7 @@ export class WorkflowResponseBuilder {
     code: string = 'SUCCESS',
     statusCode: number = HttpStatus.OK,
   ): WorkflowResponse<T> {
-    return new WorkflowResponse(
-      true,
-      statusCode,
-      message,
-      code,
-      data,
-      undefined,
-      this.traceId,
-    );
+    return new WorkflowResponse(true, statusCode, message, code, data, undefined, this.traceId);
   }
 
   /**
@@ -44,15 +36,7 @@ export class WorkflowResponseBuilder {
     message: string = 'Items retrieved successfully',
     code: string = 'ITEMS_RETRIEVED',
   ): WorkflowListResponse<T> {
-    return new WorkflowListResponse(
-      message,
-      code,
-      items,
-      total,
-      page,
-      limit,
-      this.traceId,
-    );
+    return new WorkflowListResponse(message, code, items, total, page, limit, this.traceId);
   }
 
   /**
@@ -155,14 +139,7 @@ export class WorkflowResponseFactory {
     message: string = 'Items retrieved successfully',
     code: string = 'ITEMS_RETRIEVED',
   ): WorkflowListResponse<T> {
-    return new WorkflowResponseBuilder().successList(
-      items,
-      total,
-      page,
-      limit,
-      message,
-      code,
-    );
+    return new WorkflowResponseBuilder().successList(items, total, page, limit, message, code);
   }
 
   /**

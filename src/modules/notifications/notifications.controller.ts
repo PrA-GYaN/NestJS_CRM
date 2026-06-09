@@ -46,11 +46,7 @@ export class NotificationsController {
     const tenantId = req.tenantId;
     const userId = req.user.id;
 
-    return this.notificationsService.getUserNotifications(
-      tenantId,
-      userId,
-      paginationDto,
-    );
+    return this.notificationsService.getUserNotifications(tenantId, userId, paginationDto);
   }
 
   @Get('unread-count')
@@ -93,7 +89,9 @@ export class NotificationsController {
     res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering for nginx
 
     // Send initial connection message
-    res.write(`data: ${JSON.stringify({ type: 'connected', message: 'SSE connection established' })}\n\n`);
+    res.write(
+      `data: ${JSON.stringify({ type: 'connected', message: 'SSE connection established' })}\n\n`,
+    );
 
     // Keep-alive ping every 30 seconds
     const keepAliveInterval = setInterval(() => {
@@ -101,20 +99,18 @@ export class NotificationsController {
     }, 30000);
 
     // Subscribe to notification stream
-    const subscription = this.notificationsService
-      .getNotificationStream()
-      .subscribe({
-        next: (event) => {
-          // Only send notifications for this tenant and user
-          if (event.tenantId === tenantId && event.userId === userId) {
-            res.write(`data: ${JSON.stringify(event.data)}\n\n`);
-          }
-        },
-        error: (error) => {
-          console.error('SSE stream error:', error);
-          res.end();
-        },
-      });
+    const subscription = this.notificationsService.getNotificationStream().subscribe({
+      next: (event) => {
+        // Only send notifications for this tenant and user
+        if (event.tenantId === tenantId && event.userId === userId) {
+          res.write(`data: ${JSON.stringify(event.data)}\n\n`);
+        }
+      },
+      error: (error) => {
+        console.error('SSE stream error:', error);
+        res.end();
+      },
+    });
 
     // Clean up on client disconnect
     req.on('close', () => {

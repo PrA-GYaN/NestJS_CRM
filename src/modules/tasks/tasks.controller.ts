@@ -1,14 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
@@ -17,7 +7,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
+import {
+  CanCreate,
+  CanRead,
+  CanUpdate,
+  CanDelete,
+} from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Tasks & Workflows')
 @ApiBearerAuth()
@@ -35,7 +30,10 @@ export class TasksController {
 
   @Get()
   @CanRead('tasks')
-  @ApiOperation({ summary: 'Get all tasks with optional filters (status, assignedTo, relatedEntityType, relatedEntityId, search)' })
+  @ApiOperation({
+    summary:
+      'Get all tasks with optional filters (status, assignedTo, relatedEntityType, relatedEntityId, search)',
+  })
   getAllTasks(@TenantId() tenantId: string, @Query() queryDto: TaskQueryDto) {
     return this.tasksService.getAllTasks(tenantId, queryDto);
   }
@@ -87,11 +85,7 @@ export class TasksController {
   @Delete(':id')
   @CanDelete('tasks')
   @ApiOperation({ summary: 'Delete task' })
-  deleteTask(
-    @TenantId() tenantId: string,
-    @CurrentUser() user: any,
-    @Param() params: IdParamDto,
-  ) {
+  deleteTask(@TenantId() tenantId: string, @CurrentUser() user: any, @Param() params: IdParamDto) {
     return this.tasksService.deleteTask(tenantId, params.id, user.id);
   }
 }

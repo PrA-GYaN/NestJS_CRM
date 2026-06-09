@@ -26,9 +26,7 @@ export class WorkingHoursService {
     // Validate times if office is open
     if (createDto.isOpen) {
       if (!createDto.openTime || !createDto.closeTime) {
-        throw new BadRequestException(
-          'openTime and closeTime are required when isOpen is true',
-        );
+        throw new BadRequestException('openTime and closeTime are required when isOpen is true');
       }
 
       if (createDto.openTime >= createDto.closeTime) {
@@ -107,9 +105,7 @@ export class WorkingHoursService {
     });
 
     if (!workingHours) {
-      throw new NotFoundException(
-        `Working hours for ${dayOfWeek} not found`,
-      );
+      throw new NotFoundException(`Working hours for ${dayOfWeek} not found`);
     }
 
     return workingHours;
@@ -138,11 +134,7 @@ export class WorkingHoursService {
   /**
    * Update working hours
    */
-  async update(
-    tenantId: string,
-    id: string,
-    updateDto: UpdateWorkingHoursDto,
-  ) {
+  async update(tenantId: string, id: string, updateDto: UpdateWorkingHoursDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     // Verify working hours exist and belong to tenant
@@ -162,9 +154,7 @@ export class WorkingHoursService {
       const closeTime = updateDto.closeTime || current.closeTime;
 
       if (!openTime || !closeTime) {
-        throw new BadRequestException(
-          'openTime and closeTime are required when isOpen is true',
-        );
+        throw new BadRequestException('openTime and closeTime are required when isOpen is true');
       }
     }
 
@@ -198,9 +188,7 @@ export class WorkingHoursService {
           }
 
           if (scheduleItem.openTime >= scheduleItem.closeTime) {
-            results.errors.push(
-              `${scheduleItem.dayOfWeek}: openTime must be before closeTime`,
-            );
+            results.errors.push(`${scheduleItem.dayOfWeek}: openTime must be before closeTime`);
             continue;
           }
         }
@@ -239,9 +227,7 @@ export class WorkingHoursService {
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        results.errors.push(
-          `${scheduleItem.dayOfWeek}: ${errorMessage}`,
-        );
+        results.errors.push(`${scheduleItem.dayOfWeek}: ${errorMessage}`);
       }
     }
 
@@ -282,8 +268,7 @@ export class WorkingHoursService {
         return { isWithin: false, workingHours };
       }
 
-      const isWithin =
-        time >= workingHours.openTime && time < workingHours.closeTime;
+      const isWithin = time >= workingHours.openTime && time < workingHours.closeTime;
 
       return { isWithin, workingHours };
     } catch (error) {

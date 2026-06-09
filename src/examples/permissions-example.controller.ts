@@ -1,6 +1,6 @@
 /**
  * Example Controller: Demonstrates how to use the permissions system
- * 
+ *
  * This file shows various ways to protect your endpoints with permissions
  */
 
@@ -29,7 +29,6 @@ import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 @Controller('example')
 @UseGuards(JwtAuthGuard, PermissionsGuard) // Apply guards to entire controller
 export class ExampleController {
-
   /**
    * Example 1: Using @RequirePermissions decorator
    * User must have 'leads:read' permission
@@ -57,8 +56,8 @@ export class ExampleController {
   @Put('leads/:id/assign')
   @RequirePermissions('leads:update', 'leads:assign')
   async assignLead(@Param('id') id: string, @Body() data: any) {
-    return { 
-      message: 'Lead assigned (requires both leads:update and leads:assign)' 
+    return {
+      message: 'Lead assigned (requires both leads:update and leads:assign)',
     };
   }
 
@@ -109,8 +108,8 @@ export class ExampleController {
   @Post('applications/:id/approve')
   @RequirePermissions('applications:approve')
   async approveApplication(@Param('id') id: string) {
-    return { 
-      message: `Application ${id} approved (requires applications:approve)` 
+    return {
+      message: `Application ${id} approved (requires applications:approve)`,
     };
   }
 
@@ -121,8 +120,8 @@ export class ExampleController {
   @Post('complex-operation')
   @RequirePermissions('leads:read', 'students:create', 'tasks:create')
   async complexOperation(@Body() data: any) {
-    return { 
-      message: 'Complex operation (requires multiple permissions)' 
+    return {
+      message: 'Complex operation (requires multiple permissions)',
     };
   }
 
@@ -213,15 +212,15 @@ export class ExampleController {
   @Get('reports/generate')
   @RequirePermissions('reports:create', 'reports:export')
   async generateReport() {
-    return { 
-      message: 'Report generated (requires reports:create and reports:export)' 
+    return {
+      message: 'Report generated (requires reports:create and reports:export)',
     };
   }
 }
 
 /**
  * USAGE IN YOUR ACTUAL CONTROLLERS:
- * 
+ *
  * 1. Import the necessary decorators and guards
  * 2. Apply PermissionsGuard to your controller or specific routes
  * 3. Use @RequirePermissions or convenience decorators (@CanCreate, @CanRead, etc.)
@@ -232,7 +231,7 @@ export class ExampleController {
 
 /**
  * TESTING PERMISSIONS:
- * 
+ *
  * 1. Create a user with a specific role
  * 2. Try to access endpoints with that user
  * 3. Check if 403 errors are returned for insufficient permissions

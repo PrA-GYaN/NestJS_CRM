@@ -16,7 +16,14 @@ import {
   Res,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+  ApiQuery,
+  ApiBody,
+} from '@nestjs/swagger';
 import { StudentPanelService } from './student-panel.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { WorkingHoursService } from '../working-hours/working-hours.service';
@@ -77,7 +84,8 @@ export class StudentPanelController {
   @Get('profile')
   @ApiOperation({
     summary: 'Get my student profile',
-    description: 'Returns the full student profile for the authenticated student, including academic records, test scores, and identification documents.',
+    description:
+      'Returns the full student profile for the authenticated student, including academic records, test scores, and identification documents.',
   })
   @ApiResponse({ status: 200, description: 'Student profile retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Missing or invalid student JWT' })
@@ -88,7 +96,8 @@ export class StudentPanelController {
   @Put('profile')
   @ApiOperation({
     summary: 'Update my student profile',
-    description: 'Updates editable profile fields. Students cannot change their email — contact a counsellor for email updates.',
+    description:
+      'Updates editable profile fields. Students cannot change their email — contact a counsellor for email updates.',
   })
   @ApiBody({ type: UpdateStudentProfileDto })
   @ApiResponse({ status: 200, description: 'Profile updated successfully' })
@@ -105,11 +114,12 @@ export class StudentPanelController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Change my password',
-    description: 'Securely changes the student account password. Validates current password, ensures new password matches confirmation, and enforces password strength requirements. New password must be at least 8 characters and contain uppercase, lowercase, and a number or special character.',
+    description:
+      'Securely changes the student account password. Validates current password, ensures new password matches confirmation, and enforces password strength requirements. New password must be at least 8 characters and contain uppercase, lowercase, and a number or special character.',
   })
   @ApiBody({ type: ChangePasswordDto })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Password changed successfully',
     schema: {
       example: {
@@ -119,9 +129,10 @@ export class StudentPanelController {
       },
     },
   })
-  @ApiResponse({ 
-    status: 400, 
-    description: 'Password validation failed - includes cases: passwords do not match, new password same as current, current password incorrect, or weak password format',
+  @ApiResponse({
+    status: 400,
+    description:
+      'Password validation failed - includes cases: passwords do not match, new password same as current, current password incorrect, or weak password format',
     schema: {
       example: {
         statusCode: 400,
@@ -137,7 +148,11 @@ export class StudentPanelController {
     @CurrentUser() user: any,
     @Body() changePasswordDto: ChangePasswordDto,
   ) {
-    return this.studentPanelService.changePassword(tenantId, user.studentId || user.id, changePasswordDto);
+    return this.studentPanelService.changePassword(
+      tenantId,
+      user.studentId || user.id,
+      changePasswordDto,
+    );
   }
 
   // ============================================
@@ -172,9 +187,14 @@ export class StudentPanelController {
   @Get('dashboard/stats')
   @ApiOperation({
     summary: 'Get dashboard overview',
-    description: 'Returns dashboard KPIs plus detailed visa applications (country, visa type, workflow steps, current step), recent activity, and upcoming tasks/appointments.',
+    description:
+      'Returns dashboard KPIs plus detailed visa applications (country, visa type, workflow steps, current step), recent activity, and upcoming tasks/appointments.',
   })
-  @ApiResponse({ status: 200, description: 'Dashboard stats retrieved successfully', type: DashboardStatsResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Dashboard stats retrieved successfully',
+    type: DashboardStatsResponseDto,
+  })
   getDashboardStats(@TenantId() tenantId: string, @CurrentUser() user: any) {
     return this.studentPanelService.getDashboardStats(tenantId, user.studentId || user.id);
   }
@@ -186,7 +206,8 @@ export class StudentPanelController {
   @Get('documents')
   @ApiOperation({
     summary: 'Get my documents',
-    description: 'Lists all documents uploaded by the student. Filter by document type (Passport, Transcript, VisaForm, etc.) or verification status.',
+    description:
+      'Lists all documents uploaded by the student. Filter by document type (Passport, Transcript, VisaForm, etc.) or verification status.',
   })
   @ApiResponse({ status: 200, description: 'Documents retrieved successfully' })
   getMyDocuments(
@@ -200,7 +221,8 @@ export class StudentPanelController {
   @Post('documents')
   @ApiOperation({
     summary: 'Upload a document',
-    description: 'Registers a new document record for the student. The `filePath` should be the URL or path returned by the File Management upload endpoint.',
+    description:
+      'Registers a new document record for the student. The `filePath` should be the URL or path returned by the File Management upload endpoint.',
   })
   @ApiBody({ type: UploadStudentDocumentDto })
   @ApiResponse({ status: 201, description: 'Document uploaded successfully' })
@@ -248,7 +270,8 @@ export class StudentPanelController {
   @Get('applications')
   @ApiOperation({
     summary: 'Get my course applications',
-    description: 'Returns a paginated list of the student\'s course applications. Filter by status (Draft, Submitted, UnderReview, Shortlisted, OfferReceived, Accepted, Rejected, Withdrawn).',
+    description:
+      "Returns a paginated list of the student's course applications. Filter by status (Draft, Submitted, UnderReview, Shortlisted, OfferReceived, Accepted, Rejected, Withdrawn).",
   })
   @ApiResponse({ status: 200, description: 'Applications retrieved successfully' })
   getMyCourseApplications(
@@ -256,13 +279,18 @@ export class StudentPanelController {
     @CurrentUser() user: any,
     @Query() queryDto: StudentApplicationsQueryDto,
   ) {
-    return this.studentPanelService.getMyCourseApplications(tenantId, user.studentId || user.id, queryDto);
+    return this.studentPanelService.getMyCourseApplications(
+      tenantId,
+      user.studentId || user.id,
+      queryDto,
+    );
   }
 
   @Post('applications')
   @ApiOperation({
     summary: 'Create a new course application',
-    description: 'Creates a course application in Draft status. Requires a valid `courseId` and `universityId`. Submit or update the application after creation.',
+    description:
+      'Creates a course application in Draft status. Requires a valid `courseId` and `universityId`. Submit or update the application after creation.',
   })
   @ApiBody({ type: CreateCourseApplicationDto })
   @ApiResponse({ status: 201, description: 'Application created successfully' })
@@ -272,7 +300,11 @@ export class StudentPanelController {
     @CurrentUser() user: any,
     @Body() createDto: CreateCourseApplicationDto,
   ) {
-    return this.studentPanelService.createCourseApplication(tenantId, user.studentId || user.id, createDto);
+    return this.studentPanelService.createCourseApplication(
+      tenantId,
+      user.studentId || user.id,
+      createDto,
+    );
   }
 
   @Get('applications/:id')
@@ -283,7 +315,11 @@ export class StudentPanelController {
     @CurrentUser() user: any,
     @Param() params: IdParamDto,
   ) {
-    return this.studentPanelService.getCourseApplicationById(tenantId, user.studentId || user.id, params.id);
+    return this.studentPanelService.getCourseApplicationById(
+      tenantId,
+      user.studentId || user.id,
+      params.id,
+    );
   }
 
   @Put('applications/:id')
@@ -295,7 +331,12 @@ export class StudentPanelController {
     @Param() params: IdParamDto,
     @Body() updateDto: UpdateCourseApplicationDto,
   ) {
-    return this.studentPanelService.updateCourseApplication(tenantId, user.studentId || user.id, params.id, updateDto);
+    return this.studentPanelService.updateCourseApplication(
+      tenantId,
+      user.studentId || user.id,
+      params.id,
+      updateDto,
+    );
   }
 
   @Post('applications/:id/withdraw')
@@ -307,7 +348,11 @@ export class StudentPanelController {
     @CurrentUser() user: any,
     @Param() params: IdParamDto,
   ) {
-    return this.studentPanelService.withdrawApplication(tenantId, user.studentId || user.id, params.id);
+    return this.studentPanelService.withdrawApplication(
+      tenantId,
+      user.studentId || user.id,
+      params.id,
+    );
   }
 
   // ============================================
@@ -366,7 +411,8 @@ export class StudentPanelController {
   })
   @ApiResponse({
     status: 201,
-    description: 'Appointment request created with status Pending. Staff will review and approve or reject.',
+    description:
+      'Appointment request created with status Pending. Staff will review and approve or reject.',
     schema: {
       example: {
         id: 'uuid',
@@ -383,9 +429,16 @@ export class StudentPanelController {
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'Validation error – invalid duration, time in the past, or outside working hours.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error – invalid duration, time in the past, or outside working hours.',
+  })
   @ApiResponse({ status: 404, description: 'Specified staff member not found.' })
-  @ApiResponse({ status: 409, description: 'Time slot conflict – the staff already has a Booked appointment overlapping this slot.' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'Time slot conflict – the staff already has a Booked appointment overlapping this slot.',
+  })
   async requestAppointment(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,
@@ -402,16 +455,36 @@ export class StudentPanelController {
   @ApiOperation({
     summary: 'Get my appointments',
     description:
-      'Returns the authenticated student\'s appointments. ' +
+      "Returns the authenticated student's appointments. " +
       'Supports filtering by status and date range. ' +
       'Results are paginated and ordered by scheduledAt descending.',
   })
-  @ApiQuery({ name: 'status', required: false, enum: ['Pending', 'Booked', 'Rejected', 'Scheduled', 'Completed', 'Cancelled', 'NoShow'], description: 'Filter by status' })
-  @ApiQuery({ name: 'from', required: false, type: String, description: 'Range start (ISO 8601), e.g. 2026-03-01T00:00:00Z' })
-  @ApiQuery({ name: 'to', required: false, type: String, description: 'Range end (ISO 8601), e.g. 2026-03-31T23:59:59Z' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['Pending', 'Booked', 'Rejected', 'Scheduled', 'Completed', 'Cancelled', 'NoShow'],
+    description: 'Filter by status',
+  })
+  @ApiQuery({
+    name: 'from',
+    required: false,
+    type: String,
+    description: 'Range start (ISO 8601), e.g. 2026-03-01T00:00:00Z',
+  })
+  @ApiQuery({
+    name: 'to',
+    required: false,
+    type: String,
+    description: 'Range end (ISO 8601), e.g. 2026-03-31T23:59:59Z',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
-  @ApiResponse({ status: 200, description: 'Paginated list of the student\'s appointments.' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
+  @ApiResponse({ status: 200, description: "Paginated list of the student's appointments." })
   async getMyAppointments(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,
@@ -428,14 +501,24 @@ export class StudentPanelController {
   @ApiOperation({
     summary: 'Get booked slots for assigned counselor (Student Panel)',
     description:
-      'Returns all **Booked** and **Pending** time slots for the student\'s assigned counselor ' +
+      "Returns all **Booked** and **Pending** time slots for the student's assigned counselor " +
       'within the given date range. ' +
       'Use this endpoint to render a calendar showing unavailable times before submitting an appointment request.\n\n' +
       'If the student has no assigned counselor, the response returns an empty `data` array with `counselorId: null`.\n\n' +
       '**Required query params:** `from` and `to` (ISO 8601 UTC).',
   })
-  @ApiQuery({ name: 'from', required: true, type: String, description: 'Range start (ISO 8601), e.g. 2026-03-01T00:00:00Z' })
-  @ApiQuery({ name: 'to', required: true, type: String, description: 'Range end (ISO 8601), e.g. 2026-03-31T23:59:59Z' })
+  @ApiQuery({
+    name: 'from',
+    required: true,
+    type: String,
+    description: 'Range start (ISO 8601), e.g. 2026-03-01T00:00:00Z',
+  })
+  @ApiQuery({
+    name: 'to',
+    required: true,
+    type: String,
+    description: 'Range end (ISO 8601), e.g. 2026-03-31T23:59:59Z',
+  })
   @ApiResponse({
     status: 200,
     description: 'Booked slots for the assigned counselor.',
@@ -487,8 +570,14 @@ export class StudentPanelController {
     },
   })
   @ApiResponse({ status: 200, description: 'Appointment cancelled. Status is now Cancelled.' })
-  @ApiResponse({ status: 400, description: 'Bad Request – appointment cannot be cancelled from its current status.' })
-  @ApiResponse({ status: 403, description: 'Forbidden – you can only cancel your own appointments.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request – appointment cannot be cancelled from its current status.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – you can only cancel your own appointments.',
+  })
   @ApiResponse({ status: 404, description: 'Appointment not found.' })
   async cancelMyAppointment(
     @TenantId() tenantId: string,
@@ -574,11 +663,22 @@ export class StudentPanelController {
   @Get('tasks')
   @ApiOperation({
     summary: 'Get my tasks',
-    description: 'Returns tasks assigned to the student with pagination. Pass `pending=true` to show only Pending/InProgress tasks. Omit or pass `pending=false` to see all tasks.',
+    description:
+      'Returns tasks assigned to the student with pagination. Pass `pending=true` to show only Pending/InProgress tasks. Omit or pass `pending=false` to see all tasks.',
   })
-  @ApiQuery({ name: 'pending', required: false, type: Boolean, description: 'true = only pending/in-progress; omit or false = all tasks' })
+  @ApiQuery({
+    name: 'pending',
+    required: false,
+    type: Boolean,
+    description: 'true = only pending/in-progress; omit or false = all tasks',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
   @ApiResponse({ status: 200, description: 'Paginated list of tasks' })
   getMyTasks(
     @TenantId() tenantId: string,
@@ -592,7 +692,8 @@ export class StudentPanelController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Mark a task as completed',
-    description: 'Allows the assigned student to mark a task as Completed. Only the student the task is assigned to can perform this action.',
+    description:
+      'Allows the assigned student to mark a task as Completed. Only the student the task is assigned to can perform this action.',
   })
   @ApiResponse({ status: 200, description: 'Task marked as completed' })
   @ApiResponse({ status: 403, description: 'You are not the assigned student for this task' })
@@ -612,23 +713,36 @@ export class StudentPanelController {
   @Get('visa-applications')
   @ApiOperation({
     summary: 'Get my visa applications',
-    description: 'Returns the authenticated student\'s visa applications with pagination.',
+    description: "Returns the authenticated student's visa applications with pagination.",
   })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
-  @ApiResponse({ status: 200, description: 'Paginated list of visa applications retrieved successfully' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of visa applications retrieved successfully',
+  })
   getMyVisaApplications(
     @TenantId() tenantId: string,
     @CurrentUser() user: any,
     @Query() queryDto: VisaApplicationsQueryDto,
   ) {
-    return this.studentPanelService.getMyVisaApplications(tenantId, user.studentId || user.id, queryDto);
+    return this.studentPanelService.getMyVisaApplications(
+      tenantId,
+      user.studentId || user.id,
+      queryDto,
+    );
   }
 
   @Get('visa-applications/detailed')
   @ApiOperation({
     summary: 'Get my visa applications with workflow, course and notes history',
-    description: 'Returns the authenticated student\'s visa applications with workflow details, course application summary, documents, and notes/history JSON.',
+    description:
+      "Returns the authenticated student's visa applications with workflow details, course application summary, documents, and notes/history JSON.",
   })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -659,7 +773,11 @@ export class StudentPanelController {
     @CurrentUser() user: any,
     @Param() params: IdParamDto,
   ) {
-    return this.studentPanelService.getVisaApplicationById(tenantId, user.studentId || user.id, params.id);
+    return this.studentPanelService.getVisaApplicationById(
+      tenantId,
+      user.studentId || user.id,
+      params.id,
+    );
   }
 
   // ============================================
@@ -669,10 +787,15 @@ export class StudentPanelController {
   @Get('payments')
   @ApiOperation({
     summary: 'Get my payments',
-    description: 'Returns the authenticated student\'s payment history with pagination.',
+    description: "Returns the authenticated student's payment history with pagination.",
   })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
   @ApiResponse({ status: 200, description: 'Paginated list of payments retrieved successfully' })
   getMyPayments(
     @TenantId() tenantId: string,
@@ -685,10 +808,16 @@ export class StudentPanelController {
   @Get('services')
   @ApiOperation({
     summary: 'Get all tenant services with my assignment status',
-    description: 'Returns all tenant services with pagination, including which services are assigned to the student.',
+    description:
+      'Returns all tenant services with pagination, including which services are assigned to the student.',
   })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated list of tenant services with assignment status retrieved successfully',
@@ -703,7 +832,9 @@ export class StudentPanelController {
   }
 
   @Get('services/:id')
-  @ApiOperation({ summary: 'Get tenant service by ID with classes, tests, and my assignment status' })
+  @ApiOperation({
+    summary: 'Get tenant service by ID with classes, tests, and my assignment status',
+  })
   @ApiResponse({
     status: 200,
     description: 'Service retrieved successfully',
@@ -715,7 +846,11 @@ export class StudentPanelController {
     @CurrentUser() user: any,
     @Param() params: IdParamDto,
   ) {
-    return this.studentPanelService.getMyServiceById(tenantId, user.studentId || user.id, params.id);
+    return this.studentPanelService.getMyServiceById(
+      tenantId,
+      user.studentId || user.id,
+      params.id,
+    );
   }
 
   @Post('services/:id/request')
@@ -738,7 +873,10 @@ export class StudentPanelController {
 
   @Post('classes/:id/request')
   @ApiOperation({ summary: 'Request a class seat from student panel' })
-  @ApiResponse({ status: 201, description: 'Class booking request created and seat reserved temporarily' })
+  @ApiResponse({
+    status: 201,
+    description: 'Class booking request created and seat reserved temporarily',
+  })
   @ApiResponse({ status: 409, description: 'Class is full or an active request already exists' })
   requestClass(
     @TenantId() tenantId: string,
@@ -756,7 +894,10 @@ export class StudentPanelController {
 
   @Post('tests/:id/request')
   @ApiOperation({ summary: 'Request test participation from student panel' })
-  @ApiResponse({ status: 201, description: 'Test booking request created and seat reserved temporarily' })
+  @ApiResponse({
+    status: 201,
+    description: 'Test booking request created and seat reserved temporarily',
+  })
   @ApiResponse({ status: 409, description: 'Test is full or an active request already exists' })
   requestTest(
     @TenantId() tenantId: string,
@@ -780,7 +921,11 @@ export class StudentPanelController {
     @CurrentUser() user: any,
     @Query() paginationDto: PaginationDto,
   ) {
-    return this.testsService.getStudentTestBookingRequests(tenantId, user.studentId || user.id, paginationDto);
+    return this.testsService.getStudentTestBookingRequests(
+      tenantId,
+      user.studentId || user.id,
+      paginationDto,
+    );
   }
 
   @Post('tests/requests/:requestId/cancel')
@@ -794,7 +939,11 @@ export class StudentPanelController {
     @CurrentUser() user: any,
     @Param('requestId') requestId: string,
   ) {
-    return this.testsService.cancelTestBookingRequest(tenantId, requestId, user.studentId || user.id);
+    return this.testsService.cancelTestBookingRequest(
+      tenantId,
+      requestId,
+      user.studentId || user.id,
+    );
   }
 
   // ============================================
@@ -809,7 +958,11 @@ export class StudentPanelController {
     @CurrentUser() user: any,
     @Query() queryDto: NotificationsQueryDto,
   ) {
-    return this.studentPanelService.getMyNotifications(tenantId, user.studentId || user.id, queryDto);
+    return this.studentPanelService.getMyNotifications(
+      tenantId,
+      user.studentId || user.id,
+      queryDto,
+    );
   }
 
   @Post('notifications/mark-read')
@@ -821,7 +974,11 @@ export class StudentPanelController {
     @CurrentUser() user: any,
     @Body() markReadDto: MarkNotificationReadDto,
   ) {
-    return this.studentPanelService.markNotificationsAsRead(tenantId, user.studentId || user.id, markReadDto);
+    return this.studentPanelService.markNotificationsAsRead(
+      tenantId,
+      user.studentId || user.id,
+      markReadDto,
+    );
   }
 
   @Post('notifications/mark-all-read')
@@ -852,25 +1009,25 @@ export class StudentPanelController {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
 
-    res.write(`data: ${JSON.stringify({ type: 'connected', message: 'SSE connection established' })}\n\n`);
+    res.write(
+      `data: ${JSON.stringify({ type: 'connected', message: 'SSE connection established' })}\n\n`,
+    );
 
     const keepAliveInterval = setInterval(() => {
       res.write(':ping\n\n');
     }, 30000);
 
-    const subscription = this.studentPanelService
-      .getNotificationStream()
-      .subscribe({
-        next: (event: any) => {
-          if (event.tenantId === tenantId && event.studentId === studentId) {
-            res.write(`data: ${JSON.stringify(event.data)}\n\n`);
-          }
-        },
-        error: () => {
-          clearInterval(keepAliveInterval);
-          res.end();
-        },
-      });
+    const subscription = this.studentPanelService.getNotificationStream().subscribe({
+      next: (event: any) => {
+        if (event.tenantId === tenantId && event.studentId === studentId) {
+          res.write(`data: ${JSON.stringify(event.data)}\n\n`);
+        }
+      },
+      error: () => {
+        clearInterval(keepAliveInterval);
+        res.end();
+      },
+    });
 
     req.on('close', () => {
       clearInterval(keepAliveInterval);
@@ -889,8 +1046,18 @@ export class StudentPanelController {
     description: 'Returns available universities with pagination and optional search.',
   })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
-  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by university name' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search by university name',
+  })
   @ApiResponse({ status: 200, description: 'Universities retrieved successfully' })
   getUniversities(
     @TenantId() tenantId: string,
@@ -911,11 +1078,22 @@ export class StudentPanelController {
   @Get('courses')
   @ApiOperation({
     summary: 'Browse courses',
-    description: 'Returns available courses with pagination, optional filtering by university, and search.',
+    description:
+      'Returns available courses with pagination, optional filtering by university, and search.',
   })
-  @ApiQuery({ name: 'universityId', required: false, type: String, description: 'Filter by university ID' })
+  @ApiQuery({
+    name: 'universityId',
+    required: false,
+    type: String,
+    description: 'Filter by university ID',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
   @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by course name' })
   @ApiResponse({ status: 200, description: 'Courses retrieved successfully' })
   getCourses(

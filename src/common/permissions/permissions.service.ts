@@ -38,7 +38,7 @@ export class PermissionsService {
     },
     {
       module: 'students',
-      actions: ['create', 'read', 'update', 'delete', 'export','assign-counselor'],
+      actions: ['create', 'read', 'update', 'delete', 'export', 'assign-counselor'],
       description: 'Student management permissions',
     },
     {
@@ -206,10 +206,7 @@ export class PermissionsService {
    * Create SUPER_ADMIN role with all permissions for a new tenant
    * This is only called during tenant provisioning - SUPER_ADMIN cannot be created manually
    */
-  async createSuperAdminRole(
-    tenantPrisma: TenantPrismaClient,
-    tenantId: string,
-  ): Promise<any> {
+  async createSuperAdminRole(tenantPrisma: TenantPrismaClient, tenantId: string): Promise<any> {
     this.logger.log(`Creating SUPER_ADMIN role for tenant: ${tenantId}`);
 
     // Fetch all permissions
@@ -241,9 +238,7 @@ export class PermissionsService {
       });
     }
 
-    this.logger.log(
-      `✅ SUPER_ADMIN role created with ${allPermissions.length} permissions`,
-    );
+    this.logger.log(`✅ SUPER_ADMIN role created with ${allPermissions.length} permissions`);
 
     return superAdminRole;
   }
@@ -281,9 +276,7 @@ export class PermissionsService {
     }
 
     // Check if user has the specific permission
-    const userPermissions = user.role.rolePermissions.map(
-      (rp: any) => rp.permission.name,
-    );
+    const userPermissions = user.role.rolePermissions.map((rp: any) => rp.permission.name);
 
     return userPermissions.includes(permissionName);
   }
@@ -291,10 +284,7 @@ export class PermissionsService {
   /**
    * Get all permissions for a user
    */
-  async getUserPermissions(
-    tenantPrisma: TenantPrismaClient,
-    userId: string,
-  ): Promise<string[]> {
+  async getUserPermissions(tenantPrisma: TenantPrismaClient, userId: string): Promise<string[]> {
     const user = await tenantPrisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -394,7 +384,9 @@ export class PermissionsService {
       select: { id: true, name: true, module: true },
     });
 
-    const modules = [...new Set(allRequiredPermissions.map((permission: any) => permission.module))];
+    const modules = [
+      ...new Set(allRequiredPermissions.map((permission: any) => permission.module)),
+    ];
     const expandedModules = new Set(modules);
 
     if (expandedModules.has('classes')) {

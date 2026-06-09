@@ -1,7 +1,12 @@
 import { Injectable, BadRequestException as NestBadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/tenant-client';
 import { TenantService } from '../../common/tenant/tenant.service';
-import { CreateWorkflowDto, UpdateWorkflowDto, CreateWorkflowStepDto, UpdateWorkflowStepDto } from './dto';
+import {
+  CreateWorkflowDto,
+  UpdateWorkflowDto,
+  CreateWorkflowStepDto,
+  UpdateWorkflowStepDto,
+} from './dto';
 import { PaginationDto } from '../../common/dto/common.dto';
 import {
   WorkflowNotFoundException,
@@ -21,11 +26,7 @@ export class WorkflowsService {
    * Returns the existing Draft version for a workflow, or creates one.
    * When creating: copies steps from the latest existing version (if any).
    */
-  private async getOrCreateDraftVersion(
-    tenantPrisma: any,
-    tenantId: string,
-    workflowId: string,
-  ) {
+  private async getOrCreateDraftVersion(tenantPrisma: any, tenantId: string, workflowId: string) {
     const existingDraft = await tenantPrisma.visaWorkflowVersion.findFirst({
       where: { workflowId, tenantId, status: 'Draft' },
       orderBy: { versionNumber: 'desc' },
@@ -73,11 +74,7 @@ export class WorkflowsService {
    * Returns steps from the workflow's current active version, falling back to
    * the latest version by version number if no version is currently active.
    */
-  private async getLatestVersionSteps(
-    tenantPrisma: any,
-    tenantId: string,
-    workflowId: string,
-  ) {
+  private async getLatestVersionSteps(tenantPrisma: any, tenantId: string, workflowId: string) {
     const workflow = await tenantPrisma.visaWorkflow.findFirst({
       where: { id: workflowId, tenantId },
       include: {
@@ -137,7 +134,14 @@ export class WorkflowsService {
 
   async getAllWorkflows(tenantId: string, paginationDto: PaginationDto & { isActive?: boolean }) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    const { page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', search, isActive } = paginationDto;
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = 'name',
+      sortOrder = 'asc',
+      search,
+      isActive,
+    } = paginationDto;
     const skip = (page - 1) * limit;
 
     const where: any = {
@@ -284,7 +288,11 @@ export class WorkflowsService {
 
   // ============ Workflow Step Management (version-aware) ============
 
-  async addWorkflowStep(tenantId: string, workflowId: string, createStepDto: CreateWorkflowStepDto) {
+  async addWorkflowStep(
+    tenantId: string,
+    workflowId: string,
+    createStepDto: CreateWorkflowStepDto,
+  ) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     await this.getWorkflowById(tenantId, workflowId);
@@ -296,7 +304,9 @@ export class WorkflowsService {
     });
 
     if (existing) {
-      throw new WorkflowStepOrderConflictException(createStepDto.stepOrder, workflowId, { tenantId });
+      throw new WorkflowStepOrderConflictException(createStepDto.stepOrder, workflowId, {
+        tenantId,
+      });
     }
 
     return tenantPrisma.visaWorkflowVersionStep.create({
@@ -468,11 +478,7 @@ export class WorkflowsService {
     await tenantPrisma.$executeRaw`
       UPDATE visa_workflow_version_steps
       SET step_order = CASE id
-        ${Prisma.join(
-          stepOrders.map(
-            (so) => Prisma.sql`WHEN ${so.id}::uuid THEN ${so.order}`,
-          ),
-        )}
+        ${Prisma.join(stepOrders.map((so) => Prisma.sql`WHEN ${so.id}::uuid THEN ${so.order}`))}
         ELSE step_order
       END
       WHERE id IN (${Prisma.join(stepOrders.map((so) => Prisma.sql`${so.id}::uuid`))})

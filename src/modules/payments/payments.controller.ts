@@ -1,21 +1,5 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Put,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
@@ -86,10 +70,7 @@ export class PaymentsController {
       'Returns paginated payments. Optional query params: studentId, serviceId, status, ' +
       'paymentType, paymentMethod, dueDateFrom, dueDateTo, invoiceNumber, search.',
   })
-  getPayments(
-    @TenantId() tenantId: string,
-    @Query() queryDto: PaymentQueryDto,
-  ) {
+  getPayments(@TenantId() tenantId: string, @Query() queryDto: PaymentQueryDto) {
     return this.paymentsService.getPayments(tenantId, queryDto);
   }
 
@@ -120,10 +101,7 @@ export class PaymentsController {
     description: 'Payment statistics retrieved successfully.',
     type: PaymentStatisticsResponseDto,
   })
-  getPaymentStatistics(
-    @TenantId() tenantId: string,
-    @Query() queryDto: PaymentStatisticsQueryDto,
-  ) {
+  getPaymentStatistics(@TenantId() tenantId: string, @Query() queryDto: PaymentStatisticsQueryDto) {
     return this.paymentsService.getPaymentStatistics(tenantId, queryDto);
   }
 
@@ -139,10 +117,7 @@ export class PaymentsController {
     summary: 'List overdue payments',
     description: 'Returns payments where dueDate < now and status is Pending or PartiallyPaid.',
   })
-  getOverduePayments(
-    @TenantId() tenantId: string,
-    @Query() queryDto: PaymentQueryDto,
-  ) {
+  getOverduePayments(@TenantId() tenantId: string, @Query() queryDto: PaymentQueryDto) {
     return this.paymentsService.getOverduePayments(tenantId, queryDto);
   }
 
@@ -179,10 +154,7 @@ export class PaymentsController {
       'Returns aggregated totals: totalPaid, totalPending, remainingBalance, and payment history.',
   })
   @ApiParam({ name: 'studentId', description: 'Student UUID' })
-  getStudentPaymentSummary(
-    @TenantId() tenantId: string,
-    @Param('studentId') studentId: string,
-  ) {
+  getStudentPaymentSummary(@TenantId() tenantId: string, @Param('studentId') studentId: string) {
     return this.paymentsService.getStudentPaymentSummary(tenantId, studentId);
   }
 
@@ -248,10 +220,7 @@ export class PaymentsController {
   @CanRead('payments')
   @ApiOperation({ summary: 'Get payment by ID' })
   @ApiParam({ name: 'id', description: 'Payment UUID' })
-  getPaymentById(
-    @TenantId() tenantId: string,
-    @Param() params: IdParamDto,
-  ) {
+  getPaymentById(@TenantId() tenantId: string, @Param() params: IdParamDto) {
     return this.paymentsService.getPaymentById(tenantId, params.id);
   }
 

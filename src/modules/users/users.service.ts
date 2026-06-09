@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { AuthService } from '../auth/auth.service';
 import {
@@ -44,7 +49,9 @@ export class UsersService {
 
     // Prevent assigning SUPER_ADMIN role to new users
     if (this.isSuperAdminRole(role.name)) {
-      throw new BadRequestException('SUPER_ADMIN role cannot be manually assigned to users. Only the first user created during tenant provisioning has this role.');
+      throw new BadRequestException(
+        'SUPER_ADMIN role cannot be manually assigned to users. Only the first user created during tenant provisioning has this role.',
+      );
     }
 
     const hashedPassword = await this.authService.hashPassword(createUserDto.password);
@@ -63,7 +70,13 @@ export class UsersService {
 
   async getAllUsers(tenantId: string, paginationDto: PaginationDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      search,
+    } = paginationDto;
     const skip = (page - 1) * limit;
 
     const where = {
@@ -164,18 +177,23 @@ export class UsersService {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     // Prevent manual creation of SUPER_ADMIN role
-    if (createRoleDto.name.toUpperCase() === 'SUPER_ADMIN' || createRoleDto.name.toUpperCase().replace(/[_\s-]/g, '') === 'SUPERADMIN') {
-      throw new BadRequestException('SUPER_ADMIN role cannot be created manually. It is automatically created during tenant provisioning.');
+    if (
+      createRoleDto.name.toUpperCase() === 'SUPER_ADMIN' ||
+      createRoleDto.name.toUpperCase().replace(/[_\s-]/g, '') === 'SUPERADMIN'
+    ) {
+      throw new BadRequestException(
+        'SUPER_ADMIN role cannot be created manually. It is automatically created during tenant provisioning.',
+      );
     }
 
     // Check for case-insensitive duplicate role names
     const existingRole = await tenantPrisma.role.findFirst({
-      where: { 
-        tenantId, 
+      where: {
+        tenantId,
         name: {
           equals: createRoleDto.name,
-          mode: 'insensitive'
-        } 
+          mode: 'insensitive',
+        },
       },
     });
 
@@ -242,18 +260,21 @@ export class UsersService {
     });
 
     // Group by module for better organization
-    const groupedByModule = permissions.reduce((acc, permission) => {
-      if (!acc[permission.module]) {
-        acc[permission.module] = [];
-      }
-      acc[permission.module].push({
-        id: permission.id,
-        name: permission.name,
-        action: permission.action,
-        description: permission.description,
-      });
-      return acc;
-    }, {} as Record<string, any[]>);
+    const groupedByModule = permissions.reduce(
+      (acc, permission) => {
+        if (!acc[permission.module]) {
+          acc[permission.module] = [];
+        }
+        acc[permission.module].push({
+          id: permission.id,
+          name: permission.name,
+          action: permission.action,
+          description: permission.description,
+        });
+        return acc;
+      },
+      {} as Record<string, any[]>,
+    );
 
     return {
       totalPermissions: permissions.length,
@@ -265,11 +286,7 @@ export class UsersService {
   /**
    * Assign permissions to a role (add to existing permissions)
    */
-  async assignPermissionsToRole(
-    tenantId: string,
-    roleId: string,
-    dto: AssignPermissionsToRoleDto,
-  ) {
+  async assignPermissionsToRole(tenantId: string, roleId: string, dto: AssignPermissionsToRoleDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     // Verify role exists
@@ -311,9 +328,7 @@ export class UsersService {
     });
 
     const existingPermissionIds = existingAssociations.map((rp) => rp.permissionId);
-    const newPermissionIds = dto.permissionIds.filter(
-      (id) => !existingPermissionIds.includes(id),
-    );
+    const newPermissionIds = dto.permissionIds.filter((id) => !existingPermissionIds.includes(id));
 
     // Add new associations only
     if (newPermissionIds.length > 0) {
@@ -376,11 +391,7 @@ export class UsersService {
   /**
    * Update permissions for a role (replace all existing permissions)
    */
-  async updateRolePermissions(
-    tenantId: string,
-    roleId: string,
-    dto: UpdateRolePermissionsDto,
-  ) {
+  async updateRolePermissions(tenantId: string, roleId: string, dto: UpdateRolePermissionsDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     // Verify role exists
@@ -506,11 +517,11 @@ export class UsersService {
       }
 
       const existingRole = await tenantPrisma.role.findFirst({
-        where: { 
-          tenantId, 
+        where: {
+          tenantId,
           name: {
             equals: updateRoleDto.name,
-            mode: 'insensitive'
+            mode: 'insensitive',
           },
           id: { not: roleId },
         },

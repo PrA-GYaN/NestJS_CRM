@@ -1,12 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsDateString,
-  IsNumber,
-  Min,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsDateString, IsNumber, Min } from 'class-validator';
 
 export class CreateScholarshipDto {
   @ApiProperty({ description: 'Scholarship title' })

@@ -26,10 +26,7 @@ export class NotificationsService {
   /**
    * Create and send a notification to a user
    */
-  async createNotification(
-    tenantId: string,
-    createNotificationDto: CreateNotificationDto,
-  ) {
+  async createNotification(tenantId: string, createNotificationDto: CreateNotificationDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     const notification = await tenantPrisma.notification.create({
@@ -65,11 +62,7 @@ export class NotificationsService {
   /**
    * Get all notifications for a user with pagination
    */
-  async getUserNotifications(
-    tenantId: string,
-    userId: string,
-    paginationDto: PaginationDto,
-  ) {
+  async getUserNotifications(tenantId: string, userId: string, paginationDto: PaginationDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = paginationDto;
     const skip = (page - 1) * limit;

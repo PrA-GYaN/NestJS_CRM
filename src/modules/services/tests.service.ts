@@ -1,7 +1,14 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { PaginationDto } from '../../common/dto/common.dto';
-import { CreateTestDto, UpdateTestDto, AssignTestToStudentDto, UpdateTestAssignmentDto, CreateTestBookingRequestDto, ApproveRejectTestBookingRequestDto } from './dto/test.dto';
+import {
+  CreateTestDto,
+  UpdateTestDto,
+  AssignTestToStudentDto,
+  UpdateTestAssignmentDto,
+  CreateTestBookingRequestDto,
+  ApproveRejectTestBookingRequestDto,
+} from './dto/test.dto';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaClient as TenantPrismaClient } from '@prisma/tenant-client';
 
@@ -128,9 +135,13 @@ export class TestsService {
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.type !== undefined && { type: dto.type }),
         ...(dto.description !== undefined && { description: dto.description }),
-        ...(dto.scheduledDate !== undefined && { scheduledDate: dto.scheduledDate ? new Date(dto.scheduledDate) : null }),
+        ...(dto.scheduledDate !== undefined && {
+          scheduledDate: dto.scheduledDate ? new Date(dto.scheduledDate) : null,
+        }),
         ...(dto.studentCapacity !== undefined && { studentCapacity: dto.studentCapacity }),
-        ...(dto.reservationDurationMinutes !== undefined && { reservationDurationMinutes: dto.reservationDurationMinutes }),
+        ...(dto.reservationDurationMinutes !== undefined && {
+          reservationDurationMinutes: dto.reservationDurationMinutes,
+        }),
       },
       include: {
         service: { select: { id: true, name: true } },
@@ -244,7 +255,14 @@ export class TestsService {
         orderBy: { [sortBy]: sortOrder },
         include: {
           student: {
-            select: { id: true, firstName: true, lastName: true, email: true, phone: true, status: true },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              status: true,
+            },
           },
         },
       }),
@@ -263,16 +281,25 @@ export class TestsService {
   /**
    * Get all booking requests for a specific test
    */
-  async getTestBookingRequestsByTestId(tenantId: string, testId: string, paginationDto?: PaginationDto) {
+  async getTestBookingRequestsByTestId(
+    tenantId: string,
+    testId: string,
+    paginationDto?: PaginationDto,
+  ) {
     const prisma = await this.tenantService.getTenantPrisma(tenantId);
-    
+
     // Ensure test exists
     await this.getTestById(tenantId, testId);
-    
+
     // Expire pending reservations that have exceeded their time limit
     await this.expirePendingReservations(prisma, tenantId);
-    
-    const { page = 1, limit = 10, sortBy = 'requestedAt', sortOrder = 'desc' } = paginationDto || {};
+
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'requestedAt',
+      sortOrder = 'desc',
+    } = paginationDto || {};
     const skip = (page - 1) * limit;
 
     const [requests, total] = await Promise.all([
@@ -289,7 +316,9 @@ export class TestsService {
         orderBy: { [sortBy]: sortOrder },
         include: {
           test: { select: { id: true, name: true, type: true } },
-          student: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
+          student: {
+            select: { id: true, firstName: true, lastName: true, email: true, phone: true },
+          },
         },
       }),
       prisma.testBookingRequest.count({
@@ -414,7 +443,11 @@ export class TestsService {
   /**
    * Get all test booking requests (for CRM panel)
    */
-  async getTestBookingRequests(tenantId: string, filters?: { testId?: string; status?: string }, paginationDto?: PaginationDto) {
+  async getTestBookingRequests(
+    tenantId: string,
+    filters?: { testId?: string; status?: string },
+    paginationDto?: PaginationDto,
+  ) {
     const prisma = await this.tenantService.getTenantPrisma(tenantId);
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = page ? (page - 1) * limit : 0;
@@ -457,7 +490,11 @@ export class TestsService {
   /**
    * Approve a test booking request
    */
-  async approveTestBookingRequest(tenantId: string, requestId: string, dto: ApproveRejectTestBookingRequestDto) {
+  async approveTestBookingRequest(
+    tenantId: string,
+    requestId: string,
+    dto: ApproveRejectTestBookingRequestDto,
+  ) {
     const prisma = await this.tenantService.getTenantPrisma(tenantId);
 
     return prisma.$transaction(async (tx: any) => {
@@ -526,7 +563,11 @@ export class TestsService {
   /**
    * Reject a test booking request
    */
-  async rejectTestBookingRequest(tenantId: string, requestId: string, dto: ApproveRejectTestBookingRequestDto) {
+  async rejectTestBookingRequest(
+    tenantId: string,
+    requestId: string,
+    dto: ApproveRejectTestBookingRequestDto,
+  ) {
     const prisma = await this.tenantService.getTenantPrisma(tenantId);
 
     const request = await prisma.testBookingRequest.findFirst({
@@ -559,7 +600,11 @@ export class TestsService {
   /**
    * Get student's test booking requests
    */
-  async getStudentTestBookingRequests(tenantId: string, studentId: string, paginationDto?: PaginationDto) {
+  async getStudentTestBookingRequests(
+    tenantId: string,
+    studentId: string,
+    paginationDto?: PaginationDto,
+  ) {
     const prisma = await this.tenantService.getTenantPrisma(tenantId);
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = page ? (page - 1) * limit : 0;

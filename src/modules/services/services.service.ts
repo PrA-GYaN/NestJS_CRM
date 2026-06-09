@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { PaginationDto } from '../../common/dto/common.dto';
 import {
@@ -104,7 +109,11 @@ export class ServicesService {
     });
   }
 
-  async getServiceBookingRequests(tenantId: string, serviceId: string, paginationDto: PaginationDto) {
+  async getServiceBookingRequests(
+    tenantId: string,
+    serviceId: string,
+    paginationDto: PaginationDto,
+  ) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const { page = 1, limit = 10, sortBy = 'requestedAt', sortOrder = 'desc' } = paginationDto;
     const skip = (page - 1) * limit;
@@ -399,7 +408,7 @@ export class ServicesService {
    */
   async getServiceById(tenantId: string, id: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    
+
     const service = await tenantPrisma.service.findFirst({
       where: { id, tenantId },
       include: {
@@ -468,14 +477,16 @@ export class ServicesService {
    */
   async updateService(tenantId: string, id: string, updateServiceDto: UpdateServiceDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    
+
     // Verify service exists
     await this.getServiceById(tenantId, id);
 
     const updateData: any = {};
     if (updateServiceDto.name !== undefined) updateData.name = updateServiceDto.name;
-    if (updateServiceDto.description !== undefined) updateData.description = updateServiceDto.description;
-    if (updateServiceDto.price !== undefined) updateData.price = new Decimal(updateServiceDto.price);
+    if (updateServiceDto.description !== undefined)
+      updateData.description = updateServiceDto.description;
+    if (updateServiceDto.price !== undefined)
+      updateData.price = new Decimal(updateServiceDto.price);
 
     return tenantPrisma.service.update({
       where: { id },
@@ -508,7 +519,7 @@ export class ServicesService {
    */
   async deleteService(tenantId: string, id: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    
+
     // Verify service exists
     await this.getServiceById(tenantId, id);
 
@@ -623,8 +634,8 @@ export class ServicesService {
       select: { studentId: true },
     });
 
-    const existingStudentIds = new Set(existingAssignments.map(a => a.studentId));
-    const newStudentIds = assignMultipleDto.studentIds.filter(id => !existingStudentIds.has(id));
+    const existingStudentIds = new Set(existingAssignments.map((a) => a.studentId));
+    const newStudentIds = assignMultipleDto.studentIds.filter((id) => !existingStudentIds.has(id));
 
     if (newStudentIds.length === 0) {
       throw new ConflictException('All students are already assigned to this service');
@@ -632,7 +643,7 @@ export class ServicesService {
 
     // Create assignments for new students
     const assignments = await tenantPrisma.studentService.createMany({
-      data: newStudentIds.map(studentId => ({
+      data: newStudentIds.map((studentId) => ({
         tenantId,
         studentId,
         serviceId,

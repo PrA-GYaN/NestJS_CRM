@@ -9,7 +9,8 @@ import * as crypto from 'crypto';
 @Injectable()
 export class TenantService {
   private readonly logger = new Logger(TenantService.name);
-  private readonly ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'default-key-change-in-production-32c';
+  private readonly ENCRYPTION_KEY =
+    process.env.ENCRYPTION_KEY || 'default-key-change-in-production-32c';
   private readonly ENCRYPTION_ALGORITHM = 'aes-256-cbc';
 
   constructor(
@@ -82,13 +83,13 @@ export class TenantService {
     try {
       // Create database and run migrations
       await this.tenantMigration.provisionTenantDatabase(dbConfig);
-      
+
       // Seed permissions only (roles and users will be created in transaction)
       this.logger.log(`Seeding permissions for tenant: ${tenantId}`);
       const tenantPrisma = await this.getTenantPrisma(tenantId);
-      
+
       await this.permissionsService.seedPermissions(tenantPrisma, tenantId);
-      
+
       this.logger.log(`✅ Tenant database provisioned: ${tenantId}`);
     } catch (error) {
       this.logger.error(`Failed to provision tenant ${tenantId}:`, error);
@@ -124,10 +125,10 @@ export class TenantService {
     try {
       // Close tenant connection if open
       await this.closeTenantConnection(tenantId);
-      
+
       // Drop the database
       await this.tenantMigration.dropTenantDatabase(dbConfig);
-      
+
       this.logger.warn(`✅ Database dropped for tenant: ${tenantId}`);
     } catch (error) {
       this.logger.error(`Failed to drop database for tenant ${tenantId}:`, error);
@@ -142,10 +143,10 @@ export class TenantService {
     const key = Buffer.from(this.ENCRYPTION_KEY.padEnd(32, '0').substring(0, 32));
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv(this.ENCRYPTION_ALGORITHM, key, iv);
-    
+
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
-    
+
     return iv.toString('hex') + ':' + encrypted;
   }
 
@@ -157,12 +158,12 @@ export class TenantService {
     const parts = encryptedText.split(':');
     const iv = Buffer.from(parts[0], 'hex');
     const encrypted = parts[1];
-    
+
     const decipher = crypto.createDecipheriv(this.ENCRYPTION_ALGORITHM, key, iv);
-    
+
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
-    
+
     return decrypted;
   }
 

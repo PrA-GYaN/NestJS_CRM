@@ -25,7 +25,12 @@ import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
-import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
+import {
+  CanCreate,
+  CanRead,
+  CanUpdate,
+  CanDelete,
+} from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Services')
 @ApiBearerAuth()
@@ -122,10 +127,7 @@ export class TestsController {
   @ApiParam({ name: 'assignmentId', description: 'Test Assignment ID' })
   @ApiResponse({ status: 200, description: 'Test assignment deleted successfully' })
   @ApiResponse({ status: 404, description: 'Test assignment not found' })
-  deleteTestAssignment(
-    @TenantId() tenantId: string,
-    @Param('assignmentId') assignmentId: string,
-  ) {
+  deleteTestAssignment(@TenantId() tenantId: string, @Param('assignmentId') assignmentId: string) {
     return this.testsService.deleteTestAssignment(tenantId, assignmentId);
   }
 
@@ -175,7 +177,10 @@ export class TestsController {
   @ApiParam({ name: 'requestId', description: 'Test Booking Request ID' })
   @ApiResponse({ status: 200, description: 'Test booking request approved successfully' })
   @ApiResponse({ status: 404, description: 'Test booking request not found' })
-  @ApiResponse({ status: 409, description: 'Request is not in Pending status or no seats available' })
+  @ApiResponse({
+    status: 409,
+    description: 'Request is not in Pending status or no seats available',
+  })
   approveTestBookingRequest(
     @TenantId() tenantId: string,
     @Param('requestId') requestId: string,

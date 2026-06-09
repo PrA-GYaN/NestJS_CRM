@@ -47,11 +47,10 @@ export class WorkflowVersioningService {
 
     // Validate steps
     if (!createDto.steps || createDto.steps.length === 0) {
-      throw new WorkflowMinimumStepsException(
-        createDto.steps?.length || 0,
-        1,
-        { tenantId, workflowId: createDto.workflowId },
-      );
+      throw new WorkflowMinimumStepsException(createDto.steps?.length || 0, 1, {
+        tenantId,
+        workflowId: createDto.workflowId,
+      });
     }
 
     // Sort steps by stepOrder
@@ -61,10 +60,10 @@ export class WorkflowVersioningService {
     const stepOrders = sortedSteps.map((s) => s.stepOrder);
     for (let i = 0; i < sortedSteps.length; i++) {
       if (sortedSteps[i].stepOrder !== i + 1) {
-        throw new WorkflowStepOrderSequenceException(
-          stepOrders,
-          { tenantId, workflowId: createDto.workflowId },
-        );
+        throw new WorkflowStepOrderSequenceException(stepOrders, {
+          tenantId,
+          workflowId: createDto.workflowId,
+        });
       }
     }
 

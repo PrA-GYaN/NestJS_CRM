@@ -5,9 +5,7 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class LeadsService {
-  constructor(
-    private tenantService: TenantService,
-  ) {}
+  constructor(private tenantService: TenantService) {}
 
   async createLead(tenantId: string, createLeadDto: CreateLeadDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
@@ -31,7 +29,17 @@ export class LeadsService {
 
   async getAllLeads(tenantId: string, queryDto: LeadsQueryDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search, status, priority, assignedUserId, source } = queryDto;
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      search,
+      status,
+      priority,
+      assignedUserId,
+      source,
+    } = queryDto;
     const skip = (page - 1) * limit;
 
     const where: any = {
@@ -157,8 +165,8 @@ export class LeadsService {
       throw new BadRequestException('Only qualified leads can be converted to students');
     }
     // Auto-generate password as firstName@lastName (system-managed)
-        const rawPassword = `${lead.firstName}@${lead.lastName}`;
-        const hashedPassword = await bcrypt.hash(rawPassword, 10);
+    const rawPassword = `${lead.firstName}@${lead.lastName}`;
+    const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
     // Start transaction
     const result = await tenantPrisma.$transaction(async (tx: any) => {

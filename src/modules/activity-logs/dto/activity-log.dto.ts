@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsObject, IsOptional, IsString, IsUUID, IsInt, IsPositive } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+  IsInt,
+  IsPositive,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum ActivityAction {
@@ -13,6 +22,7 @@ export enum ActivityAction {
   Login = 'Login',
   Logout = 'Logout',
   AccessDenied = 'AccessDenied',
+  Call = 'Call',
 }
 
 export class CreateActivityLogDto {

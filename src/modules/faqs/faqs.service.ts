@@ -125,14 +125,17 @@ export class FaqsService {
     });
 
     // Group by category
-    const grouped = faqs.reduce((acc, faq) => {
-      const category = faq.category || 'General';
-      if (!acc[category]) {
-        acc[category] = [];
-      }
-      acc[category].push(faq);
-      return acc;
-    }, {} as Record<string, any[]>);
+    const grouped = faqs.reduce(
+      (acc, faq) => {
+        const category = faq.category || 'General';
+        if (!acc[category]) {
+          acc[category] = [];
+        }
+        acc[category].push(faq);
+        return acc;
+      },
+      {} as Record<string, any[]>,
+    );
 
     return grouped;
   }

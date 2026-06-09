@@ -191,11 +191,7 @@ export class AppointmentsController {
     @CurrentUser() user: any,
     @Body() createDto: CreateAppointmentCrmDto,
   ) {
-    return this.appointmentsService.createAppointmentByCrm(
-      tenantId,
-      createDto,
-      user.id,
-    );
+    return this.appointmentsService.createAppointmentByCrm(tenantId, createDto, user.id);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -215,23 +211,55 @@ export class AppointmentsController {
       'Supports filtering by status, date range, staff member, and student. ' +
       'Results are ordered by `scheduledAt` descending by default.',
   })
-  @ApiQuery({ name: 'status', required: false, enum: ['Pending', 'Booked', 'Rejected', 'Scheduled', 'Completed', 'Cancelled', 'NoShow'], description: 'Filter by appointment status' })
-  @ApiQuery({ name: 'staffId', required: false, type: String, description: 'Filter by assigned staff member UUID' })
-  @ApiQuery({ name: 'studentId', required: false, type: String, description: 'Filter by student UUID' })
-  @ApiQuery({ name: 'date', required: false, type: String, description: 'Exact date filter (YYYY-MM-DD) – takes precedence over from/to' })
-  @ApiQuery({ name: 'from', required: false, type: String, description: 'Range start (ISO 8601). Example: 2026-03-01T00:00:00Z' })
-  @ApiQuery({ name: 'to', required: false, type: String, description: 'Range end (ISO 8601). Example: 2026-03-31T23:59:59Z' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['Pending', 'Booked', 'Rejected', 'Scheduled', 'Completed', 'Cancelled', 'NoShow'],
+    description: 'Filter by appointment status',
+  })
+  @ApiQuery({
+    name: 'staffId',
+    required: false,
+    type: String,
+    description: 'Filter by assigned staff member UUID',
+  })
+  @ApiQuery({
+    name: 'studentId',
+    required: false,
+    type: String,
+    description: 'Filter by student UUID',
+  })
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    type: String,
+    description: 'Exact date filter (YYYY-MM-DD) – takes precedence over from/to',
+  })
+  @ApiQuery({
+    name: 'from',
+    required: false,
+    type: String,
+    description: 'Range start (ISO 8601). Example: 2026-03-01T00:00:00Z',
+  })
+  @ApiQuery({
+    name: 'to',
+    required: false,
+    type: String,
+    description: 'Range end (ISO 8601). Example: 2026-03-31T23:59:59Z',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 10)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated appointment list.',
     type: PaginatedAppointmentsResponseDto,
   })
-  getAllAppointments(
-    @TenantId() tenantId: string,
-    @Query() queryDto: AppointmentsQueryDto,
-  ) {
+  getAllAppointments(@TenantId() tenantId: string, @Query() queryDto: AppointmentsQueryDto) {
     return this.appointmentsService.findAll(tenantId, queryDto);
   }
 
@@ -248,7 +276,12 @@ export class AppointmentsController {
       'Staff should regularly monitor this queue and process each request using the approve or reject endpoints. ' +
       'Supports the same filter and pagination parameters as the main list endpoint.',
   })
-  @ApiQuery({ name: 'staffId', required: false, type: String, description: 'Filter pending requests for a specific staff member' })
+  @ApiQuery({
+    name: 'staffId',
+    required: false,
+    type: String,
+    description: 'Filter pending requests for a specific staff member',
+  })
   @ApiQuery({ name: 'from', required: false, type: String, description: 'Range start (ISO 8601)' })
   @ApiQuery({ name: 'to', required: false, type: String, description: 'Range end (ISO 8601)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
@@ -258,10 +291,7 @@ export class AppointmentsController {
     description: 'Pending appointments retrieved successfully.',
     type: PaginatedAppointmentsResponseDto,
   })
-  getPendingAppointments(
-    @TenantId() tenantId: string,
-    @Query() queryDto: AppointmentsQueryDto,
-  ) {
+  getPendingAppointments(@TenantId() tenantId: string, @Query() queryDto: AppointmentsQueryDto) {
     return this.appointmentsService.getPendingAppointments(tenantId, queryDto);
   }
 
@@ -274,12 +304,21 @@ export class AppointmentsController {
     summary: 'Get appointments for a specific staff member',
     description:
       'Returns a paginated list of all appointments (any status) for the given staff member. ' +
-      'Useful for rendering a staff member\'s calendar or schedule. ' +
+      "Useful for rendering a staff member's calendar or schedule. " +
       'Combine with the `status`, `date`, `from`, and `to` query parameters to narrow results.',
   })
   @ApiParam({ name: 'staffId', description: 'UUID of the staff member', type: String })
-  @ApiQuery({ name: 'status', required: false, enum: ['Pending', 'Booked', 'Rejected', 'Completed', 'Cancelled', 'NoShow'] })
-  @ApiQuery({ name: 'date', required: false, type: String, description: 'Single-day filter (YYYY-MM-DD)' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['Pending', 'Booked', 'Rejected', 'Completed', 'Cancelled', 'NoShow'],
+  })
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    type: String,
+    description: 'Single-day filter (YYYY-MM-DD)',
+  })
   @ApiQuery({ name: 'from', required: false, type: String })
   @ApiQuery({ name: 'to', required: false, type: String })
   @ApiQuery({ name: 'page', required: false, type: Number })
@@ -295,11 +334,7 @@ export class AppointmentsController {
     @Param('staffId') staffId: string,
     @Query() queryDto: AppointmentsQueryDto,
   ) {
-    return this.appointmentsService.getStaffAppointments(
-      tenantId,
-      staffId,
-      queryDto,
-    );
+    return this.appointmentsService.getStaffAppointments(tenantId, staffId, queryDto);
   }
 
   /**
@@ -310,7 +345,7 @@ export class AppointmentsController {
   @ApiOperation({
     summary: 'Get dashboard KPIs for a staff member',
     description:
-      'Returns aggregated statistics for a staff member\'s appointment dashboard:\n' +
+      "Returns aggregated statistics for a staff member's appointment dashboard:\n" +
       '- `pendingApprovals` – number of student requests awaiting action\n' +
       '- `todayAppointments` – Booked appointments scheduled for today\n' +
       '- `upcomingWeekAppointments` – Booked appointments in the next 7 days\n' +
@@ -324,10 +359,7 @@ export class AppointmentsController {
     description: 'Dashboard stats retrieved successfully.',
     type: StaffDashboardStatsDto,
   })
-  getStaffDashboardStats(
-    @TenantId() tenantId: string,
-    @Param('staffId') staffId: string,
-  ) {
+  getStaffDashboardStats(@TenantId() tenantId: string, @Param('staffId') staffId: string) {
     return this.appointmentsService.getStaffDashboardStats(tenantId, staffId);
   }
 
@@ -368,7 +400,7 @@ export class AppointmentsController {
     summary: 'Check availability for a time slot',
     description:
       'Validates whether the requested time slot is:\n' +
-      '1. Within the tenant\'s configured working hours for that day.\n' +
+      "1. Within the tenant's configured working hours for that day.\n" +
       '2. Free of conflicting Booked appointments for the specified staff member.\n\n' +
       'Returns `available: true` if both conditions are met. ' +
       'If unavailable, the response includes a `reason` (`OUTSIDE_WORKING_HOURS` | `STAFF_CONFLICT`) ' +
@@ -426,10 +458,7 @@ export class AppointmentsController {
       },
     },
   })
-  checkAvailability(
-    @TenantId() tenantId: string,
-    @Body() checkDto: CheckAvailabilityDto,
-  ) {
+  checkAvailability(@TenantId() tenantId: string, @Body() checkDto: CheckAvailabilityDto) {
     return this.appointmentsService.checkAvailability(tenantId, checkDto);
   }
 
@@ -476,10 +505,7 @@ export class AppointmentsController {
       ],
     },
   })
-  getBookedSlots(
-    @TenantId() tenantId: string,
-    @Body() queryDto: BookedSlotsQueryDto,
-  ) {
+  getBookedSlots(@TenantId() tenantId: string, @Body() queryDto: BookedSlotsQueryDto) {
     return this.appointmentsService.getBookedSlots(tenantId, queryDto);
   }
 
@@ -526,7 +552,9 @@ export class AppointmentsController {
   @ApiResponse({
     status: 400,
     description: 'Bad Request – appointment is not in Pending status.',
-    schema: { example: { statusCode: 400, message: 'Cannot approve appointment with status: Booked' } },
+    schema: {
+      example: { statusCode: 400, message: 'Cannot approve appointment with status: Booked' },
+    },
   })
   @ApiResponse({
     status: 409,
@@ -547,12 +575,7 @@ export class AppointmentsController {
     @Param() params: IdParamDto,
     @Body() approveDto: ApproveAppointmentDto,
   ) {
-    return this.appointmentsService.approve(
-      tenantId,
-      params.id,
-      approveDto,
-      user.id,
-    );
+    return this.appointmentsService.approve(tenantId, params.id, approveDto, user.id);
   }
 
   /**
@@ -594,12 +617,7 @@ export class AppointmentsController {
     @Param() params: IdParamDto,
     @Body() rejectDto: RejectAppointmentDto,
   ) {
-    return this.appointmentsService.reject(
-      tenantId,
-      params.id,
-      rejectDto,
-      user.id,
-    );
+    return this.appointmentsService.reject(tenantId, params.id, rejectDto, user.id);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -643,7 +661,10 @@ export class AppointmentsController {
     status: 400,
     description: 'Bad Request – appointment is not Booked, or scheduled time has not yet passed.',
   })
-  @ApiResponse({ status: 403, description: 'Forbidden – only the assigned staff member can complete this appointment.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – only the assigned staff member can complete this appointment.',
+  })
   @ApiResponse({ status: 404, description: 'Appointment not found.' })
   completeAppointment(
     @TenantId() tenantId: string,
@@ -651,12 +672,7 @@ export class AppointmentsController {
     @Param() params: IdParamDto,
     @Body() completeDto: CompleteAppointmentDto,
   ) {
-    return this.appointmentsService.complete(
-      tenantId,
-      params.id,
-      completeDto,
-      user.id,
-    );
+    return this.appointmentsService.complete(tenantId, params.id, completeDto, user.id);
   }
 
   /**
@@ -684,7 +700,10 @@ export class AppointmentsController {
     status: 400,
     description: 'Bad Request – appointment is not Booked, or scheduled time has not yet passed.',
   })
-  @ApiResponse({ status: 403, description: 'Forbidden – only the assigned staff member can perform this action.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – only the assigned staff member can perform this action.',
+  })
   @ApiResponse({ status: 404, description: 'Appointment not found.' })
   markAppointmentNoShow(
     @TenantId() tenantId: string,
@@ -745,13 +764,7 @@ export class AppointmentsController {
     @Param() params: IdParamDto,
     @Body() cancelDto: CancelAppointmentDto,
   ) {
-    return this.appointmentsService.cancel(
-      tenantId,
-      params.id,
-      cancelDto,
-      user.id,
-      'staff',
-    );
+    return this.appointmentsService.cancel(tenantId, params.id, cancelDto, user.id, 'staff');
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -794,12 +807,7 @@ export class AppointmentsController {
     @Param() params: IdParamDto,
     @Body() data: any,
   ) {
-    return this.appointmentsService.updateAppointment(
-      tenantId,
-      params.id,
-      data,
-      user.id,
-    );
+    return this.appointmentsService.updateAppointment(tenantId, params.id, data, user.id);
   }
 
   /**
@@ -818,12 +826,6 @@ export class AppointmentsController {
     @CurrentUser() user: any,
     @Param() params: IdParamDto,
   ) {
-    return this.appointmentsService.deleteAppointment(
-      tenantId,
-      params.id,
-      user.id,
-    );
+    return this.appointmentsService.deleteAppointment(tenantId, params.id, user.id);
   }
 }
-
-

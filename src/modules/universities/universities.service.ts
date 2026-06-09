@@ -8,7 +8,7 @@ export class UniversitiesService {
 
   async createUniversity(tenantId: string, data: any) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    
+
     // Verify country exists if countryId is provided
     if (data.countryId) {
       const country = await tenantPrisma.country.findFirst({
@@ -43,9 +43,7 @@ export class UniversitiesService {
     const where = {
       tenantId,
       ...(search && {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' as any } },
-        ],
+        OR: [{ name: { contains: search, mode: 'insensitive' as any } }],
       }),
     };
 
@@ -96,9 +94,9 @@ export class UniversitiesService {
 
   async updateUniversity(tenantId: string, id: string, data: any) {
     await this.getUniversityById(tenantId, id);
-    
+
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    
+
     // Verify country exists if countryId is being updated
     if (data.countryId) {
       const country = await tenantPrisma.country.findFirst({
@@ -162,12 +160,12 @@ export class UniversitiesService {
 
   async updateCourse(tenantId: string, id: string, data: any) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    
+
     // Verify course exists and belongs to tenant
     const course = await tenantPrisma.course.findFirst({
       where: { id, tenantId },
     });
-    
+
     if (!course) {
       throw new NotFoundException('Course not found');
     }

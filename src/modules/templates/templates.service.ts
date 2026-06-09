@@ -54,7 +54,13 @@ export class TemplatesService {
 
   async getAllEmailTemplates(tenantId: string, paginationDto: PaginationDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      search,
+    } = paginationDto;
     const skip = (page - 1) * limit;
 
     const where = {
@@ -221,7 +227,13 @@ export class TemplatesService {
 
   async getAllSmsTemplates(tenantId: string, paginationDto: PaginationDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      search,
+    } = paginationDto;
     const skip = (page - 1) * limit;
 
     const where = {
@@ -352,11 +364,11 @@ export class TemplatesService {
     // Extract all variables from content ({{variableName}})
     const variableRegex = /\{\{(\w+)\}\}/g;
     const matches = content.matchAll(variableRegex);
-    const usedVariables = Array.from(matches, m => m[1]);
+    const usedVariables = Array.from(matches, (m) => m[1]);
 
     if (declaredVariables && declaredVariables.length > 0) {
       // Check if all used variables are declared
-      const undeclaredVars = usedVariables.filter(v => !declaredVariables.includes(v));
+      const undeclaredVars = usedVariables.filter((v) => !declaredVariables.includes(v));
       if (undeclaredVars.length > 0) {
         throw new BadRequestException(
           `Template uses undeclared variables: ${undeclaredVars.join(', ')}`,

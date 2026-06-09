@@ -11,7 +11,14 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiParam, ApiHeader } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+  ApiParam,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { WorkflowVersioningService } from './workflow-versioning.service';
 import { WorkflowMigrationService } from './workflow-migration.service';
 import { WorkflowAnalyticsService } from './workflow-analytics.service';
@@ -30,7 +37,12 @@ import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
-import { CanCreate, CanRead, CanUpdate, CanDelete } from '../../common/decorators/permissions.decorator';
+import {
+  CanCreate,
+  CanRead,
+  CanUpdate,
+  CanDelete,
+} from '../../common/decorators/permissions.decorator';
 import { WorkflowResponseFactory } from './utils/workflow-response.builder';
 import {
   WorkflowVersionOperationCode,
@@ -99,10 +111,7 @@ export class WorkflowVersioningController {
   @ApiParam({ name: 'versionId', description: 'Workflow Version ID' })
   @ApiResponse({ status: 200, description: 'Returns version details with steps' })
   @ApiResponse({ status: 404, description: 'Version not found' })
-  async getWorkflowVersion(
-    @TenantId() tenantId: string,
-    @Param('versionId') versionId: string,
-  ) {
+  async getWorkflowVersion(@TenantId() tenantId: string, @Param('versionId') versionId: string) {
     const version = await this.versioningService.getWorkflowVersion(tenantId, versionId);
     return WorkflowResponseFactory.success(
       version,
@@ -207,10 +216,7 @@ export class WorkflowVersioningController {
   @ApiParam({ name: 'versionId', description: 'Workflow Version ID' })
   @ApiResponse({ status: 200, description: 'Returns version changelog' })
   @ApiResponse({ status: 404, description: 'Version not found' })
-  async getVersionHistory(
-    @TenantId() tenantId: string,
-    @Param('versionId') versionId: string,
-  ) {
+  async getVersionHistory(@TenantId() tenantId: string, @Param('versionId') versionId: string) {
     const history = await this.versioningService.getVersionHistory(tenantId, versionId);
     return WorkflowResponseFactory.success(
       history,
@@ -332,8 +338,7 @@ export class WorkflowVersioningController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Forced migration of all applications',
-    description:
-      'Force migrate all applications to a new version without validation (admin only)',
+    description: 'Force migrate all applications to a new version without validation (admin only)',
   })
   @ApiResponse({ status: 200, description: 'Forced migration executed' })
   @ApiResponse({ status: 404, description: 'One or both versions not found' })
@@ -461,7 +466,8 @@ export class WorkflowVersioningController {
   @CanRead('workflows')
   @ApiOperation({
     summary: 'Identify safe-to-delete versions',
-    description: 'Get list of workflow versions that have no applications and can be safely deleted',
+    description:
+      'Get list of workflow versions that have no applications and can be safely deleted',
   })
   @ApiResponse({ status: 200, description: 'Returns list of deletable versions' })
   async getSafeToDeleteVersions(@TenantId() tenantId: string) {

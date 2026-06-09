@@ -34,21 +34,13 @@ export class AppointmentsService {
     private notificationsService: NotificationsService,
     private activityLogsService: ActivityLogsService,
     private workingHoursService: WorkingHoursService,
-  ) { }
+  ) {}
 
   /**
    * Convert date to day of week enum
    */
   private getDayOfWeek(date: Date): DayOfWeekEnum {
-    const days = [
-      'Sunday',
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-    ];
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     return days[date.getUTCDay()] as DayOfWeekEnum;
   }
 
@@ -104,12 +96,11 @@ export class AppointmentsService {
     const timeOfDay = this.getTimeOfDay(scheduledAt);
 
     // Check working hours
-    const { isWithin, workingHours } =
-      await this.workingHoursService.isWithinWorkingHours(
-        tenantId,
-        dayOfWeek,
-        timeOfDay,
-      );
+    const { isWithin, workingHours } = await this.workingHoursService.isWithinWorkingHours(
+      tenantId,
+      dayOfWeek,
+      timeOfDay,
+    );
 
     if (!isWithin || !workingHours?.isOpen) {
       throw new BadRequestException(
@@ -161,10 +152,7 @@ export class AppointmentsService {
         },
         {
           // New appointment is completely within existing appointment
-          AND: [
-            { scheduledAt: { lte: scheduledAt } },
-            { endTime: { gte: endTime } },
-          ],
+          AND: [{ scheduledAt: { lte: scheduledAt } }, { endTime: { gte: endTime } }],
         },
       ],
     };
@@ -196,16 +184,12 @@ export class AppointmentsService {
 
     // Validate duration
     if (createDto.duration < 15 || createDto.duration > 120) {
-      throw new BadRequestException(
-        'Appointment duration must be between 15 and 120 minutes',
-      );
+      throw new BadRequestException('Appointment duration must be between 15 and 120 minutes');
     }
 
     // Validate duration is in 15-minute increments
     if (createDto.duration % 15 !== 0) {
-      throw new BadRequestException(
-        'Appointment duration must be in 15-minute increments',
-      );
+      throw new BadRequestException('Appointment duration must be in 15-minute increments');
     }
 
     const scheduledAt = new Date(createDto.scheduledAt);
@@ -216,9 +200,7 @@ export class AppointmentsService {
     const oneHourFromNow = this.addMinutes(now, 60);
 
     if (scheduledAt < oneHourFromNow) {
-      throw new BadRequestException(
-        'Appointments must be scheduled at least 1 hour in advance',
-      );
+      throw new BadRequestException('Appointments must be scheduled at least 1 hour in advance');
     }
 
     // Determine staff assignment
@@ -231,9 +213,7 @@ export class AppointmentsService {
       });
 
       if (!student?.assignedCounselorId) {
-        throw new BadRequestException(
-          'Request Admin to assign you a counselor',
-        );
+        throw new BadRequestException('Request Admin to assign you a counselor');
       }
 
       // Verify the counselor is still active
@@ -246,9 +226,7 @@ export class AppointmentsService {
       });
 
       if (!counselor) {
-        throw new BadRequestException(
-          'Request Admin to assign you a counselor',
-        );
+        throw new BadRequestException('Request Admin to assign you a counselor');
       }
 
       assignedStaffId = counselor.id;
@@ -268,19 +246,10 @@ export class AppointmentsService {
     }
 
     // Validate working hours
-    await this.validateWorkingHours(
-      tenantId,
-      scheduledAt,
-      createDto.duration,
-    );
+    await this.validateWorkingHours(tenantId, scheduledAt, createDto.duration);
 
     // Check for conflicts with booked appointments (pending don't block)
-    const conflicts = await this.checkConflicts(
-      tenantId,
-      assignedStaffId,
-      scheduledAt,
-      endTime,
-    );
+    const conflicts = await this.checkConflicts(tenantId, assignedStaffId, scheduledAt, endTime);
 
     if (conflicts.length > 0) {
       throw new ConflictException({
@@ -356,15 +325,11 @@ export class AppointmentsService {
 
     // Validate duration
     if (createDto.duration < 15 || createDto.duration > 120) {
-      throw new BadRequestException(
-        'Appointment duration must be between 15 and 120 minutes',
-      );
+      throw new BadRequestException('Appointment duration must be between 15 and 120 minutes');
     }
 
     if (createDto.duration % 15 !== 0) {
-      throw new BadRequestException(
-        'Appointment duration must be in 15-minute increments',
-      );
+      throw new BadRequestException('Appointment duration must be in 15-minute increments');
     }
 
     const scheduledAt = new Date(createDto.scheduledAt);
@@ -399,19 +364,10 @@ export class AppointmentsService {
     }
 
     // Validate working hours
-    await this.validateWorkingHours(
-      tenantId,
-      scheduledAt,
-      createDto.duration,
-    );
+    await this.validateWorkingHours(tenantId, scheduledAt, createDto.duration);
 
     // Check for conflicts with Booked appointments
-    const conflicts = await this.checkConflicts(
-      tenantId,
-      assignedStaffId,
-      scheduledAt,
-      endTime,
-    );
+    const conflicts = await this.checkConflicts(tenantId, assignedStaffId, scheduledAt, endTime);
     if (conflicts.length > 0) {
       throw new ConflictException({
         message: 'Staff already has a booked appointment during this time',
@@ -659,21 +615,14 @@ export class AppointmentsService {
   /**
    * Get staff's appointments
    */
-  async getStaffAppointments(
-    tenantId: string,
-    staffId: string,
-    queryDto: AppointmentsQueryDto,
-  ) {
+  async getStaffAppointments(tenantId: string, staffId: string, queryDto: AppointmentsQueryDto) {
     return this.findAll(tenantId, { ...queryDto, staffId });
   }
 
   /**
    * Get pending appointments (for staff approval queue)
    */
-  async getPendingAppointments(
-    tenantId: string,
-    queryDto: AppointmentsQueryDto,
-  ) {
+  async getPendingAppointments(tenantId: string, queryDto: AppointmentsQueryDto) {
     return this.findAll(tenantId, {
       ...queryDto,
       status: AppointmentStatusEnum.Pending,
@@ -696,21 +645,16 @@ export class AppointmentsService {
 
     // Validate state transition
     if (
-      ![
-        AppointmentStatusEnum.Pending,
-        AppointmentStatusEnum.Booked,
-      ].includes(appointment.status as AppointmentStatusEnum)
+      ![AppointmentStatusEnum.Pending, AppointmentStatusEnum.Booked].includes(
+        appointment.status as AppointmentStatusEnum,
+      )
     ) {
-      throw new BadRequestException(
-        `Cannot cancel appointment with status: ${appointment.status}`,
-      );
+      throw new BadRequestException(`Cannot cancel appointment with status: ${appointment.status}`);
     }
 
     // Verify ownership for students
     if (userRole === 'student' && appointment.studentId !== userId) {
-      throw new ForbiddenException(
-        'You can only cancel your own appointments',
-      );
+      throw new ForbiddenException('You can only cancel your own appointments');
     }
 
     // Update appointment
@@ -807,16 +751,9 @@ export class AppointmentsService {
           this.assertSameUtcDate(appointment.scheduledAt, updatedScheduledAt);
         }
 
-        const updatedEndTime = this.addMinutes(
-          updatedScheduledAt,
-          appointment.duration,
-        );
+        const updatedEndTime = this.addMinutes(updatedScheduledAt, appointment.duration);
 
-        await this.validateWorkingHours(
-          tenantId,
-          updatedScheduledAt,
-          appointment.duration,
-        );
+        await this.validateWorkingHours(tenantId, updatedScheduledAt, appointment.duration);
 
         // Re-check for conflicts (race condition protection)
         const conflicts = await this.checkConflicts(
@@ -856,9 +793,7 @@ export class AppointmentsService {
 
         // Check if update succeeded
         if (result.count === 0) {
-          throw new ConflictException(
-            'Appointment was modified by another process',
-          );
+          throw new ConflictException('Appointment was modified by another process');
         }
 
         // Fetch updated appointment
@@ -902,15 +837,10 @@ export class AppointmentsService {
 
         return updated;
       } catch (error) {
-        if (
-          error instanceof ConflictException &&
-          attempt < maxRetries - 1
-        ) {
+        if (error instanceof ConflictException && attempt < maxRetries - 1) {
           attempt++;
           // Exponential backoff: 100ms, 200ms, 400ms
-          await new Promise((resolve) =>
-            setTimeout(resolve, 100 * Math.pow(2, attempt - 1)),
-          );
+          await new Promise((resolve) => setTimeout(resolve, 100 * Math.pow(2, attempt - 1)));
           continue;
         }
         throw error;
@@ -933,15 +863,11 @@ export class AppointmentsService {
 
     // Validate status
     if (appointment.status !== AppointmentStatusEnum.Pending) {
-      throw new BadRequestException(
-        `Cannot reject appointment with status: ${appointment.status}`,
-      );
+      throw new BadRequestException(`Cannot reject appointment with status: ${appointment.status}`);
     }
 
     if (appointment.staffId !== staffUserId) {
-      throw new ForbiddenException(
-        'Only the assigned staff member can reject this appointment',
-      );
+      throw new ForbiddenException('Only the assigned staff member can reject this appointment');
     }
 
     // Update appointment
@@ -1019,9 +945,7 @@ export class AppointmentsService {
 
     // Verify staff is assigned to appointment
     if (appointment.staffId !== staffUserId) {
-      throw new ForbiddenException(
-        'You can only complete your own appointments',
-      );
+      throw new ForbiddenException('You can only complete your own appointments');
     }
 
     // Update appointment
@@ -1060,11 +984,7 @@ export class AppointmentsService {
   /**
    * Mark appointment as no-show (staff only)
    */
-  async markNoShow(
-    tenantId: string,
-    appointmentId: string,
-    staffUserId: string,
-  ) {
+  async markNoShow(tenantId: string, appointmentId: string, staffUserId: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     const appointment = await this.findOne(tenantId, appointmentId);
@@ -1079,16 +999,12 @@ export class AppointmentsService {
     // Validate appointment is in the past
     const now = new Date();
     if (appointment.scheduledAt > now) {
-      throw new BadRequestException(
-        'Cannot mark future appointments as no-show',
-      );
+      throw new BadRequestException('Cannot mark future appointments as no-show');
     }
 
     // Verify staff is assigned to appointment
     if (appointment.staffId !== staffUserId) {
-      throw new ForbiddenException(
-        'You can only mark your own appointments as no-show',
-      );
+      throw new ForbiddenException('You can only mark your own appointments as no-show');
     }
 
     // Update appointment
@@ -1134,18 +1050,11 @@ export class AppointmentsService {
     let workingHours: any = null;
 
     try {
-      await this.validateWorkingHours(
-        tenantId,
-        scheduledAt,
-        checkDto.duration,
-      );
+      await this.validateWorkingHours(tenantId, scheduledAt, checkDto.duration);
 
       // Get working hours info
       const dayOfWeek = this.getDayOfWeek(scheduledAt);
-      const result = await this.workingHoursService.findByDay(
-        tenantId,
-        dayOfWeek,
-      );
+      const result = await this.workingHoursService.findByDay(tenantId, dayOfWeek);
       workingHours = {
         dayOfWeek,
         openTime: result.openTime,
@@ -1165,12 +1074,7 @@ export class AppointmentsService {
     }
 
     // Check for conflicts
-    const conflicts = await this.checkConflicts(
-      tenantId,
-      checkDto.staffId,
-      scheduledAt,
-      endTime,
-    );
+    const conflicts = await this.checkConflicts(tenantId, checkDto.staffId, scheduledAt, endTime);
 
     if (conflicts.length > 0) {
       return {
@@ -1287,18 +1191,12 @@ export class AppointmentsService {
 
     // Calculate completion rate
     const totalCompleted = completedCount + noShowCount;
-    const completionRate =
-      totalCompleted > 0 ? completedCount / totalCompleted : 0;
+    const completionRate = totalCompleted > 0 ? completedCount / totalCompleted : 0;
 
     // Calculate average appointment duration
-    const totalDuration = allCompletedAppointments.reduce(
-      (sum, apt) => sum + apt.duration,
-      0,
-    );
+    const totalDuration = allCompletedAppointments.reduce((sum, apt) => sum + apt.duration, 0);
     const averageAppointmentDuration =
-      allCompletedAppointments.length > 0
-        ? totalDuration / allCompletedAppointments.length
-        : 0;
+      allCompletedAppointments.length > 0 ? totalDuration / allCompletedAppointments.length : 0;
 
     return {
       pendingApprovals,
@@ -1407,10 +1305,7 @@ export class AppointmentsService {
     }
 
     const allowedNoteFields = ['note', 'notes', 'staffNotes', 'outcomeNotes'];
-    const hasScheduledAtUpdate = Object.prototype.hasOwnProperty.call(
-      data,
-      'scheduledAt',
-    );
+    const hasScheduledAtUpdate = Object.prototype.hasOwnProperty.call(data, 'scheduledAt');
     const requestedFields = Object.keys(data ?? {});
     const disallowedFields = requestedFields.filter(
       (field) => field !== 'scheduledAt' && !allowedNoteFields.includes(field),
@@ -1432,30 +1327,19 @@ export class AppointmentsService {
 
     if (hasScheduledAtUpdate) {
       if (!updaterId) {
-        throw new ForbiddenException(
-          'Only the assigned staff member can modify appointment time',
-        );
+        throw new ForbiddenException('Only the assigned staff member can modify appointment time');
       }
 
       if (oldAppointment.staffId !== updaterId) {
-        throw new ForbiddenException(
-          'Only the assigned staff member can modify appointment time',
-        );
+        throw new ForbiddenException('Only the assigned staff member can modify appointment time');
       }
 
       const updatedScheduledAt = new Date(data.scheduledAt);
       this.assertSameUtcDate(oldAppointment.scheduledAt, updatedScheduledAt);
 
-      await this.validateWorkingHours(
-        tenantId,
-        updatedScheduledAt,
-        oldAppointment.duration,
-      );
+      await this.validateWorkingHours(tenantId, updatedScheduledAt, oldAppointment.duration);
 
-      const updatedEndTime = this.addMinutes(
-        updatedScheduledAt,
-        oldAppointment.duration,
-      );
+      const updatedEndTime = this.addMinutes(updatedScheduledAt, oldAppointment.duration);
 
       const conflicts = await this.checkConflicts(
         tenantId,

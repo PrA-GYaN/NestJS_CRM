@@ -62,7 +62,10 @@ export class CreateClassDto {
   @IsNotEmpty()
   name!: string;
 
-  @ApiPropertyOptional({ description: 'Class description', example: 'Weekday class for IELTS preparation.' })
+  @ApiPropertyOptional({
+    description: 'Class description',
+    example: 'Weekday class for IELTS preparation.',
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -171,7 +174,10 @@ export class UpdateClassDto {
 }
 
 export class EnrollStudentInClassDto {
-  @ApiProperty({ description: 'Student ID to enroll', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiProperty({
+    description: 'Student ID to enroll',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   @IsUUID()
   @IsNotEmpty()
   studentId!: string;

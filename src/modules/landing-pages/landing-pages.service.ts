@@ -36,7 +36,13 @@ export class LandingPagesService {
 
   async getAllLandingPages(tenantId: string, paginationDto: PaginationDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
-    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      search,
+    } = paginationDto;
     const skip = (page - 1) * limit;
 
     const where = {
@@ -114,7 +120,11 @@ export class LandingPagesService {
     return page;
   }
 
-  async updateLandingPage(tenantId: string, id: string, updateLandingPageDto: UpdateLandingPageDto) {
+  async updateLandingPage(
+    tenantId: string,
+    id: string,
+    updateLandingPageDto: UpdateLandingPageDto,
+  ) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     // Check if page exists

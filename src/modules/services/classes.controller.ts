@@ -25,7 +25,13 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { CanCreate, CanRead, CanUpdate, CanDelete, RequirePermissions } from '../../common/decorators/permissions.decorator';
+import {
+  CanCreate,
+  CanRead,
+  CanUpdate,
+  CanDelete,
+  RequirePermissions,
+} from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Services')
 @ApiBearerAuth()
@@ -164,7 +170,10 @@ export class ClassesController {
   @RequirePermissions('classes:approve')
   @ApiOperation({ summary: 'Approve a class booking request' })
   @ApiParam({ name: 'requestId', description: 'Class booking request ID' })
-  @ApiResponse({ status: 200, description: 'Class booking request approved and student enrolled successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Class booking request approved and student enrolled successfully',
+  })
   approveClassBookingRequest(
     @TenantId() tenantId: string,
     @Param('requestId') requestId: string,
@@ -184,11 +193,6 @@ export class ClassesController {
     @Body() dto: RejectClassBookingRequestDto,
     @CurrentUser() user: any,
   ) {
-    return this.classesService.rejectClassBookingRequest(
-      tenantId,
-      requestId,
-      user.id,
-      dto.reason,
-    );
+    return this.classesService.rejectClassBookingRequest(tenantId, requestId, user.id, dto.reason);
   }
 }

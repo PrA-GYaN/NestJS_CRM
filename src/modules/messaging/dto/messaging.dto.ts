@@ -1,12 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsEnum,
-  IsEmail,
-  IsObject,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEnum, IsEmail, IsObject } from 'class-validator';
 import { MessageEventType } from '@prisma/tenant-client';
 
 export class SendEmailDto {

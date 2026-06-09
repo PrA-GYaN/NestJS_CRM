@@ -46,7 +46,8 @@ export class UpdateVisaDocumentDto {
   visaApplicationId?: string;
 
   @ApiPropertyOptional({
-    description: 'Attach/re-attach from an existing student document (overrides documentType/filePath)',
+    description:
+      'Attach/re-attach from an existing student document (overrides documentType/filePath)',
     format: 'uuid',
   })
   @IsOptional()

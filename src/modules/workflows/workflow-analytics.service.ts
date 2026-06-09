@@ -44,10 +44,12 @@ export class WorkflowAnalyticsService {
     // Calculate metrics for each version
     const versionAnalytics = versions.map((version) => {
       const applications = version.applications;
-      const applicationsInUse = applications.filter((a) => !['Approved', 'Rejected'].includes(a.status))
-        .length;
-      const applicationsCompleted = applications.filter((a) => ['Approved', 'Rejected'].includes(a.status))
-        .length;
+      const applicationsInUse = applications.filter(
+        (a) => !['Approved', 'Rejected'].includes(a.status),
+      ).length;
+      const applicationsCompleted = applications.filter((a) =>
+        ['Approved', 'Rejected'].includes(a.status),
+      ).length;
       const successRate =
         applications.length > 0 ? (applicationsCompleted / applications.length) * 100 : 0;
 
@@ -344,7 +346,9 @@ export class WorkflowAnalyticsService {
     }
 
     const totalDays = completedApps.reduce((sum, app) => {
-      const days = Math.floor((app.updatedAt.getTime() - app.createdAt.getTime()) / (1000 * 60 * 60 * 24));
+      const days = Math.floor(
+        (app.updatedAt.getTime() - app.createdAt.getTime()) / (1000 * 60 * 60 * 24),
+      );
       return sum + days;
     }, 0);
 
@@ -437,7 +441,11 @@ export class WorkflowAnalyticsService {
       changes.push({ field: 'name', oldValue: step1.name, newValue: step2.name });
     }
     if (step1.description !== step2.description) {
-      changes.push({ field: 'description', oldValue: step1.description, newValue: step2.description });
+      changes.push({
+        field: 'description',
+        oldValue: step1.description,
+        newValue: step2.description,
+      });
     }
     if (step1.requiresDocument !== step2.requiresDocument) {
       changes.push({

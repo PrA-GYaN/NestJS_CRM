@@ -1,15 +1,12 @@
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+  ApiParam,
+  ApiBody,
+} from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import {
   CreateUserDto,
@@ -26,7 +23,13 @@ import {
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { CanCreate, CanRead, CanUpdate, CanDelete, RequirePermissions } from '../../common/decorators/permissions.decorator';
+import {
+  CanCreate,
+  CanRead,
+  CanUpdate,
+  CanDelete,
+  RequirePermissions,
+} from '../../common/decorators/permissions.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 
 @ApiTags('Users & Access Control')
@@ -133,14 +136,32 @@ export class UsersController {
       type: 'object',
       example: {
         leads: [
-          { id: 'perm-1', name: 'leads:create', module: 'leads', action: 'create', description: 'Create new leads' },
-          { id: 'perm-2', name: 'leads:read', module: 'leads', action: 'read', description: 'View leads' }
+          {
+            id: 'perm-1',
+            name: 'leads:create',
+            module: 'leads',
+            action: 'create',
+            description: 'Create new leads',
+          },
+          {
+            id: 'perm-2',
+            name: 'leads:read',
+            module: 'leads',
+            action: 'read',
+            description: 'View leads',
+          },
         ],
         students: [
-          { id: 'perm-3', name: 'students:create', module: 'students', action: 'create', description: 'Create new students' }
-        ]
-      }
-    }
+          {
+            id: 'perm-3',
+            name: 'students:create',
+            module: 'students',
+            action: 'create',
+            description: 'Create new students',
+          },
+        ],
+      },
+    },
   })
   getAvailablePermissions(@TenantId() tenantId: string) {
     return this.usersService.getAvailablePermissions(tenantId);
@@ -150,19 +171,24 @@ export class UsersController {
   @RequirePermissions('users:manage-roles')
   @ApiOperation({
     summary: 'Assign permissions to a role',
-    description: 'Add one or more permissions to a role. Only seeded permissions can be assigned. Duplicate assignments are ignored.',
+    description:
+      'Add one or more permissions to a role. Only seeded permissions can be assigned. Duplicate assignments are ignored.',
   })
-  @ApiParam({ name: 'roleId', description: 'The ID of the role to assign permissions to', example: 'role-uuid-123' })
+  @ApiParam({
+    name: 'roleId',
+    description: 'The ID of the role to assign permissions to',
+    example: 'role-uuid-123',
+  })
   @ApiBody({
     type: AssignPermissionsToRoleDto,
     description: 'Array of permission IDs to assign',
     examples: {
       'Assign multiple permissions': {
         value: {
-          permissionIds: ['perm-1', 'perm-2', 'perm-3']
-        }
-      }
-    }
+          permissionIds: ['perm-1', 'perm-2', 'perm-3'],
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 200,
@@ -173,9 +199,9 @@ export class UsersController {
         message: 'Successfully assigned 3 permissions to role',
         roleId: 'role-uuid-123',
         assignedCount: 3,
-        skippedCount: 0
-      }
-    }
+        skippedCount: 0,
+      },
+    },
   })
   @ApiResponse({ status: 404, description: 'Role not found or one or more permissions not found' })
   @ApiResponse({ status: 400, description: 'Invalid permission IDs or empty array provided' })
@@ -209,7 +235,7 @@ export class UsersController {
             module: 'leads',
             action: 'create',
             description: 'Create new leads',
-            assignedAt: '2026-01-21T10:30:00Z'
+            assignedAt: '2026-01-21T10:30:00Z',
           },
           {
             id: 'perm-2',
@@ -217,18 +243,15 @@ export class UsersController {
             module: 'leads',
             action: 'read',
             description: 'View leads',
-            assignedAt: '2026-01-21T10:30:00Z'
-          }
+            assignedAt: '2026-01-21T10:30:00Z',
+          },
         ],
-        totalPermissions: 2
-      }
-    }
+        totalPermissions: 2,
+      },
+    },
   })
   @ApiResponse({ status: 404, description: 'Role not found' })
-  getRolePermissions(
-    @TenantId() tenantId: string,
-    @Param('roleId') roleId: string,
-  ) {
+  getRolePermissions(@TenantId() tenantId: string, @Param('roleId') roleId: string) {
     return this.usersService.getRolePermissions(tenantId, roleId);
   }
 
@@ -236,24 +259,29 @@ export class UsersController {
   @RequirePermissions('users:manage-roles')
   @ApiOperation({
     summary: 'Update role permissions',
-    description: 'Replace all existing permissions for a role with the provided list. This removes all current permissions and assigns the new ones.',
+    description:
+      'Replace all existing permissions for a role with the provided list. This removes all current permissions and assigns the new ones.',
   })
-  @ApiParam({ name: 'roleId', description: 'The ID of the role to update', example: 'role-uuid-123' })
+  @ApiParam({
+    name: 'roleId',
+    description: 'The ID of the role to update',
+    example: 'role-uuid-123',
+  })
   @ApiBody({
     type: UpdateRolePermissionsDto,
     description: 'Complete list of permission IDs to assign (replaces all existing)',
     examples: {
       'Replace with new permissions': {
         value: {
-          permissionIds: ['perm-1', 'perm-5', 'perm-10']
-        }
+          permissionIds: ['perm-1', 'perm-5', 'perm-10'],
+        },
       },
       'Remove all permissions': {
         value: {
-          permissionIds: []
-        }
-      }
-    }
+          permissionIds: [],
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 200,
@@ -265,9 +293,9 @@ export class UsersController {
         roleId: 'role-uuid-123',
         removedCount: 5,
         assignedCount: 3,
-        totalPermissions: 3
-      }
-    }
+        totalPermissions: 3,
+      },
+    },
   })
   @ApiResponse({ status: 404, description: 'Role not found or one or more permissions not found' })
   @ApiResponse({ status: 400, description: 'Invalid permission IDs provided' })
@@ -283,19 +311,24 @@ export class UsersController {
   @RequirePermissions('users:manage-roles')
   @ApiOperation({
     summary: 'Remove permissions from a role',
-    description: 'Remove one or more specific permissions from a role. Other permissions remain unchanged.',
+    description:
+      'Remove one or more specific permissions from a role. Other permissions remain unchanged.',
   })
-  @ApiParam({ name: 'roleId', description: 'The ID of the role to remove permissions from', example: 'role-uuid-123' })
+  @ApiParam({
+    name: 'roleId',
+    description: 'The ID of the role to remove permissions from',
+    example: 'role-uuid-123',
+  })
   @ApiBody({
     type: RemovePermissionsFromRoleDto,
     description: 'Array of permission IDs to remove',
     examples: {
       'Remove multiple permissions': {
         value: {
-          permissionIds: ['perm-1', 'perm-2']
-        }
-      }
-    }
+          permissionIds: ['perm-1', 'perm-2'],
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 200,
@@ -306,9 +339,9 @@ export class UsersController {
         message: 'Successfully removed 2 permissions from role',
         roleId: 'role-uuid-123',
         removedCount: 2,
-        remainingPermissions: 5
-      }
-    }
+        remainingPermissions: 5,
+      },
+    },
   })
   @ApiResponse({ status: 404, description: 'Role not found or one or more permissions not found' })
   @ApiResponse({ status: 400, description: 'Invalid permission IDs or empty array provided' })

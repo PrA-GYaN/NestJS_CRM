@@ -38,7 +38,9 @@ export class CourseApplicationsService {
     }
 
     if (existingApplication) {
-      throw new ConflictException('Duplicate application: student has already applied for this course');
+      throw new ConflictException(
+        'Duplicate application: student has already applied for this course',
+      );
     }
 
     try {
@@ -51,7 +53,9 @@ export class CourseApplicationsService {
       });
     } catch (error: any) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        throw new ConflictException('Duplicate application: student has already applied for this course');
+        throw new ConflictException(
+          'Duplicate application: student has already applied for this course',
+        );
       }
 
       throw error;

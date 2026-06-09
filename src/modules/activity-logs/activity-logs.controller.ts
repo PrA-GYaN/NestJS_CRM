@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Query,
-  Param,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Query, Param, Req, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -17,7 +10,11 @@ import {
 import { ActivityLogsService } from './activity-logs.service';
 import { PaginationDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ActivityLogFilterDto, ActivityLogResponseDto, GetActivityLogsQueryDto } from './dto/activity-log.dto';
+import {
+  ActivityLogFilterDto,
+  ActivityLogResponseDto,
+  GetActivityLogsQueryDto,
+} from './dto/activity-log.dto';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { CanRead } from '../../common/decorators/permissions.decorator';
 
@@ -32,7 +29,8 @@ export class ActivityLogsController {
   @CanRead('activity-logs')
   @ApiOperation({
     summary: 'Get all activity logs with filtering',
-    description: 'Retrieve activity logs for audit purposes with optional filters. Required permission: activity-logs:read',
+    description:
+      'Retrieve activity logs for audit purposes with optional filters. Required permission: activity-logs:read',
   })
   @ApiResponse({
     status: 200,
@@ -54,10 +52,7 @@ export class ActivityLogsController {
   @ApiQuery({ name: 'fromDate', required: false, type: String })
   @ApiQuery({ name: 'toDate', required: false, type: String })
   @ApiQuery({ name: 'search', required: false, type: String })
-  async getLogs(
-    @Req() req: any,
-    @Query() queryDto: GetActivityLogsQueryDto,
-  ) {
+  async getLogs(@Req() req: any, @Query() queryDto: GetActivityLogsQueryDto) {
     const tenantId = req.tenantId;
     // Extract pagination dto from query dto
     const paginationDto: PaginationDto = {
@@ -83,7 +78,8 @@ export class ActivityLogsController {
   @CanRead('activity-logs')
   @ApiOperation({
     summary: 'Get activity statistics',
-    description: 'Get aggregated statistics about activities in the system. Required permission: activity-logs:read',
+    description:
+      'Get aggregated statistics about activities in the system. Required permission: activity-logs:read',
   })
   @ApiResponse({
     status: 200,
@@ -102,7 +98,8 @@ export class ActivityLogsController {
   @CanRead('activity-logs')
   @ApiOperation({
     summary: 'Get activity logs for a specific entity',
-    description: 'Retrieve all activity logs for a specific entity (e.g., all logs for a task). Required permission: activity-logs:read',
+    description:
+      'Retrieve all activity logs for a specific entity (e.g., all logs for a task). Required permission: activity-logs:read',
   })
   @ApiParam({ name: 'entityType', description: 'Type of entity (Task, Appointment, etc.)' })
   @ApiParam({ name: 'entityId', description: 'ID of the entity' })
@@ -122,19 +119,15 @@ export class ActivityLogsController {
     @Query() paginationDto: PaginationDto,
   ) {
     const tenantId = req.tenantId;
-    return this.activityLogsService.getEntityLogs(
-      tenantId,
-      entityType,
-      entityId,
-      paginationDto,
-    );
+    return this.activityLogsService.getEntityLogs(tenantId, entityType, entityId, paginationDto);
   }
 
   @Get('user/:userId')
   @CanRead('activity-logs')
   @ApiOperation({
     summary: 'Get activity logs for a specific user',
-    description: 'Retrieve all activities performed by a specific user. Required permission: activity-logs:read',
+    description:
+      'Retrieve all activities performed by a specific user. Required permission: activity-logs:read',
   })
   @ApiParam({ name: 'userId', description: 'ID of the user' })
   @ApiResponse({

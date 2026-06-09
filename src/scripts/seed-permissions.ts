@@ -27,15 +27,12 @@ async function seedPermissionsForAllTenants() {
     for (const tenant of tenants) {
       try {
         console.log(`\n📦 Processing tenant: ${tenant.name} (${tenant.id})`);
-        
+
         // Get tenant Prisma client
         const tenantPrisma = await tenantService.getTenantPrisma(tenant.id);
 
         // Seed permissions
-        const permResult = await permissionsService.seedPermissions(
-          tenantPrisma,
-          tenant.id,
-        );
+        const permResult = await permissionsService.seedPermissions(tenantPrisma, tenant.id);
         console.log(
           `   ✅ Permissions: ${permResult.created} created/updated, ${permResult.existing} skipped`,
         );

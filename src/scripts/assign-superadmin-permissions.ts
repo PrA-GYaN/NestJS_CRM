@@ -47,10 +47,7 @@ async function assignSuperAdminPermissions() {
         const tenantPrisma = await tenantService.getTenantPrisma(tenant.id);
 
         // ── Step 1: Ensure all system permissions are present (idempotent) ──
-        const seedResult = await permissionsService.seedPermissions(
-          tenantPrisma,
-          tenant.id,
-        );
+        const seedResult = await permissionsService.seedPermissions(tenantPrisma, tenant.id);
         console.log(
           `   ✅ Permissions seeded: ${seedResult.created} created/updated, ${seedResult.existing} already up-to-date`,
         );
@@ -96,9 +93,7 @@ async function assignSuperAdminPermissions() {
 
         successCount++;
       } catch (error: any) {
-        console.error(
-          `   ❌ Failed for tenant "${tenant.name}": ${error?.message ?? error}`,
-        );
+        console.error(`   ❌ Failed for tenant "${tenant.name}": ${error?.message ?? error}`);
         failCount++;
       }
     }

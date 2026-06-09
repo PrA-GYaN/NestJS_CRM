@@ -141,7 +141,9 @@ export class AuthService {
     // Check if student has password set
     const passwordField = student.password || student.hashedPassword;
     if (!passwordField) {
-      throw new UnauthorizedException('Password not set for this student account. Please contact your consultancy.');
+      throw new UnauthorizedException(
+        'Password not set for this student account. Please contact your consultancy.',
+      );
     }
 
     const isPasswordValid = await this.comparePasswords(loginDto.password, passwordField);
@@ -190,9 +192,7 @@ export class AuthService {
       });
     }
 
-    const tenantPrisma = await this.tenantService.getTenantPrisma(
-      payload.tenantId,
-    );
+    const tenantPrisma = await this.tenantService.getTenantPrisma(payload.tenantId);
 
     // Student tokens are validated against the Student model, not the User model
     if (payload.isStudent) {
@@ -266,9 +266,7 @@ export class AuthService {
     }
 
     // Extract permissions
-    const permissions = user.role.rolePermissions.map(
-      (rp) => rp.permission.name,
-    );
+    const permissions = user.role.rolePermissions.map((rp) => rp.permission.name);
 
     return {
       id: user.id,

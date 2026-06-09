@@ -19,4 +19,3 @@ import { WorkingHoursModule } from '../working-hours/working-hours.module';
   exports: [AppointmentsService],
 })
 export class AppointmentsModule {}
-

@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { MessagingService } from './messaging.service';
 import { SendEmailDto, SendSmsDto, TriggerEventMessageDto } from './dto/messaging.dto';
@@ -27,7 +19,8 @@ export class MessagingController {
   @RequirePermissions('messaging:send')
   @ApiOperation({
     summary: 'Send email using tenant template',
-    description: 'Sends an email using a template that belongs to the current tenant. Variables are substituted before sending.',
+    description:
+      'Sends an email using a template that belongs to the current tenant. Variables are substituted before sending.',
   })
   sendEmail(@TenantId() tenantId: string, @Body() sendEmailDto: SendEmailDto) {
     return this.messagingService.sendEmail(tenantId, sendEmailDto);
@@ -37,7 +30,8 @@ export class MessagingController {
   @RequirePermissions('messaging:send')
   @ApiOperation({
     summary: 'Send SMS using tenant template',
-    description: 'Sends an SMS using a template that belongs to the current tenant. Variables are substituted before sending.',
+    description:
+      'Sends an SMS using a template that belongs to the current tenant. Variables are substituted before sending.',
   })
   sendSms(@TenantId() tenantId: string, @Body() sendSmsDto: SendSmsDto) {
     return this.messagingService.sendSms(tenantId, sendSmsDto);
@@ -47,7 +41,8 @@ export class MessagingController {
   @RequirePermissions('messaging:send')
   @ApiOperation({
     summary: 'Trigger messages via event',
-    description: 'Triggers email and/or SMS messages based on event type using tenant-specific active templates.',
+    description:
+      'Triggers email and/or SMS messages based on event type using tenant-specific active templates.',
   })
   triggerEventMessage(@TenantId() tenantId: string, @Body() triggerDto: TriggerEventMessageDto) {
     return this.messagingService.triggerEventMessage(tenantId, triggerDto);

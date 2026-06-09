@@ -64,11 +64,7 @@ export class ActivityLogsService {
   /**
    * Get activity logs with filtering and pagination
    */
-  async getLogs(
-    tenantId: string,
-    filterDto: ActivityLogFilterDto,
-    paginationDto: PaginationDto,
-  ) {
+  async getLogs(tenantId: string, filterDto: ActivityLogFilterDto, paginationDto: PaginationDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const { page = 1, limit = 10, sortBy = 'timestamp', sortOrder = 'desc' } = paginationDto;
     const skip = (page - 1) * limit;
@@ -213,12 +209,7 @@ export class ActivityLogsService {
   async getActivityStats(tenantId: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
-    const [
-      totalLogs,
-      logsByAction,
-      logsByEntityType,
-      recentActivity,
-    ] = await Promise.all([
+    const [totalLogs, logsByAction, logsByEntityType, recentActivity] = await Promise.all([
       tenantPrisma.activityLog.count({ where: { tenantId } }),
       tenantPrisma.activityLog.groupBy({
         by: ['action'],

@@ -13,10 +13,10 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { ServicesService } from './services.service';
-import { 
-  CreateServiceDto, 
-  UpdateServiceDto, 
-  AssignStudentToServiceDto, 
+import {
+  CreateServiceDto,
+  UpdateServiceDto,
+  AssignStudentToServiceDto,
   AssignMultipleStudentsDto,
   UnassignStudentFromServiceDto,
   RejectServiceBookingRequestDto,
@@ -26,7 +26,13 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { CanCreate, CanRead, CanUpdate, CanDelete, RequirePermissions } from '../../common/decorators/permissions.decorator';
+import {
+  CanCreate,
+  CanRead,
+  CanUpdate,
+  CanDelete,
+  RequirePermissions,
+} from '../../common/decorators/permissions.decorator';
 
 @ApiTags('Services')
 @ApiBearerAuth()
@@ -151,10 +157,7 @@ export class ServicesController {
   @ApiParam({ name: 'studentId', description: 'Student ID' })
   @ApiResponse({ status: 200, description: 'Services retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Student not found' })
-  getStudentServices(
-    @TenantId() tenantId: string,
-    @Param('studentId') studentId: string,
-  ) {
+  getStudentServices(@TenantId() tenantId: string, @Param('studentId') studentId: string) {
     return this.servicesService.getStudentServices(tenantId, studentId);
   }
 
@@ -175,7 +178,10 @@ export class ServicesController {
   @RequirePermissions('services:approve')
   @ApiOperation({ summary: 'Approve a service booking request' })
   @ApiParam({ name: 'requestId', description: 'Service booking request ID' })
-  @ApiResponse({ status: 200, description: 'Booking request approved and service assigned successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Booking request approved and service assigned successfully',
+  })
   approveServiceBookingRequest(
     @TenantId() tenantId: string,
     @Param('requestId') requestId: string,

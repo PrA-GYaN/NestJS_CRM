@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { CreateVisaTypeDto, UpdateVisaTypeDto } from './dto';
 import { PaginationDto } from '../../common/dto/common.dto';

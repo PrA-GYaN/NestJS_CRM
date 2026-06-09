@@ -1,5 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsUUID, IsString, IsOptional, IsNotEmpty, MaxLength, IsNumber, Min, IsInt, Max, IsEnum, IsDateString } from 'class-validator';
+import {
+  IsUUID,
+  IsString,
+  IsOptional,
+  IsNotEmpty,
+  MaxLength,
+  IsNumber,
+  Min,
+  IsInt,
+  Max,
+  IsEnum,
+  IsDateString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { VisaStatus } from '@prisma/tenant-client';
 
@@ -37,21 +49,23 @@ export class CreateVisaApplicationDto {
   @IsOptional()
   destinationCountry?: string;
 
-    @ApiPropertyOptional({
-    description: 'The unique identifier of the workflow to use for this visa application. If not provided, the default workflow for the visa type is used. Must be a valid workflow for the selected visaTypeId.',
+  @ApiPropertyOptional({
+    description:
+      'The unique identifier of the workflow to use for this visa application. If not provided, the default workflow for the visa type is used. Must be a valid workflow for the selected visaTypeId.',
     example: 'a1b2c3d4-e5f6-7890-abcd-1234567890ef',
   })
   @IsUUID()
   @IsOptional()
   workflowId?: string;
 
-    @ApiPropertyOptional({
-      description: 'The unique identifier of the workflow version to use for this visa application. If not provided, the workflow\'s current default version is used.',
-      example: 'b2c3d4e5-f6a7-8901-bcde-2345678901fa',
-    })
-    @IsUUID()
-    @IsOptional()
-    workflowVersionId?: string;
+  @ApiPropertyOptional({
+    description:
+      "The unique identifier of the workflow version to use for this visa application. If not provided, the workflow's current default version is used.",
+    example: 'b2c3d4e5-f6a7-8901-bcde-2345678901fa',
+  })
+  @IsUUID()
+  @IsOptional()
+  workflowVersionId?: string;
 }
 
 export class AdvanceVisaStepDto {
@@ -88,7 +102,8 @@ export class DefaultFilterDto {
   courseApplicationId?: string;
 
   @ApiPropertyOptional({
-    description: 'Filter visa applications by status (e.g., Pending, Submitted, Approved, Rejected)',
+    description:
+      'Filter visa applications by status (e.g., Pending, Submitted, Approved, Rejected)',
     example: 'Pending',
   })
   @IsString()

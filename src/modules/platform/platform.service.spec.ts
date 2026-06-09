@@ -314,7 +314,7 @@ describe('PlatformService - Tenant Auto-Seeding', () => {
       expect(permissionsCreated).toContain('leads.view');
       expect(permissionsCreated).toContain('students.view');
       expect(permissionsCreated).toContain('settings.update');
-      
+
       // Verify at least 40 permissions were created
       expect(permissionsCreated.length).toBeGreaterThanOrEqual(40);
     });
@@ -345,7 +345,7 @@ describe('PlatformService - Tenant Auto-Seeding', () => {
 
       // Should still return the tenant even if seeding fails
       const result = await service.createTenant(createTenantDto);
-      
+
       expect(result.id).toBe('tenant-id');
       // Error should be logged but not thrown
     });

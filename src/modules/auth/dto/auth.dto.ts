@@ -45,10 +45,16 @@ export class AuthUserDto {
   @ApiProperty({ example: 'Agent' })
   role!: string;
 
-  @ApiPropertyOptional({ description: 'Present on student tokens — contains the student record UUID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiPropertyOptional({
+    description: 'Present on student tokens — contains the student record UUID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   studentId?: string;
 
-  @ApiPropertyOptional({ description: '`true` when the token was issued via /auth/student/login', example: true })
+  @ApiPropertyOptional({
+    description: '`true` when the token was issued via /auth/student/login',
+    example: true,
+  })
   isStudent?: boolean;
 
   @ApiPropertyOptional({ description: 'Tenant UUID — present on tenant-user and student tokens' })
@@ -61,7 +67,8 @@ export class AuthResponseDto {
 
   @ApiProperty({
     type: AuthUserDto,
-    description: 'Authenticated user profile. For student logins, `isStudent` is `true` and `studentId` is populated.',
+    description:
+      'Authenticated user profile. For student logins, `isStudent` is `true` and `studentId` is populated.',
   })
   user!: AuthUserDto;
 }

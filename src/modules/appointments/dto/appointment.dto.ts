@@ -115,8 +115,7 @@ export class CreateAppointmentCrmDto {
   scheduledAt!: string;
 
   @ApiProperty({
-    description:
-      'Duration in minutes. Must be between 15 and 120 and a multiple of 15.',
+    description: 'Duration in minutes. Must be between 15 and 120 and a multiple of 15.',
     example: 60,
     minimum: 15,
     maximum: 120,
@@ -350,7 +349,6 @@ export class CheckAvailabilityDto {
   @Min(15)
   @Max(120)
   duration!: number;
-
 }
 
 // ===== Response DTOs =====

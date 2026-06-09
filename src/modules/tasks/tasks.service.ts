@@ -202,7 +202,10 @@ export class TasksService {
       userId: updaterId,
       entityType: 'Task',
       entityId: updatedTask.id,
-      action: oldTask.status !== updatedTask.status ? ActivityAction.StatusChanged : ActivityAction.Updated,
+      action:
+        oldTask.status !== updatedTask.status
+          ? ActivityAction.StatusChanged
+          : ActivityAction.Updated,
       changes,
       metadata: {
         taskTitle: updatedTask.title,

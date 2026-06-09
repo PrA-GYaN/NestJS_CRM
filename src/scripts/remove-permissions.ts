@@ -44,9 +44,7 @@ async function removePermissions() {
         const deletedRolePerms = await tenantPrisma.rolePermission.deleteMany({
           where: { tenantId: tenant.id },
         });
-        console.log(
-          `   ✅ Deleted ${deletedRolePerms.count} role_permission record(s)`,
-        );
+        console.log(`   ✅ Deleted ${deletedRolePerms.count} role_permission record(s)`);
 
         // Step 2: Delete all permissions
         const deletedPerms = await tenantPrisma.permission.deleteMany({
@@ -56,9 +54,7 @@ async function removePermissions() {
 
         successCount++;
       } catch (error: any) {
-        console.error(
-          `   ❌ Failed for tenant "${tenant.name}": ${error?.message ?? error}`,
-        );
+        console.error(`   ❌ Failed for tenant "${tenant.name}": ${error?.message ?? error}`);
         failCount++;
       }
     }

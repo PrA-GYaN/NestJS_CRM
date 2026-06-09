@@ -310,7 +310,7 @@ export class PaymentMethodBreakdownDto {
   @ApiProperty({ description: 'Count of payments', example: 45 })
   count!: number;
 
-  @ApiProperty({ description: 'Total amount via this method', example: 25000.00 })
+  @ApiProperty({ description: 'Total amount via this method', example: 25000.0 })
   totalAmount!: number;
 
   @ApiProperty({ description: 'Percentage of total revenue', example: 35.7 })
@@ -324,7 +324,7 @@ export class PaymentStatusBreakdownDto {
   @ApiProperty({ description: 'Count of payments', example: 120 })
   count!: number;
 
-  @ApiProperty({ description: 'Total amount for this status', example: 65000.00 })
+  @ApiProperty({ description: 'Total amount for this status', example: 65000.0 })
   totalAmount!: number;
 
   @ApiProperty({ description: 'Percentage of total invoice amount', example: 75.2 })
@@ -335,7 +335,7 @@ export class DailyRevenueDataDto {
   @ApiProperty({ description: 'Date', example: '2026-03-15' })
   date!: string;
 
-  @ApiProperty({ description: 'Revenue for this day', example: 5000.00 })
+  @ApiProperty({ description: 'Revenue for this day', example: 5000.0 })
   revenue!: number;
 
   @ApiProperty({ description: 'Count of payments', example: 12 })
@@ -343,15 +343,15 @@ export class DailyRevenueDataDto {
 }
 
 export class PaymentStatisticsMetricsDto {
-  @ApiProperty({ description: 'Total revenue from all completed payments', example: 350000.00 })
+  @ApiProperty({ description: 'Total revenue from all completed payments', example: 350000.0 })
   totalRevenue!: number;
 
-  @ApiProperty({ description: 'Revenue from the previous comparison period', example: 320000.00 })
+  @ApiProperty({ description: 'Revenue from the previous comparison period', example: 320000.0 })
   previousPeriodRevenue!: number;
 
   @ApiProperty({
     description: 'Revenue change amount (current - previous)',
-    example: 30000.00,
+    example: 30000.0,
   })
   revenueChange!: number;
 
@@ -361,13 +361,13 @@ export class PaymentStatisticsMetricsDto {
   })
   revenueChangePercent!: number;
 
-  @ApiProperty({ description: 'Total amount pending/unpaid', example: 50000.00 })
+  @ApiProperty({ description: 'Total amount pending/unpaid', example: 50000.0 })
   totalPendingAmount!: number;
 
   @ApiProperty({ description: 'Count of pending/partially paid amounts', example: 28 })
   pendingPaymentCount!: number;
 
-  @ApiProperty({ description: 'Total amount completed/paid', example: 350000.00 })
+  @ApiProperty({ description: 'Total amount completed/paid', example: 350000.0 })
   totalCompletedAmount!: number;
 
   @ApiProperty({ description: 'Count of completed payments', example: 120 })
@@ -376,10 +376,13 @@ export class PaymentStatisticsMetricsDto {
   @ApiProperty({ description: 'Collection rate (completed / total invoiced)', example: 87.5 })
   collectionRate!: number;
 
-  @ApiProperty({ description: 'Total invoiced amount across all payments', example: 400000.00 })
+  @ApiProperty({ description: 'Total invoiced amount across all payments', example: 400000.0 })
   totalInvoicedAmount!: number;
 
-  @ApiProperty({ description: 'Total amount overdue (past due date, not completed)', example: 15000.00 })
+  @ApiProperty({
+    description: 'Total amount overdue (past due date, not completed)',
+    example: 15000.0,
+  })
   totalOverdueAmount!: number;
 
   @ApiProperty({ description: 'Count of overdue payments', example: 8 })
@@ -388,10 +391,10 @@ export class PaymentStatisticsMetricsDto {
   @ApiProperty({ description: 'Average payment amount', example: 2916.67 })
   averagePaymentAmount!: number;
 
-  @ApiProperty({ description: 'Median payment amount', example: 2500.00 })
+  @ApiProperty({ description: 'Median payment amount', example: 2500.0 })
   medianPaymentAmount!: number;
 
-  @ApiProperty({ description: 'Largest single payment amount', example: 45000.00 })
+  @ApiProperty({ description: 'Largest single payment amount', example: 45000.0 })
   largestPaymentAmount!: number;
 
   @ApiProperty({ description: 'Average days to complete payment from due date', example: 8.5 })
@@ -403,7 +406,10 @@ export class PaymentStatisticsMetricsDto {
   @ApiProperty({ description: 'Average payment value per customer', example: 2413.79 })
   averagePaymentPerCustomer!: number;
 
-  @ApiProperty({ description: 'Total payment cycles in the period (strict cycle logic)', example: 45 })
+  @ApiProperty({
+    description: 'Total payment cycles in the period (strict cycle logic)',
+    example: 45,
+  })
   totalCycles!: number;
 
   @ApiProperty({ description: 'Number of completed cycles (strict cycle logic)', example: 38 })

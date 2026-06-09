@@ -1,6 +1,18 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, PreconditionFailedException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  PreconditionFailedException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { CreateVisaApplicationDto, AdvanceVisaStepDto, DefaultFilterDto, UpdateVisaApplicationDto } from './dto/visa-application.dto';
+import {
+  CreateVisaApplicationDto,
+  AdvanceVisaStepDto,
+  DefaultFilterDto,
+  UpdateVisaApplicationDto,
+} from './dto/visa-application.dto';
 import { VisaStatus, Prisma } from '@prisma/tenant-client';
 
 export interface HistoryEntry {
@@ -16,7 +28,14 @@ export class VisaApplicationsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(tenantId: string, createDto: CreateVisaApplicationDto) {
-    const { studentId, visaTypeId, courseApplicationId, destinationCountry, workflowId, workflowVersionId } = createDto;
+    const {
+      studentId,
+      visaTypeId,
+      courseApplicationId,
+      destinationCountry,
+      workflowId,
+      workflowVersionId,
+    } = createDto;
 
     const student = await this.prisma.student.findUnique({
       where: { id: studentId, tenantId },
@@ -38,7 +57,8 @@ export class VisaApplicationsService {
         },
       },
     });
-    if (!visaType || !visaType.isActive) throw new NotFoundException('Active Visa Type not found for the given tenant');
+    if (!visaType || !visaType.isActive)
+      throw new NotFoundException('Active Visa Type not found for the given tenant');
 
     // Determine which workflow to use
     let workflow: any;
@@ -47,7 +67,9 @@ export class VisaApplicationsService {
       // If workflowId is provided, validate and use that specific workflow
       workflow = visaType.workflows.find((w: any) => w.id === workflowId);
       if (!workflow) {
-        throw new BadRequestException('The provided workflowId is not valid for the selected visaTypeId');
+        throw new BadRequestException(
+          'The provided workflowId is not valid for the selected visaTypeId',
+        );
       }
     } else {
       // Use default workflow (first active workflow)
@@ -71,7 +93,9 @@ export class VisaApplicationsService {
       });
 
       if (!workflowVersion) {
-        throw new BadRequestException('The provided workflowVersionId is not valid for the selected workflowId');
+        throw new BadRequestException(
+          'The provided workflowVersionId is not valid for the selected workflowId',
+        );
       }
     }
 
@@ -94,21 +118,40 @@ export class VisaApplicationsService {
     }
 
     const firstStep = workflowVersion.steps[0];
-    if (!firstStep) throw new BadRequestException('The selected workflow version has no configured first step');
+    if (!firstStep)
+      throw new BadRequestException('The selected workflow version has no configured first step');
 
     if (courseApplicationId) {
-      const courseApp = await this.prisma.courseApplication.findUnique({ where: { id: courseApplicationId, tenantId } });
-      if (!courseApp) throw new NotFoundException('Course Application not found for the given tenant');
-      if (courseApp.studentId !== studentId) throw new BadRequestException('Course Application does not belong to the given student');
-      if (courseApp.status !== 'OfferReceived' && courseApp.status !== 'Accepted') throw new BadRequestException('Course Application must be in OfferReceived or Accepted status');
+      const courseApp = await this.prisma.courseApplication.findUnique({
+        where: { id: courseApplicationId, tenantId },
+      });
+      if (!courseApp)
+        throw new NotFoundException('Course Application not found for the given tenant');
+      if (courseApp.studentId !== studentId)
+        throw new BadRequestException('Course Application does not belong to the given student');
+      if (courseApp.status !== 'OfferReceived' && courseApp.status !== 'Accepted')
+        throw new BadRequestException(
+          'Course Application must be in OfferReceived or Accepted status',
+        );
 
       const existingVisa = await this.prisma.visaApplication.findFirst({
         where: { tenantId, courseApplicationId, status: { notIn: ['Rejected', 'Approved'] } },
       });
-      if (existingVisa) throw new ConflictException('A non-resolved visa application already exists for this course application');
+      if (existingVisa)
+        throw new ConflictException(
+          'A non-resolved visa application already exists for this course application',
+        );
     }
 
-    const initialHistory: HistoryEntry[] = [{ stepId: firstStep.id, status: 'Started', timestamp: new Date().toISOString(), matchedSLA: true, remarks: 'Application created' }];
+    const initialHistory: HistoryEntry[] = [
+      {
+        stepId: firstStep.id,
+        status: 'Started',
+        timestamp: new Date().toISOString(),
+        matchedSLA: true,
+        remarks: 'Application created',
+      },
+    ];
 
     return this.prisma.visaApplication.create({
       data: {
@@ -149,12 +192,17 @@ export class VisaApplicationsService {
         if (app.status === 'Approved' || app.status === 'Rejected')
           throw new BadRequestException(`Cannot advance a visa application that is ${app.status}`);
 
-        const stepIndex = app.workflowVersion.steps.findIndex((s: any) => s.id === app.currentStepId);
-        if (stepIndex === -1) throw new BadRequestException('Current step not found in the workflow version steps');
+        const stepIndex = app.workflowVersion.steps.findIndex(
+          (s: any) => s.id === app.currentStepId,
+        );
+        if (stepIndex === -1)
+          throw new BadRequestException('Current step not found in the workflow version steps');
         const currentStep = app.workflowVersion.steps[stepIndex];
 
         if (currentStep.requiresDocument && app.documents.length === 0)
-          throw new PreconditionFailedException(`Documents are required before advancing from ${currentStep.name}`);
+          throw new PreconditionFailedException(
+            `Documents are required before advancing from ${currentStep.name}`,
+          );
 
         const nextStep = app.workflowVersion.steps[stepIndex + 1];
         const history: HistoryEntry[] = Array.isArray(app.notes) ? (app.notes as any) : [];
@@ -188,12 +236,11 @@ export class VisaApplicationsService {
         }
 
         // Determine updated status
-        const updatedStatus =
-          nextStep
-            ? app.status === VisaStatus.Pending
-              ? VisaStatus.Submitted
-              : app.status
-            : VisaStatus.Submitted;
+        const updatedStatus = nextStep
+          ? app.status === VisaStatus.Pending
+            ? VisaStatus.Submitted
+            : app.status
+          : VisaStatus.Submitted;
 
         if (!nextStep) {
           history.push({
@@ -322,7 +369,9 @@ export class VisaApplicationsService {
 
     // Calculate which steps need documents
     const stepDocumentRequirements = steps.map((step: any) => {
-      const documentsForStep = (visaApplication.documents as any[]).filter((doc: any) => doc.workflowId === step.id);
+      const documentsForStep = (visaApplication.documents as any[]).filter(
+        (doc: any) => doc.workflowId === step.id,
+      );
       return {
         stepId: step.id,
         stepName: step.name,
@@ -353,7 +402,9 @@ export class VisaApplicationsService {
       },
       stepDocumentRequirements,
       metadata: {
-        createdDaysAgo: Math.floor((Date.now() - new Date(visaApplication.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
+        createdDaysAgo: Math.floor(
+          (Date.now() - new Date(visaApplication.createdAt).getTime()) / (1000 * 60 * 60 * 24),
+        ),
         isCompleted: visaApplication.status === 'Approved' || visaApplication.status === 'Rejected',
         workflowVersionNumber: (workflowVersion as any)?.versionNumber,
       },
@@ -362,36 +413,39 @@ export class VisaApplicationsService {
 
   async delete(tenantId: string, id: string) {
     try {
-      return await this.prisma.$transaction(async (tx: any) => {
-        const visaApplication = await tx.visaApplication.findFirst({
-          where: { id, tenantId },
-          select: { id: true },
-        });
+      return await this.prisma.$transaction(
+        async (tx: any) => {
+          const visaApplication = await tx.visaApplication.findFirst({
+            where: { id, tenantId },
+            select: { id: true },
+          });
 
-        if (!visaApplication) {
-          throw new NotFoundException('Visa application not found');
-        }
+          if (!visaApplication) {
+            throw new NotFoundException('Visa application not found');
+          }
 
-        await tx.fileUpload.deleteMany({
-          where: {
-            tenantId,
-            visaApplicationId: id,
-          },
-        });
+          await tx.fileUpload.deleteMany({
+            where: {
+              tenantId,
+              visaApplicationId: id,
+            },
+          });
 
-        await tx.visaDocument.deleteMany({
-          where: {
-            tenantId,
-            visaApplicationId: id,
-          },
-        });
+          await tx.visaDocument.deleteMany({
+            where: {
+              tenantId,
+              visaApplicationId: id,
+            },
+          });
 
-        await tx.visaApplication.delete({
-          where: { id },
-        });
+          await tx.visaApplication.delete({
+            where: { id },
+          });
 
-        return { message: 'Visa application deleted successfully' };
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+          return { message: 'Visa application deleted successfully' };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;

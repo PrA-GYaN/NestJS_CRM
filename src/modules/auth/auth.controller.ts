@@ -15,7 +15,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Platform Admin Login',
-    description: 'Authenticates a platform-level admin. The returned JWT contains `isPlatformAdmin: true` and grants access to all platform administration endpoints.',
+    description:
+      'Authenticates a platform-level admin. The returned JWT contains `isPlatformAdmin: true` and grants access to all platform administration endpoints.',
   })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login successful', type: AuthResponseDto })
@@ -29,7 +30,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Tenant User Login',
-    description: 'Authenticates a tenant user (staff/agent). The tenant is resolved from the subdomain. The returned JWT contains `tenantId`, `roleId`, `roleName`, and `isStudent: false`.',
+    description:
+      'Authenticates a tenant user (staff/agent). The tenant is resolved from the subdomain. The returned JWT contains `tenantId`, `roleId`, `roleName`, and `isStudent: false`.',
   })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login successful', type: AuthResponseDto })
@@ -44,11 +46,19 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Student Login',
-    description: 'Authenticates a student for the self-service Student Panel. The tenant is resolved from the subdomain. The returned JWT contains `isStudent: true` and `studentId` — use this token exclusively with `/student-panel/*` endpoints.',
+    description:
+      'Authenticates a student for the self-service Student Panel. The tenant is resolved from the subdomain. The returned JWT contains `isStudent: true` and `studentId` — use this token exclusively with `/student-panel/*` endpoints.',
   })
   @ApiBody({ type: LoginDto })
-  @ApiResponse({ status: 200, description: 'Login successful — token contains isStudent: true', type: AuthResponseDto })
-  @ApiResponse({ status: 401, description: 'Invalid credentials, inactive account, or tenant not found' })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful — token contains isStudent: true',
+    type: AuthResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid credentials, inactive account, or tenant not found',
+  })
   async studentLogin(@Body() loginDto: LoginDto, @Req() req: any): Promise<AuthResponseDto> {
     const tenantId = req.tenantId;
     return this.authService.studentLogin(tenantId, loginDto);
@@ -58,7 +68,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get current user info with permissions',
-    description: 'Returns the authenticated user\'s profile and permissions. For platform admins returns `permissions: ["*"]`. For students returns role info with `isStudent: true`. For tenant users returns full role and permission list.',
+    description:
+      'Returns the authenticated user\'s profile and permissions. For platform admins returns `permissions: ["*"]`. For students returns role info with `isStudent: true`. For tenant users returns full role and permission list.',
   })
   @ApiResponse({
     status: 200,
