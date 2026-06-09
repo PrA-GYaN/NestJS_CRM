@@ -131,6 +131,16 @@ export class PermissionsService {
       actions: ['create', 'read', 'update', 'delete', 'publish'],
       description: 'Landing page management permissions',
     },
+    {
+      module: 'staff',
+      actions: ['create', 'read', 'update', 'delete'],
+      description: 'Staff profile and workforce management permissions',
+    },
+    {
+      module: 'queues',
+      actions: ['create', 'read', 'update', 'delete'],
+      description: 'Queue management permissions',
+    },
   ];
 
   /**
