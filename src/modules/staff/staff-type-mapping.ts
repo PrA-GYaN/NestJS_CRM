@@ -1,41 +1,35 @@
 import { BadRequestException } from '@nestjs/common';
 import { StaffTypeEnum } from './dto/staff.dto';
 
-const STAFF_TYPE_ROLE_MAP: Record<StaffTypeEnum, string[]> = {
-  [StaffTypeEnum.Counselor]: ['Counselor'],
-  [StaffTypeEnum.AdmissionOfficer]: ['Admission Officer', 'AdmissionOfficer'],
-  [StaffTypeEnum.VisaOfficer]: ['Visa Officer', 'VisaOfficer'],
-  [StaffTypeEnum.DocumentationOfficer]: ['Documentation Officer', 'DocumentationOfficer'],
-  [StaffTypeEnum.FinanceOfficer]: ['Finance Officer', 'FinanceOfficer'],
-  [StaffTypeEnum.Other]: [],
+const ROLE_TO_STAFF_TYPE: Record<string, StaffTypeEnum> = {
+  COUNSELOR: StaffTypeEnum.Counselor,
+  ADMISSIONOFFICER: StaffTypeEnum.AdmissionOfficer,
+  VISAOFFICER: StaffTypeEnum.VisaOfficer,
+  DOCUMENTATIONOFFICER: StaffTypeEnum.DocumentationOfficer,
+  FINANCEOFFICER: StaffTypeEnum.FinanceOfficer,
 };
 
+const NORMALIZED_STAFF_ROLES = new Set(
+  Object.keys(ROLE_TO_STAFF_TYPE),
+);
+
 export class StaffTypeMapping {
-  static isRoleAllowedForStaffType(
-    staffType: StaffTypeEnum,
-    roleName: string,
-  ): boolean {
-    const allowedRoles = STAFF_TYPE_ROLE_MAP[staffType];
-    if (!allowedRoles) return false;
-    if (allowedRoles.length === 0) return true;
-    return allowedRoles.some(
-      (allowed) => allowed.toLowerCase() === roleName.toLowerCase(),
-    );
+  static getStaffType(roleName: string): StaffTypeEnum | null {
+    const normalized = roleName.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return ROLE_TO_STAFF_TYPE[normalized] || null;
   }
 
-  static validateStaffTypeRole(
-    staffType: StaffTypeEnum,
-    roleName: string,
-  ): void {
-    if (!StaffTypeMapping.isRoleAllowedForStaffType(staffType, roleName)) {
+  static isStaffRole(roleName: string): boolean {
+    const normalized = roleName.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return NORMALIZED_STAFF_ROLES.has(normalized);
+  }
+
+  static validateStaffTypeRole(staffType: StaffTypeEnum, roleName: string): void {
+    const expected = StaffTypeMapping.getStaffType(roleName);
+    if (expected && expected !== staffType) {
       throw new BadRequestException(
-        `StaffType "${staffType}" is not compatible with role "${roleName}". ` +
-        `Allowed role(s) for ${staffType}: ${(STAFF_TYPE_ROLE_MAP[staffType] || []).join(', ') || 'any'}`,
+        `Staff type "${staffType}" does not match the role "${roleName}". Expected "${expected}".`,
       );
     }
-  }
-
-  static getAllowedRolesForStaffType(staffType: StaffTypeEnum): string[] {
-    return STAFF_TYPE_ROLE_MAP[staffType] || [];
   }
 }

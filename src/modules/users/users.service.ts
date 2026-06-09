@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { AuthService } from '../auth/auth.service';
+import { StaffService } from '../staff/staff.service';
+import { StaffTypeMapping } from '../staff/staff-type-mapping';
 import {
   CreateUserDto,
   UpdateUserDto,
@@ -25,6 +27,7 @@ export class UsersService {
   constructor(
     private tenantService: TenantService,
     private authService: AuthService,
+    private staffService: StaffService,
   ) {}
 
   async createUser(tenantId: string, createUserDto: CreateUserDto) {
@@ -56,7 +59,7 @@ export class UsersService {
 
     const hashedPassword = await this.authService.hashPassword(createUserDto.password);
 
-    return tenantPrisma.user.create({
+    const user = await tenantPrisma.user.create({
       data: {
         ...createUserDto,
         tenantId,
@@ -66,6 +69,13 @@ export class UsersService {
         role: true,
       },
     });
+
+    const staffType = StaffTypeMapping.getStaffType(role.name);
+    if (staffType) {
+      await this.staffService.createProfileFromUser(tenantId, user.id, staffType);
+    }
+
+    return user;
   }
 
   async getAllUsers(tenantId: string, paginationDto: PaginationDto) {
@@ -152,13 +162,20 @@ export class UsersService {
       if (this.isSuperAdminRole(newRole.name)) {
         throw new BadRequestException('SUPER_ADMIN role cannot be manually assigned to users');
       }
+
+      const newStaffType = StaffTypeMapping.getStaffType(newRole.name);
+      if (newStaffType) {
+        await this.staffService.createProfileFromUser(tenantId, user.id, newStaffType);
+      }
     }
 
-    return tenantPrisma.user.update({
+    const updatedUser = await tenantPrisma.user.update({
       where: { id },
       data: updateUserDto,
       include: { role: true },
     });
+
+    return updatedUser;
   }
 
   async deleteUser(tenantId: string, id: string) {

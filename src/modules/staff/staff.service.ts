@@ -2,7 +2,6 @@ import { Injectable, NotFoundException, ConflictException, BadRequestException }
 import { TenantService } from '../../common/tenant/tenant.service';
 import { StaffTypeMapping } from './staff-type-mapping';
 import {
-  CreateStaffProfileDto,
   UpdateStaffProfileDto,
   StaffQueryDto,
   StaffTypeEnum,
@@ -13,39 +12,27 @@ import {
 export class StaffService {
   constructor(private tenantService: TenantService) {}
 
-  async createProfile(tenantId: string, dto: CreateStaffProfileDto, creatorId?: string) {
+  async createProfileFromUser(
+    tenantId: string,
+    userId: string,
+    staffType: StaffTypeEnum,
+  ) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
-    const user = await tenantPrisma.user.findFirst({
-      where: { id: dto.userId, tenantId },
-      include: { role: true },
-    });
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (!user.role) {
-      throw new BadRequestException('User has no role assigned');
-    }
-
-    StaffTypeMapping.validateStaffTypeRole(dto.staffType, user.role.name);
-
     const existing = await tenantPrisma.staffProfile.findFirst({
-      where: { tenantId, userId: dto.userId },
+      where: { tenantId, userId },
     });
     if (existing) {
-      throw new ConflictException('Staff profile already exists for this user');
+      return existing;
     }
 
     return tenantPrisma.staffProfile.create({
       data: {
         tenantId,
-        userId: dto.userId,
-        staffType: dto.staffType as any,
-        status: (dto.status || 'Available') as any,
-        maxWorkload: dto.maxWorkload || 100,
-        department: dto.department,
-        joinedAt: dto.joinedAt ? new Date(dto.joinedAt) : undefined,
+        userId,
+        staffType: staffType as any,
+        status: StaffStatusEnum.Available as any,
+        maxWorkload: 100,
       },
       include: {
         user: {

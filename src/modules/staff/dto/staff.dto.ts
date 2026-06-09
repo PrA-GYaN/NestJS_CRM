@@ -6,9 +6,7 @@ import {
   IsOptional,
   IsInt,
   IsPositive,
-  IsArray,
   IsDateString,
-  Min,
   Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -28,39 +26,6 @@ export enum StaffTypeEnum {
   DocumentationOfficer = 'DocumentationOfficer',
   FinanceOfficer = 'FinanceOfficer',
   Other = 'Other',
-}
-
-export class CreateStaffProfileDto {
-  @ApiProperty({ description: 'User ID to create staff profile for' })
-  @IsUUID()
-  userId!: string;
-
-  @ApiProperty({ enum: StaffTypeEnum })
-  @IsEnum(StaffTypeEnum)
-  staffType!: StaffTypeEnum;
-
-  @ApiPropertyOptional({ enum: StaffStatusEnum })
-  @IsOptional()
-  @IsEnum(StaffStatusEnum)
-  status?: StaffStatusEnum;
-
-  @ApiPropertyOptional({ default: 100 })
-  @IsOptional()
-  @IsInt()
-  @IsPositive()
-  @Max(500)
-  @Type(() => Number)
-  maxWorkload?: number;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  department?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsDateString()
-  joinedAt?: string;
 }
 
 export class UpdateStaffProfileDto {

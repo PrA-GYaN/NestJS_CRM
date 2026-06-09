@@ -13,7 +13,6 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { StaffService } from './staff.service';
 import {
-  CreateStaffProfileDto,
   UpdateStaffProfileDto,
   StaffQueryDto,
   StaffStatusEnum,
@@ -23,7 +22,6 @@ import { IdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import {
-  CanCreate,
   CanRead,
   CanUpdate,
   CanDelete,
@@ -37,17 +35,6 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @Controller('staff')
 export class StaffController {
   constructor(private staffService: StaffService) {}
-
-  @Post('profiles')
-  @CanCreate('staff')
-  @ApiOperation({ summary: 'Create staff profile for an existing user' })
-  createProfile(
-    @TenantId() tenantId: string,
-    @CurrentUser() user: any,
-    @Body() dto: CreateStaffProfileDto,
-  ) {
-    return this.staffService.createProfile(tenantId, dto, user.id);
-  }
 
   @Get('profiles')
   @CanRead('staff')
