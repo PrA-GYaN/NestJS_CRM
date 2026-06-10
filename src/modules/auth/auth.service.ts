@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { MasterPrismaService } from '../../common/prisma/master-prisma.service';
 import { TenantService } from '../../common/tenant/tenant.service';
+import { PermissionsService } from '../../common/permissions/permissions.service';
 import { LoginDto, AuthResponseDto } from './dto/auth.dto';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class AuthService {
     private masterPrisma: MasterPrismaService,
     private jwtService: JwtService,
     private tenantService: TenantService,
+    private permissionsService: PermissionsService,
   ) {}
 
   async hashPassword(password: string): Promise<string> {
@@ -265,8 +267,11 @@ export class AuthService {
       throw new UnauthorizedException('User account is inactive');
     }
 
-    // Extract permissions
-    const permissions = user.role.rolePermissions.map((rp) => rp.permission.name);
+    // Extract permissions with scope info
+    const permInfo = await this.permissionsService.getUserPermissionsWithScopes(
+      tenantPrisma,
+      userId,
+    );
 
     return {
       id: user.id,
@@ -275,7 +280,8 @@ export class AuthService {
       role: user.role.name,
       roleId: user.role.id,
       tenantId: user.tenantId,
-      permissions: permissions.sort(), // Sort alphabetically for consistency
+      permissions: permInfo.permissions,
+      scopes: permInfo.scopes,
     };
   }
 }

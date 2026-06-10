@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { TenantService } from '../../common/tenant/tenant.service';
+import { ScopeService } from '../../common/permissions/scope.service';
 import {
   CreateStudentDto,
   UpdateStudentDto,
@@ -18,7 +19,10 @@ import { DocumentType, DocumentVerificationStatus } from '@prisma/tenant-client'
 
 @Injectable()
 export class StudentsService {
-  constructor(private tenantService: TenantService) {}
+  constructor(
+    private tenantService: TenantService,
+    private scopeService: ScopeService,
+  ) {}
 
   private sanitizeApplicantResponse(student: any) {
     const counselorRoleName = student.assignedCounselor?.role?.name?.toLowerCase();
@@ -70,7 +74,7 @@ export class StudentsService {
     });
   }
 
-  async getAllStudents(tenantId: string, paginationDto: PaginationDto) {
+  async getAllStudents(tenantId: string, paginationDto: PaginationDto, userId?: string, scope?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const {
       page = 1,
@@ -81,16 +85,21 @@ export class StudentsService {
     } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const where = {
-      tenantId,
-      ...(search && {
-        OR: [
-          { firstName: { contains: search, mode: 'insensitive' as any } },
-          { lastName: { contains: search, mode: 'insensitive' as any } },
-          { email: { contains: search, mode: 'insensitive' as any } },
-        ],
-      }),
-    };
+    const where: any = { tenantId };
+
+    // Apply scope-based ownership filter
+    const ownershipFilter = this.scopeService.getOwnershipFilter('students', userId, scope);
+    if (ownershipFilter) {
+      Object.assign(where, ownershipFilter);
+    }
+
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' as any } },
+        { lastName: { contains: search, mode: 'insensitive' as any } },
+        { email: { contains: search, mode: 'insensitive' as any } },
+      ];
+    }
 
     const [students, total] = await Promise.all([
       tenantPrisma.student.findMany({
@@ -125,11 +134,17 @@ export class StudentsService {
     };
   }
 
-  async getStudentById(tenantId: string, id: string) {
+  async getStudentById(tenantId: string, id: string, userId?: string, scope?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
+    const where: any = { id, tenantId };
+    const ownershipFilter = this.scopeService.getOwnershipFilter('students', userId, scope);
+    if (ownershipFilter) {
+      Object.assign(where, ownershipFilter);
+    }
+
     const student = await tenantPrisma.student.findFirst({
-      where: { id, tenantId },
+      where,
       include: {
         lead: true,
         documents: true,

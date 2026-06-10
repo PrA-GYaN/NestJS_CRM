@@ -86,4 +86,13 @@ export class AssignPermissionsDto {
   @ApiProperty({ type: [String] })
   @IsUUID('4', { each: true })
   permissionIds!: string[];
+
+  @ApiPropertyOptional({
+    description: 'Default scope to apply to all assigned permissions',
+    enum: ['own', 'full'],
+    default: 'full',
+  })
+  @IsOptional()
+  @IsEnum(['own', 'full'])
+  defaultScope?: 'own' | 'full';
 }

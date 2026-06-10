@@ -113,13 +113,19 @@ export class AuthController {
   async getCurrentUser(@CurrentUser() user: any, @Req() req: any) {
     // For platform admins
     if (user.isPlatformAdmin) {
+      const allModules = [
+        'leads', 'students', 'users', 'universities', 'course-applications',
+        'tasks', 'appointments', 'payments',
+      ];
+      const scopes = Object.fromEntries(allModules.map((m) => [m, 'full']));
       return {
         id: user.id,
         email: user.email,
         name: user.name,
         role: user.role,
         isPlatformAdmin: true,
-        permissions: ['*'], // Platform admins have all permissions
+        permissions: ['*'],
+        scopes,
       };
     }
 

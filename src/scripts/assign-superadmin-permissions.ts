@@ -76,6 +76,7 @@ async function assignSuperAdminPermissions() {
           tenantId: tenant.id,
           roleId: superAdminRole.id,
           permissionId: perm.id,
+          scope: 'full',
         }));
 
         if (rolePermissionData.length > 0) {

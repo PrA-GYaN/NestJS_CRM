@@ -6,6 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
+import { ScopeService } from '../../common/permissions/scope.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityLogsService } from '../activity-logs/activity-logs.service';
 import { NotificationEntityType } from '../notifications/dto/notification.dto';
@@ -31,6 +32,7 @@ import { DayOfWeekEnum } from '../working-hours/dto/working-hours.dto';
 export class AppointmentsService {
   constructor(
     private tenantService: TenantService,
+    private scopeService: ScopeService,
     private notificationsService: NotificationsService,
     private activityLogsService: ActivityLogsService,
     private workingHoursService: WorkingHoursService,
@@ -438,7 +440,7 @@ export class AppointmentsService {
   /**
    * Get appointments with filtering
    */
-  async findAll(tenantId: string, queryDto: AppointmentsQueryDto) {
+  async findAll(tenantId: string, queryDto: AppointmentsQueryDto, ownershipFilter?: Record<string, string> | null) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     const {
@@ -457,6 +459,9 @@ export class AppointmentsService {
     const skip = (page - 1) * limit;
 
     const where: any = { tenantId };
+    if (ownershipFilter) {
+      Object.assign(where, ownershipFilter);
+    }
 
     if (status) {
       where.status = status;
@@ -525,11 +530,16 @@ export class AppointmentsService {
   /**
    * Get single appointment by ID
    */
-  async findOne(tenantId: string, id: string) {
+  async findOne(tenantId: string, id: string, ownershipFilter?: Record<string, string> | null) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
+    const where: any = { id, tenantId };
+    if (ownershipFilter) {
+      Object.assign(where, ownershipFilter);
+    }
+
     const appointment = await tenantPrisma.appointment.findFirst({
-      where: { id, tenantId },
+      where,
       include: {
         student: {
           select: { id: true, firstName: true, lastName: true, email: true },
@@ -592,13 +602,15 @@ export class AppointmentsService {
   }
 
   // Legacy method for backward compatibility
-  async getAllAppointments(tenantId: string, paginationDto: any) {
-    return this.findAll(tenantId, paginationDto);
+  async getAllAppointments(tenantId: string, paginationDto: any, userId?: string, scope?: string) {
+    const ownershipFilter = this.scopeService.getOwnershipFilter('appointments', userId, scope);
+    return this.findAll(tenantId, paginationDto, ownershipFilter);
   }
 
   // Legacy method for backward compatibility
-  async getAppointmentById(tenantId: string, id: string) {
-    return this.findOne(tenantId, id);
+  async getAppointmentById(tenantId: string, id: string, userId?: string, scope?: string) {
+    const ownershipFilter = this.scopeService.getOwnershipFilter('appointments', userId, scope);
+    return this.findOne(tenantId, id, ownershipFilter);
   }
 
   /**
@@ -622,11 +634,12 @@ export class AppointmentsService {
   /**
    * Get pending appointments (for staff approval queue)
    */
-  async getPendingAppointments(tenantId: string, queryDto: AppointmentsQueryDto) {
+  async getPendingAppointments(tenantId: string, queryDto: AppointmentsQueryDto, userId?: string, scope?: string) {
+    const ownershipFilter = this.scopeService.getOwnershipFilter('appointments', userId, scope);
     return this.findAll(tenantId, {
       ...queryDto,
       status: AppointmentStatusEnum.Pending,
-    });
+    }, ownershipFilter);
   }
 
   /**

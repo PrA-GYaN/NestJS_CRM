@@ -9,6 +9,7 @@ import { Reflector } from '@nestjs/core';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 import { TenantService } from '../tenant/tenant.service';
 import { PermissionsService } from '../permissions/permissions.service';
+import { ScopeService } from '../permissions/scope.service';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -18,6 +19,7 @@ export class PermissionsGuard implements CanActivate {
     private reflector: Reflector,
     private tenantService: TenantService,
     private permissionsService: PermissionsService,
+    private scopeService: ScopeService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -82,6 +84,8 @@ export class PermissionsGuard implements CanActivate {
       }
 
       this.logger.debug(`Student permission granted for user: ${user.id}`);
+
+      request.userScopes = { documents: 'own' };
       return true;
     }
 
@@ -110,6 +114,8 @@ export class PermissionsGuard implements CanActivate {
     // Check if user's role has admin override
     if (userWithRole.role.isAdmin) {
       this.logger.debug(`Admin override granted for user: ${user.id}`);
+
+      request.userScopes = { __all__: 'full' };
       return true;
     }
 
@@ -153,6 +159,12 @@ export class PermissionsGuard implements CanActivate {
         `Insufficient permissions. Required: ${requiredPermissions.join(', ')}`,
       );
     }
+
+    const userScopes = await this.permissionsService.getUserPermissionsWithScopes(
+      tenantPrisma,
+      user.id,
+    );
+    request.userScopes = userScopes.scopes;
 
     return true;
   }

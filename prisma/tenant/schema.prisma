@@ -90,6 +90,7 @@ model RolePermission {
   tenantId     String
   roleId       String
   permissionId String
+  scope        String   @default("full") // "own", "full" - controls which records the user can access
   createdAt    DateTime @default(now())
 
   role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)

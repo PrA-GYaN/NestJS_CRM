@@ -37,6 +37,8 @@ import {
   RequirePermissions,
 } from '../../common/decorators/permissions.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { UserScopes } from '../../common/decorators/user-scopes.decorator';
 
 @ApiTags('Student Management')
 @ApiBearerAuth()
@@ -69,8 +71,14 @@ export class StudentsController {
   })
   @ApiResponse({ status: 200, description: 'Students retrieved successfully' })
   @ApiResponse({ status: 403, description: 'Insufficient permissions' })
-  getAllStudents(@TenantId() tenantId: string, @Query() paginationDto: PaginationDto) {
-    return this.studentsService.getAllStudents(tenantId, paginationDto);
+  getAllStudents(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @UserScopes() userScopes: Record<string, string>,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    const scope = userScopes['students'] || userScopes['__all__'] || 'own';
+    return this.studentsService.getAllStudents(tenantId, paginationDto, user.id, scope);
   }
 
   @Get(':id')
@@ -82,8 +90,14 @@ export class StudentsController {
   })
   @ApiResponse({ status: 200, description: 'Student retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Student not found' })
-  getStudentById(@TenantId() tenantId: string, @Param() params: IdParamDto) {
-    return this.studentsService.getStudentById(tenantId, params.id);
+  getStudentById(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @UserScopes() userScopes: Record<string, string>,
+    @Param() params: IdParamDto,
+  ) {
+    const scope = userScopes['students'] || userScopes['__all__'] || 'own';
+    return this.studentsService.getStudentById(tenantId, params.id, user.id, scope);
   }
 
   @Put(':id')

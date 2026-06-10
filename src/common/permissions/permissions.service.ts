@@ -14,6 +14,20 @@ export interface ModulePermissions {
   description?: string;
 }
 
+export interface PermissionWithScope {
+  id: string;
+  name: string;
+  module: string;
+  action: string;
+  description: string | null;
+  scope: string;
+}
+
+export interface UserPermissionInfo {
+  permissions: string[];
+  scopes: Record<string, string>;
+}
+
 @Injectable()
 export class PermissionsService {
   private readonly logger = new Logger(PermissionsService.name);
@@ -234,11 +248,12 @@ export class PermissionsService {
       },
     });
 
-    // Assign all permissions to SUPER_ADMIN
+    // Assign all permissions to SUPER_ADMIN with full scope
     const rolePermissions = allPermissions.map((permission: any) => ({
       tenantId,
       roleId: superAdminRole.id,
       permissionId: permission.id,
+      scope: 'full',
     }));
 
     if (rolePermissions.length > 0) {
@@ -323,6 +338,70 @@ export class PermissionsService {
     }
 
     return user.role.rolePermissions.map((rp: any) => rp.permission.name);
+  }
+
+  /**
+   * Get all permissions for a user with their scope information
+   */
+  async getUserPermissionsWithScopes(
+    tenantPrisma: TenantPrismaClient,
+    userId: string,
+  ): Promise<UserPermissionInfo> {
+    const user = await tenantPrisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        role: {
+          include: {
+            rolePermissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return { permissions: [], scopes: {} };
+    }
+
+    if (user.role.isAdmin) {
+      const allPermissions = await tenantPrisma.permission.findMany();
+      const moduleSet = new Set(allPermissions.map((p: any) => p.module));
+      const scopes: Record<string, string> = {};
+      for (const mod of moduleSet) {
+        scopes[mod] = 'full';
+      }
+      return {
+        permissions: allPermissions.map((p: any) => p.name),
+        scopes,
+      };
+    }
+
+    const permissions: string[] = [];
+    const scopes: Record<string, string> = {};
+
+    for (const rp of user.role.rolePermissions) {
+      const permName = rp.permission.name;
+      permissions.push(permName);
+
+      const module = rp.permission.module;
+      const rpScope = (rp as any).scope || 'full';
+      const SCOPE_HIERARCHY: Record<string, number> = {
+        own: 1,
+        full: 2,
+      };
+
+      const existingLevel = scopes[module] ? (SCOPE_HIERARCHY[scopes[module]] || 0) : 0;
+      const newLevel = SCOPE_HIERARCHY[rpScope] || 0;
+
+      if (!scopes[module] || newLevel > existingLevel) {
+        scopes[module] = rpScope;
+      }
+    }
+
+    return { permissions: [...new Set(permissions)].sort(), scopes };
   }
 
   /**
@@ -453,6 +532,7 @@ export class PermissionsService {
         tenantId,
         roleId,
         permissionId: permission.id,
+        scope: 'full',
       })),
     );
 

@@ -7,6 +7,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { UserScopes } from '../../common/decorators/user-scopes.decorator';
 import {
   CanCreate,
   CanRead,
@@ -34,8 +35,14 @@ export class TasksController {
     summary:
       'Get all tasks with optional filters (status, assignedTo, relatedEntityType, relatedEntityId, search)',
   })
-  getAllTasks(@TenantId() tenantId: string, @Query() queryDto: TaskQueryDto) {
-    return this.tasksService.getAllTasks(tenantId, queryDto);
+  getAllTasks(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @UserScopes() userScopes: Record<string, string>,
+    @Query() queryDto: TaskQueryDto,
+  ) {
+    const scope = userScopes['tasks'] || userScopes['__all__'] || 'own';
+    return this.tasksService.getAllTasks(tenantId, queryDto, user.id, scope);
   }
 
   @Get('my-tasks')

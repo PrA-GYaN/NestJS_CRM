@@ -41,6 +41,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { UserScopes } from '../../common/decorators/user-scopes.decorator';
 import {
   CanCreate,
   CanRead,
@@ -259,8 +260,14 @@ export class AppointmentsController {
     description: 'Paginated appointment list.',
     type: PaginatedAppointmentsResponseDto,
   })
-  getAllAppointments(@TenantId() tenantId: string, @Query() queryDto: AppointmentsQueryDto) {
-    return this.appointmentsService.findAll(tenantId, queryDto);
+  getAllAppointments(
+    @TenantId() tenantId: string,
+    @Query() queryDto: AppointmentsQueryDto,
+    @CurrentUser() user: any,
+    @UserScopes() userScopes: Record<string, string>,
+  ) {
+    const scope = userScopes['appointments'] || userScopes['__all__'] || 'own';
+    return this.appointmentsService.getAllAppointments(tenantId, queryDto, user.id, scope);
   }
 
   /**
@@ -291,8 +298,14 @@ export class AppointmentsController {
     description: 'Pending appointments retrieved successfully.',
     type: PaginatedAppointmentsResponseDto,
   })
-  getPendingAppointments(@TenantId() tenantId: string, @Query() queryDto: AppointmentsQueryDto) {
-    return this.appointmentsService.getPendingAppointments(tenantId, queryDto);
+  getPendingAppointments(
+    @TenantId() tenantId: string,
+    @Query() queryDto: AppointmentsQueryDto,
+    @CurrentUser() user: any,
+    @UserScopes() userScopes: Record<string, string>,
+  ) {
+    const scope = userScopes['appointments'] || userScopes['__all__'] || 'own';
+    return this.appointmentsService.getPendingAppointments(tenantId, queryDto, user.id, scope);
   }
 
   /**
@@ -381,8 +394,14 @@ export class AppointmentsController {
     type: AppointmentResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Appointment not found.' })
-  getAppointmentById(@TenantId() tenantId: string, @Param() params: IdParamDto) {
-    return this.appointmentsService.findOne(tenantId, params.id);
+  getAppointmentById(
+    @TenantId() tenantId: string,
+    @Param() params: IdParamDto,
+    @CurrentUser() user: any,
+    @UserScopes() userScopes: Record<string, string>,
+  ) {
+    const scope = userScopes['appointments'] || userScopes['__all__'] || 'own';
+    return this.appointmentsService.getAppointmentById(tenantId, params.id, user.id, scope);
   }
 
   // ──────────────────────────────────────────────────────────────────────────

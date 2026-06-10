@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
+import { ScopeService } from '../../common/permissions/scope.service';
 import { CreateLeadDto, UpdateLeadDto, ConvertLeadDto, LeadsQueryDto } from './dto/leads.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class LeadsService {
-  constructor(private tenantService: TenantService) {}
+  constructor(
+    private tenantService: TenantService,
+    private scopeService: ScopeService,
+  ) {}
 
   async createLead(tenantId: string, createLeadDto: CreateLeadDto) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
@@ -27,7 +31,7 @@ export class LeadsService {
     });
   }
 
-  async getAllLeads(tenantId: string, queryDto: LeadsQueryDto) {
+  async getAllLeads(tenantId: string, queryDto: LeadsQueryDto, userId?: string, scope?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const {
       page = 1,
@@ -45,6 +49,12 @@ export class LeadsService {
     const where: any = {
       tenantId,
     };
+
+    // Apply scope-based ownership filter
+    const ownershipFilter = this.scopeService.getOwnershipFilter('leads', userId, scope);
+    if (ownershipFilter) {
+      Object.assign(where, ownershipFilter);
+    }
 
     // Apply filters
     if (status) {
@@ -100,11 +110,17 @@ export class LeadsService {
     };
   }
 
-  async getLeadById(tenantId: string, id: string) {
+  async getLeadById(tenantId: string, id: string, userId?: string, scope?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
+    const where: any = { id, tenantId };
+    const ownershipFilter = this.scopeService.getOwnershipFilter('leads', userId, scope);
+    if (ownershipFilter) {
+      Object.assign(where, ownershipFilter);
+    }
+
     const lead = await tenantPrisma.lead.findFirst({
-      where: { id, tenantId },
+      where,
       include: {
         assignedUser: {
           select: {

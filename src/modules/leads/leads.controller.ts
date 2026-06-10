@@ -12,7 +12,10 @@ import {
   CanDelete,
   RequirePermissions,
 } from '../../common/decorators/permissions.decorator';
+import { UseScope } from '../../common/decorators/scope.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { UserScopes } from '../../common/decorators/user-scopes.decorator';
 
 @ApiTags('Lead Management')
 @ApiBearerAuth()
@@ -30,16 +33,30 @@ export class LeadsController {
 
   @Get()
   @CanRead('leads')
+  @UseScope('leads')
   @ApiOperation({ summary: 'Get all leads with filtering' })
-  getAllLeads(@TenantId() tenantId: string, @Query() queryDto: LeadsQueryDto) {
-    return this.leadsService.getAllLeads(tenantId, queryDto);
+  getAllLeads(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @UserScopes() userScopes: Record<string, string>,
+    @Query() queryDto: LeadsQueryDto,
+  ) {
+    const scope = userScopes['leads'] || userScopes['__all__'] || 'own';
+    return this.leadsService.getAllLeads(tenantId, queryDto, user.id, scope);
   }
 
   @Get(':id')
   @CanRead('leads')
+  @UseScope('leads')
   @ApiOperation({ summary: 'Get lead by ID' })
-  getLeadById(@TenantId() tenantId: string, @Param() params: IdParamDto) {
-    return this.leadsService.getLeadById(tenantId, params.id);
+  getLeadById(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: any,
+    @UserScopes() userScopes: Record<string, string>,
+    @Param() params: IdParamDto,
+  ) {
+    const scope = userScopes['leads'] || userScopes['__all__'] || 'own';
+    return this.leadsService.getLeadById(tenantId, params.id, user.id, scope);
   }
 
   @Put(':id')

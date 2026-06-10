@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
+import { ScopeService } from '../../common/permissions/scope.service';
 import { PaginationDto } from '../../common/dto/common.dto';
 import { TaskQueryDto } from './dto/task.dto';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -12,6 +13,7 @@ import { TaskStatus } from '@prisma/tenant-client';
 export class TasksService {
   constructor(
     private tenantService: TenantService,
+    private scopeService: ScopeService,
     private notificationsService: NotificationsService,
     private activityLogsService: ActivityLogsService,
   ) {}
@@ -64,7 +66,7 @@ export class TasksService {
     return task;
   }
 
-  async getAllTasks(tenantId: string, queryDto: TaskQueryDto) {
+  async getAllTasks(tenantId: string, queryDto: TaskQueryDto, userId?: string, scope?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const {
       page = 1,
@@ -80,6 +82,12 @@ export class TasksService {
     const skip = (page - 1) * limit;
 
     const where: Record<string, any> = { tenantId };
+
+    // Apply scope-based ownership filter
+    const ownershipFilter = this.scopeService.getOwnershipFilter('tasks', userId, scope);
+    if (ownershipFilter) {
+      Object.assign(where, ownershipFilter);
+    }
     if (status) where.status = status;
     if (assignedTo) where.assignedTo = assignedTo;
     if (relatedEntityType) where.relatedEntityType = relatedEntityType;
@@ -119,10 +127,17 @@ export class TasksService {
     };
   }
 
-  async getTaskById(tenantId: string, id: string) {
+  async getTaskById(tenantId: string, id: string, userId?: string, scope?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    const where: any = { id, tenantId };
+    const ownershipFilter = this.scopeService.getOwnershipFilter('tasks', userId, scope);
+    if (ownershipFilter) {
+      Object.assign(where, ownershipFilter);
+    }
+
     const task = await tenantPrisma.task.findFirst({
-      where: { id, tenantId },
+      where,
       include: {
         assignedUser: {
           select: {

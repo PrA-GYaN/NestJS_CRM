@@ -44,6 +44,7 @@ import { ActivityLogsModule } from './modules/activity-logs/activity-logs.module
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { ScopeInterceptor } from './common/interceptors/scope.interceptor';
 
 // Middleware
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
@@ -108,6 +109,10 @@ import { QueueModule } from './modules/queue/queue.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ScopeInterceptor,
     },
   ],
 })
