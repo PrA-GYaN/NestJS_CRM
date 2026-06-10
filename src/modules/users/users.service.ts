@@ -249,7 +249,6 @@ export class UsersService {
       where: { roleId },
     });
 
-    // Add new permissions with scope
     const defaultScope = dto.defaultScope || 'full';
     const rolePermissions = dto.permissionIds.map((permissionId) => ({
       tenantId,
@@ -459,14 +458,20 @@ export class UsersService {
       where: { roleId, tenantId },
     });
 
+    // Build scope map from per-permission overrides
+    const scopeMap = new Map<string, string>();
+    if (dto.permissions) {
+      dto.permissions.forEach((p) => scopeMap.set(p.permissionId, p.scope || 'full'));
+    }
+    const defaultScope = dto.defaultScope || 'full';
+
     // Add new permissions with scope
     if (dto.permissionIds.length > 0) {
-      const defaultScope = dto.defaultScope || 'full';
       const rolePermissions = dto.permissionIds.map((permissionId) => ({
         tenantId,
         roleId,
         permissionId,
-        scope: defaultScope,
+        scope: scopeMap.get(permissionId) || defaultScope,
       }));
 
       await tenantPrisma.rolePermission.createMany({
@@ -476,9 +481,9 @@ export class UsersService {
 
     return {
       success: true,
-      message: `Role permissions updated successfully with scope: ${dto.defaultScope || 'full'}`,
+      message: `Role permissions updated successfully`,
       totalPermissions: dto.permissionIds.length,
-      scope: dto.defaultScope || 'full',
+      scope: defaultScope,
     };
   }
 
