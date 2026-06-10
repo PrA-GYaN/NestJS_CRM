@@ -26,8 +26,11 @@ import {
   CanUpdate,
   CanDelete,
 } from '../../common/decorators/permissions.decorator';
+import { UseScope } from '../../common/decorators/scope.decorator';
+import { UserScopes } from '../../common/decorators/user-scopes.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ModuleScopeMap } from '../../common/permissions/scope.service';
 
 @ApiTags('Staff Management')
 @ApiBearerAuth()
@@ -38,17 +41,29 @@ export class StaffController {
 
   @Get('profiles')
   @CanRead('staff')
+  @UseScope('staff')
   @ApiOperation({ summary: 'Get all staff profiles with filtering' })
-  getAllProfiles(@TenantId() tenantId: string, @Query() queryDto: StaffQueryDto) {
-    return this.staffService.getAllProfiles(tenantId, queryDto);
+  getAllProfiles(
+    @TenantId() tenantId: string,
+    @Query() queryDto: StaffQueryDto,
+    @UserScopes() userScopes: ModuleScopeMap,
+    @CurrentUser() user: any,
+  ) {
+    return this.staffService.getAllProfiles(tenantId, queryDto, userScopes, user.id);
   }
 
   @Get('workload')
   @CanRead('staff')
+  @UseScope('staff')
   @ApiOperation({ summary: 'Get workload for all staff or a specific staff member' })
   @ApiQuery({ name: 'staffId', required: false, type: String })
-  getWorkload(@TenantId() tenantId: string, @Query('staffId') staffId?: string) {
-    return this.staffService.getWorkload(tenantId, staffId);
+  getWorkload(
+    @TenantId() tenantId: string,
+    @Query('staffId') staffId?: string,
+    @UserScopes() userScopes?: ModuleScopeMap,
+    @CurrentUser() user?: any,
+  ) {
+    return this.staffService.getWorkload(tenantId, staffId, userScopes, user?.id);
   }
 
   @Get('available')
@@ -67,16 +82,28 @@ export class StaffController {
 
   @Get('profiles/by-user/:id')
   @CanRead('staff')
+  @UseScope('staff')
   @ApiOperation({ summary: 'Get staff profile by user ID' })
-  getProfileByUserId(@TenantId() tenantId: string, @Param() params: IdParamDto) {
-    return this.staffService.getProfileByUserId(tenantId, params.id);
+  getProfileByUserId(
+    @TenantId() tenantId: string,
+    @Param() params: IdParamDto,
+    @UserScopes() userScopes: ModuleScopeMap,
+    @CurrentUser() user: any,
+  ) {
+    return this.staffService.getProfileByUserId(tenantId, params.id, userScopes, user.id);
   }
 
   @Get('profiles/:id')
   @CanRead('staff')
+  @UseScope('staff')
   @ApiOperation({ summary: 'Get staff profile by ID' })
-  getProfileById(@TenantId() tenantId: string, @Param() params: IdParamDto) {
-    return this.staffService.getProfileById(tenantId, params.id);
+  getProfileById(
+    @TenantId() tenantId: string,
+    @Param() params: IdParamDto,
+    @UserScopes() userScopes: ModuleScopeMap,
+    @CurrentUser() user: any,
+  ) {
+    return this.staffService.getProfileById(tenantId, params.id, userScopes, user.id);
   }
 
   @Put('profiles/:id')

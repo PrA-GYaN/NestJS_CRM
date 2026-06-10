@@ -25,6 +25,8 @@ const OWNERSHIP_FIELD_MAP: Record<string, string> = {
   'course-applications': 'assignedTo',
   'activity-logs': 'userId',
   notifications: 'userId',
+  staff: 'userId',
+  queues: 'assignedTo',
 };
 
 @Injectable()

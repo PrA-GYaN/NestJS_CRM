@@ -32,7 +32,11 @@ import {
   CanUpdate,
   CanDelete,
 } from '../../common/decorators/permissions.decorator';
+import { UseScope } from '../../common/decorators/scope.decorator';
+import { UserScopes } from '../../common/decorators/user-scopes.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { ModuleScopeMap } from '../../common/permissions/scope.service';
 
 @ApiTags('Queue Management')
 @ApiBearerAuth()
@@ -64,9 +68,15 @@ export class QueueController {
 
   @Get('assignment-history')
   @CanRead('queues')
+  @UseScope('queues')
   @ApiOperation({ summary: 'Get assignment history with filtering' })
-  getAssignmentHistory(@TenantId() tenantId: string, @Query() queryDto: AssignmentHistoryQueryDto) {
-    return this.queueService.getAssignmentHistory(tenantId, queryDto);
+  getAssignmentHistory(
+    @TenantId() tenantId: string,
+    @Query() queryDto: AssignmentHistoryQueryDto,
+    @UserScopes() userScopes: ModuleScopeMap,
+    @CurrentUser() user: any,
+  ) {
+    return this.queueService.getAssignmentHistory(tenantId, queryDto, userScopes, user.id);
   }
 
   @Get(':id')
@@ -96,13 +106,16 @@ export class QueueController {
 
   @Get(':id/items')
   @CanRead('queues')
+  @UseScope('queues')
   @ApiOperation({ summary: 'Get queue items with filtering' })
   getQueueItems(
     @TenantId() tenantId: string,
     @Param() params: IdParamDto,
     @Query() queryDto: QueueItemQueryDto,
+    @UserScopes() userScopes: ModuleScopeMap,
+    @CurrentUser() user: any,
   ) {
-    return this.queueService.getQueueItems(tenantId, params.id, queryDto);
+    return this.queueService.getQueueItems(tenantId, params.id, queryDto, userScopes, user.id);
   }
 
   @Get(':id/analytics')
@@ -157,20 +170,28 @@ export class QueueController {
 
   @Patch(':id/items/:itemId/status')
   @CanUpdate('queues')
+  @UseScope('queues')
   @ApiOperation({ summary: 'Update queue item status' })
   updateQueueItemStatus(
     @TenantId() tenantId: string,
     @Param() params: IdParamDto & { itemId: string },
     @Body() dto: UpdateQueueItemStatusDto,
+    @CurrentUser() user: any,
   ) {
-    return this.queueService.updateQueueItemStatus(tenantId, params.itemId, dto);
+    return this.queueService.updateQueueItemStatus(tenantId, params.itemId, dto, user.id);
   }
 
   @Get('items/:itemId')
   @CanRead('queues')
+  @UseScope('queues')
   @ApiOperation({ summary: 'Get queue item details' })
-  getQueueItemById(@TenantId() tenantId: string, @Param() params: IdParamDto) {
-    return this.queueService.getQueueItemById(tenantId, params.id);
+  getQueueItemById(
+    @TenantId() tenantId: string,
+    @Param() params: IdParamDto,
+    @UserScopes() userScopes: ModuleScopeMap,
+    @CurrentUser() user: any,
+  ) {
+    return this.queueService.getQueueItemById(tenantId, params.id, userScopes, user.id);
   }
 
   @Delete('items/:itemId')
@@ -200,8 +221,14 @@ export class QueueController {
 
   @Get('leads/:leadId/assignment-history')
   @CanRead('queues')
+  @UseScope('queues')
   @ApiOperation({ summary: 'Get assignment history for a specific lead' })
-  getLeadAssignmentHistory(@TenantId() tenantId: string, @Param() params: IdParamDto) {
-    return this.queueService.getLeadAssignmentHistory(tenantId, params.id);
+  getLeadAssignmentHistory(
+    @TenantId() tenantId: string,
+    @Param() params: IdParamDto,
+    @UserScopes() userScopes: ModuleScopeMap,
+    @CurrentUser() user: any,
+  ) {
+    return this.queueService.getLeadAssignmentHistory(tenantId, params.id, userScopes, user.id);
   }
 }

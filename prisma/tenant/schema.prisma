@@ -1588,6 +1588,7 @@ model Queue {
   name        String
   description String?
   isActive    Boolean   @default(true)
+  autoAssign  Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
+import { ScopeService, ModuleScopeMap } from '../../common/permissions/scope.service';
 import { StaffTypeMapping } from './staff-type-mapping';
 import {
   UpdateStaffProfileDto,
@@ -10,7 +11,10 @@ import {
 
 @Injectable()
 export class StaffService {
-  constructor(private tenantService: TenantService) {}
+  constructor(
+    private tenantService: TenantService,
+    private scopeService: ScopeService,
+  ) {}
 
   async createProfileFromUser(
     tenantId: string,
@@ -42,7 +46,7 @@ export class StaffService {
     });
   }
 
-  async getAllProfiles(tenantId: string, queryDto: StaffQueryDto) {
+  async getAllProfiles(tenantId: string, queryDto: StaffQueryDto, userScopes?: ModuleScopeMap, currentUserId?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const {
       page = 1,
@@ -57,6 +61,14 @@ export class StaffService {
     const skip = (page - 1) * limit;
 
     const where: any = { tenantId };
+
+    const ownershipFilter = this.scopeService.getOwnershipFilter(
+      'staff',
+      currentUserId,
+      userScopes?.['staff'] || userScopes?.__all__,
+    );
+    if (ownershipFilter) Object.assign(where, ownershipFilter);
+
     if (staffType) where.staffType = staffType;
     if (status) where.status = status;
     if (userId) where.userId = userId;
@@ -94,10 +106,19 @@ export class StaffService {
     };
   }
 
-  async getProfileById(tenantId: string, id: string) {
+  async getProfileById(tenantId: string, id: string, userScopes?: ModuleScopeMap, currentUserId?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    const where: any = { id, tenantId };
+
+    const ownershipFilter = this.scopeService.getOwnershipFilter(
+      'staff',
+      currentUserId,
+      userScopes?.['staff'] || userScopes?.__all__,
+    );
+    if (ownershipFilter) Object.assign(where, ownershipFilter);
+
     const profile = await tenantPrisma.staffProfile.findFirst({
-      where: { id, tenantId },
+      where,
       include: {
         user: {
           select: { id: true, name: true, email: true, roleId: true, status: true },
@@ -110,8 +131,16 @@ export class StaffService {
     return profile;
   }
 
-  async getProfileByUserId(tenantId: string, userId: string) {
+  async getProfileByUserId(tenantId: string, userId: string, userScopes?: ModuleScopeMap, currentUserId?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    if (userScopes) {
+      const scope = userScopes['staff'] || userScopes.__all__ || 'full';
+      if (scope === 'own' && currentUserId && userId !== currentUserId) {
+        throw new NotFoundException('Staff profile not found for this user');
+      }
+    }
+
     const profile = await tenantPrisma.staffProfile.findFirst({
       where: { tenantId, userId },
       include: {
@@ -182,10 +211,18 @@ export class StaffService {
     return { success: true, message: 'Staff profile deleted successfully' };
   }
 
-  async getWorkload(tenantId: string, staffId?: string) {
+  async getWorkload(tenantId: string, staffId?: string, userScopes?: ModuleScopeMap, currentUserId?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
 
     const where: any = { tenantId };
+
+    const ownershipFilter = this.scopeService.getOwnershipFilter(
+      'staff',
+      currentUserId,
+      userScopes?.['staff'] || userScopes?.__all__,
+    );
+    if (ownershipFilter) Object.assign(where, ownershipFilter);
+
     if (staffId) where.id = staffId;
 
     const profiles = await tenantPrisma.staffProfile.findMany({

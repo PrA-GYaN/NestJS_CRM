@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
+import { ScopeService, ModuleScopeMap } from '../../common/permissions/scope.service';
 import { StaffService } from '../staff/staff.service';
+import { StaffStatusEnum } from '../staff/dto/staff.dto';
 import { QueueStateMachine } from './queue-state-machine';
 import {
   CreateQueueDto,
@@ -24,6 +26,7 @@ export class QueueService {
   constructor(
     private tenantService: TenantService,
     private staffService: StaffService,
+    private scopeService: ScopeService,
   ) {}
 
   // ==================== Queue Management ====================
@@ -37,6 +40,7 @@ export class QueueService {
         type: dto.type as any,
         name: dto.name,
         description: dto.description,
+        autoAssign: dto.autoAssign ?? false,
       },
     });
   }
@@ -117,7 +121,7 @@ export class QueueService {
     const lead = await tenantPrisma.lead.findFirst({ where: { id: dto.leadId, tenantId } });
     if (!lead) throw new NotFoundException('Lead not found');
 
-    return tenantPrisma.$transaction(async (tx: any) => {
+    const queueItem = await tenantPrisma.$transaction(async (tx: any) => {
       const existing = await tx.queueItem.findFirst({
         where: {
           tenantId,
@@ -138,13 +142,24 @@ export class QueueService {
         },
         include: {
           lead: true,
-          queue: { select: { id: true, type: true, name: true } },
+          queue: { select: { id: true, type: true, name: true, autoAssign: true } },
         },
       });
     });
+
+    if (queue.autoAssign) {
+      try {
+        return await this.autoAssignQueueItem(tenantId, queueItem.id);
+      } catch (error: any) {
+        this.logger.warn(`Auto-assignment failed for lead ${dto.leadId}: ${error.message}`);
+        return queueItem;
+      }
+    }
+
+    return queueItem;
   }
 
-  async getQueueItems(tenantId: string, queueId: string, queryDto: QueueItemQueryDto) {
+  async getQueueItems(tenantId: string, queueId: string, queryDto: QueueItemQueryDto, userScopes?: ModuleScopeMap, currentUserId?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const {
       page = 1,
@@ -159,6 +174,19 @@ export class QueueService {
     const skip = (page - 1) * limit;
 
     const where: any = { tenantId, queueId };
+
+    const scope = userScopes?.['queues'] || userScopes?.__all__;
+    if (scope === 'own' && currentUserId) {
+      const staffProfile = await tenantPrisma.staffProfile.findFirst({
+        where: { userId: currentUserId, tenantId },
+      });
+      if (staffProfile) {
+        where.assignedTo = staffProfile.id;
+      } else {
+        return { data: [], total: 0, page, limit, totalPages: 0 };
+      }
+    }
+
     if (status) where.status = status;
     if (assignedTo) where.assignedTo = assignedTo;
     if (leadId) where.leadId = leadId;
@@ -191,10 +219,25 @@ export class QueueService {
     return { data: items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async getQueueItemById(tenantId: string, itemId: string) {
+  async getQueueItemById(tenantId: string, itemId: string, userScopes?: ModuleScopeMap, currentUserId?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    const where: any = { id: itemId, tenantId };
+
+    const scope = userScopes?.['queues'] || userScopes?.__all__;
+    if (scope === 'own' && currentUserId) {
+      const staffProfile = await tenantPrisma.staffProfile.findFirst({
+        where: { userId: currentUserId, tenantId },
+      });
+      if (staffProfile) {
+        where.assignedTo = staffProfile.id;
+      } else {
+        throw new NotFoundException('Queue item not found');
+      }
+    }
+
     const item = await tenantPrisma.queueItem.findFirst({
-      where: { id: itemId, tenantId },
+      where,
       include: {
         lead: { include: { assignedUser: { select: { id: true, name: true, email: true } } } },
         assignedStaff: { include: { user: { select: { id: true, name: true, email: true } } } },
@@ -205,7 +248,7 @@ export class QueueService {
     return item;
   }
 
-  async updateQueueItemStatus(tenantId: string, itemId: string, dto: UpdateQueueItemStatusDto) {
+  async updateQueueItemStatus(tenantId: string, itemId: string, dto: UpdateQueueItemStatusDto, currentUserId?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const item = await this.getQueueItemById(tenantId, itemId);
 
@@ -226,7 +269,7 @@ export class QueueService {
       updateData.assignedAt = new Date();
     }
 
-    return tenantPrisma.queueItem.update({
+    const updatedItem = await tenantPrisma.queueItem.update({
       where: { id: itemId },
       data: updateData,
       include: {
@@ -235,6 +278,35 @@ export class QueueService {
         queue: true,
       },
     });
+
+    // Auto-manage staff status based on queue item transitions
+    const staffProfileId = item.assignedTo || updatedItem.assignedTo;
+    if (staffProfileId && currentUserId) {
+      if (dto.status === QueueItemStatusEnum.InProgress) {
+        await tenantPrisma.staffProfile.update({
+          where: { id: staffProfileId },
+          data: { status: StaffStatusEnum.Busy as any },
+        });
+      } else if (dto.status === QueueItemStatusEnum.Completed) {
+        // Check if staff has any other InProgress items before setting Available
+        const otherInProgress = await tenantPrisma.queueItem.count({
+          where: {
+            tenantId,
+            assignedTo: staffProfileId,
+            status: QueueItemStatusEnum.InProgress as any,
+            id: { not: itemId },
+          },
+        });
+        if (otherInProgress === 0) {
+          await tenantPrisma.staffProfile.update({
+            where: { id: staffProfileId },
+            data: { status: StaffStatusEnum.Available as any },
+          });
+        }
+      }
+    }
+
+    return updatedItem;
   }
 
   async removeFromQueue(tenantId: string, itemId: string) {
@@ -499,6 +571,11 @@ export class QueueService {
 
     const queueItem = await this.addToQueue(tenantId, queueId, { leadId });
 
+    // If autoAssign is enabled, addToQueue already handled assignment
+    if (queue.autoAssign) {
+      return queueItem;
+    }
+
     try {
       return await this.autoAssignQueueItem(tenantId, queueItem.id);
     } catch (error: any) {
@@ -509,7 +586,7 @@ export class QueueService {
 
   // ==================== Assignment History ====================
 
-  async getAssignmentHistory(tenantId: string, queryDto: AssignmentHistoryQueryDto) {
+  async getAssignmentHistory(tenantId: string, queryDto: AssignmentHistoryQueryDto, userScopes?: ModuleScopeMap, currentUserId?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const {
       page = 1,
@@ -524,9 +601,38 @@ export class QueueService {
     const skip = (page - 1) * limit;
 
     const where: any = { tenantId };
+
+    const scope = userScopes?.['queues'] || userScopes?.__all__;
+    if (scope === 'own' && currentUserId) {
+      const staffProfile = await tenantPrisma.staffProfile.findFirst({
+        where: { userId: currentUserId, tenantId },
+      });
+      if (staffProfile) {
+        where.OR = [{ toStaffId: staffProfile.id }, { fromStaffId: staffProfile.id }];
+      } else {
+        return { data: [], total: 0, page, limit, totalPages: 0 };
+      }
+    }
+
     if (leadId) where.leadId = leadId;
-    if (staffId) where.OR = [{ toStaffId: staffId }, { fromStaffId: staffId }];
+    if (staffId) {
+      if (where.OR) {
+        where.AND = { OR: [{ toStaffId: staffId }, { fromStaffId: staffId }] };
+      } else {
+        where.OR = [{ toStaffId: staffId }, { fromStaffId: staffId }];
+      }
+    }
     if (reason) where.reason = reason;
+
+    if (search) {
+      where.lead = {
+        OR: [
+          { firstName: { contains: search, mode: 'insensitive' as any } },
+          { lastName: { contains: search, mode: 'insensitive' as any } },
+          { email: { contains: search, mode: 'insensitive' as any } },
+        ],
+      };
+    }
 
     const [history, total] = await Promise.all([
       tenantPrisma.assignmentHistory.findMany({
@@ -546,8 +652,8 @@ export class QueueService {
     return { data: history, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async getLeadAssignmentHistory(tenantId: string, leadId: string) {
-    return this.getAssignmentHistory(tenantId, { leadId } as any);
+  async getLeadAssignmentHistory(tenantId: string, leadId: string, userScopes?: ModuleScopeMap, currentUserId?: string) {
+    return this.getAssignmentHistory(tenantId, { leadId } as any, userScopes, currentUserId);
   }
 
   // ==================== Queue Analytics ====================
@@ -764,6 +870,11 @@ export class QueueService {
         ? `Revisit lead - previous counselor unavailable, reassigning`
         : 'Revisit lead - no previous assignment found',
     });
+
+    // If autoAssign is enabled, addToQueue already handled assignment
+    if (revisitQueue.autoAssign) {
+      return queueItem;
+    }
 
     try {
       return await this.autoAssignQueueItem(tenantId, queueItem.id);

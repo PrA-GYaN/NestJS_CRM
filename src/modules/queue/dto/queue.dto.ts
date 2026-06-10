@@ -48,6 +48,11 @@ export class CreateQueueDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional({ description: 'Automatically assign items to available staff' })
+  @IsOptional()
+  @IsBoolean()
+  autoAssign?: boolean;
 }
 
 export class UpdateQueueDto {
@@ -65,6 +70,11 @@ export class UpdateQueueDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'Automatically assign items to available staff' })
+  @IsOptional()
+  @IsBoolean()
+  autoAssign?: boolean;
 }
 
 export class QueueQueryDto extends PaginationDto {
