@@ -88,6 +88,15 @@ export class VisaApplicationsController {
     );
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get visa application statistics by status' })
+  @ApiResponse({ status: 200, description: 'Returns visa stats (approved, pending, etc.)' })
+  async getStats(@Req() req: any) {
+    return this.visaApplicationsService.getStats(
+      req.user?.tenantId || req.headers['x-tenant-id'],
+    );
+  }
+
   @Get()
   @ApiOperation({ summary: 'List all Visa Applications with optional filters' })
   @ApiResponse({ status: 200, description: 'Returns an array of Visa Applications' })

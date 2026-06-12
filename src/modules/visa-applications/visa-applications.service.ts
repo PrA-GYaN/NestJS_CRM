@@ -269,27 +269,75 @@ export class VisaApplicationsService {
   }
 
   async findAll(tenantId: string, filters: DefaultFilterDto) {
-    const { studentId, visaTypeId, courseApplicationId, status } = filters;
-    return this.prisma.visaApplication.findMany({
-      where: {
-        tenantId,
-        ...(studentId && { studentId }),
-        ...(visaTypeId && { visaTypeId }),
-        ...(courseApplicationId && { courseApplicationId }),
-        ...(status && { status: status as VisaStatus }),
-      },
-      include: {
-        student: true,
-        visaType: true,
-        workflow: true,
-        workflowVersion: {
-          include: {
-            steps: { orderBy: { stepOrder: 'asc' } },
+    const { studentId, visaTypeId, courseApplicationId, status, search, page = 1, limit = 10 } = filters;
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      tenantId,
+      ...(studentId && { studentId }),
+      ...(visaTypeId && { visaTypeId }),
+      ...(courseApplicationId && { courseApplicationId }),
+      ...(status && { status: status as VisaStatus }),
+      ...(search && {
+        OR: [
+          { destinationCountry: { contains: search, mode: 'insensitive' as any } },
+          { student: { firstName: { contains: search, mode: 'insensitive' as any } } },
+          { student: { lastName: { contains: search, mode: 'insensitive' as any } } },
+        ],
+      }),
+    };
+
+    const [applications, total] = await Promise.all([
+      this.prisma.visaApplication.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          student: true,
+          visaType: true,
+          workflow: true,
+          workflowVersion: {
+            include: {
+              steps: { orderBy: { stepOrder: 'asc' } },
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.visaApplication.count({ where }),
+    ]);
+
+    return {
+      data: applications,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getStats(tenantId: string) {
+    const apps = await this.prisma.visaApplication.findMany({
+      where: { tenantId },
+      select: { status: true },
     });
+
+    const stats = {
+      total: apps.length,
+      Approved: 0,
+      Pending: 0,
+      Submitted: 0,
+      UnderReview: 0,
+      Rejected: 0,
+    };
+
+    for (const app of apps) {
+      if (stats[app.status] !== undefined) {
+        stats[app.status]++;
+      }
+    }
+
+    return stats;
   }
 
   async findOne(tenantId: string, id: string) {

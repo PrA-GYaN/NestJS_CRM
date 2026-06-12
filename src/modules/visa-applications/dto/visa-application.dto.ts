@@ -112,6 +112,15 @@ export class DefaultFilterDto {
   status?: string;
 
   @ApiPropertyOptional({
+    description: 'Search term for student name or destination country',
+    example: 'John',
+  })
+  @IsString()
+  @MaxLength(100)
+  @IsOptional()
+  search?: string;
+
+  @ApiPropertyOptional({
     description: 'Page number for pagination (1-indexed)',
     example: 1,
   })
