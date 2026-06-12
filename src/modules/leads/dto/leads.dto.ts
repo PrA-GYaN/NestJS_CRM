@@ -133,6 +133,11 @@ export class UpdateLeadDto {
   @IsOptional()
   @IsUUID()
   assignedUserId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  source?: string;
 }
 
 export class ConvertLeadDto {
