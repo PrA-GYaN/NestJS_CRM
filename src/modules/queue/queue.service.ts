@@ -674,8 +674,7 @@ export class QueueService {
         where: {
           queueId,
           status: 'Completed',
-          completedAt: { not: null as any },
-          enteredAt: { not: null as any },
+          assignedAt: { not: null },
         },
         select: { enteredAt: true, assignedAt: true, completedAt: true },
       }),

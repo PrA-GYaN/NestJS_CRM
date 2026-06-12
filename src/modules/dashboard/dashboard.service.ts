@@ -5,6 +5,90 @@ import { TenantService } from '../../common/tenant/tenant.service';
 export class DashboardService {
   constructor(private tenantService: TenantService) {}
 
+  async search(tenantId: string, query: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    const [leads, applications, staff] = await Promise.all([
+      tenantPrisma.lead.findMany({
+        where: {
+          tenantId,
+          OR: [
+            { firstName: { contains: query, mode: 'insensitive' as any } },
+            { lastName: { contains: query, mode: 'insensitive' as any } },
+            { email: { contains: query, mode: 'insensitive' as any } },
+          ],
+        },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          status: true,
+          priority: true,
+          createdAt: true,
+        },
+      }),
+      tenantPrisma.courseApplication.findMany({
+        where: {
+          tenantId,
+          student: {
+            OR: [
+              { firstName: { contains: query, mode: 'insensitive' as any } },
+              { lastName: { contains: query, mode: 'insensitive' as any } },
+              { email: { contains: query, mode: 'insensitive' as any } },
+            ],
+          },
+        },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          student: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          course: {
+            select: { name: true },
+          },
+          university: {
+            select: { name: true },
+          },
+        },
+      }),
+      tenantPrisma.staffProfile.findMany({
+        where: {
+          tenantId,
+          user: {
+            OR: [
+              { name: { contains: query, mode: 'insensitive' as any } },
+              { email: { contains: query, mode: 'insensitive' as any } },
+            ],
+          },
+        },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          staffType: true,
+          status: true,
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      }),
+    ]);
+
+    return { leads, applications, staff };
+  }
+
   /**
    * Get comprehensive dashboard overview with all statistics
    */

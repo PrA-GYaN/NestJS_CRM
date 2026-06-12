@@ -1,5 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -26,6 +26,15 @@ export class DashboardController {
   })
   getDashboardOverview(@TenantId() tenantId: string) {
     return this.dashboardService.getDashboardOverview(tenantId);
+  }
+
+  @Get('search')
+  @CanRead('dashboard')
+  @ApiOperation({ summary: 'Global search across leads, applicants, and staff' })
+  @ApiQuery({ name: 'q', required: true, type: String, description: 'Search query' })
+  @ApiResponse({ status: 200, description: 'Returns categorized search results' })
+  search(@TenantId() tenantId: string, @Query('q') query: string) {
+    return this.dashboardService.search(tenantId, query);
   }
 
   @Get('stats/date-range')
