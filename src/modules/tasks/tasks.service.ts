@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { TenantService } from '../../common/tenant/tenant.service';
 import { ScopeService } from '../../common/permissions/scope.service';
 import { PaginationDto } from '../../common/dto/common.dto';
@@ -20,6 +20,11 @@ export class TasksService {
 
   async createTask(tenantId: string, data: any, creatorId?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    if (data.dueDate && new Date(data.dueDate) < new Date(new Date().toDateString())) {
+      throw new BadRequestException('Due date cannot be in the past');
+    }
+
     const task = await tenantPrisma.task.create({
       data: {
         ...data,
@@ -159,6 +164,10 @@ export class TasksService {
   async updateTask(tenantId: string, id: string, data: any, updaterId?: string) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const oldTask = await this.getTaskById(tenantId, id);
+
+    if (data.dueDate && new Date(data.dueDate) < new Date(new Date().toDateString())) {
+      throw new BadRequestException('Due date cannot be in the past');
+    }
 
     const updatedTask = await tenantPrisma.task.update({
       where: { id },

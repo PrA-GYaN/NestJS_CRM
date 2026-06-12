@@ -753,18 +753,18 @@ enum RelatedEntityType {
 }
 
 model Task {
-  id                String            @id @default(uuid())
+  id                String             @id @default(uuid())
   tenantId          String
   assignedTo        String
-  relatedEntityType RelatedEntityType
-  relatedEntityId   String
+  relatedEntityType RelatedEntityType?
+  relatedEntityId   String?
   title             String
   description       String?
-  status            TaskStatus        @default(Pending)
-  priority          Priority          @default(Medium)
+  status            TaskStatus         @default(Pending)
+  priority          Priority           @default(Medium)
   dueDate           DateTime?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   assignedUser User @relation("AssignedUser", fields: [assignedTo], references: [id], onDelete: Cascade)
 

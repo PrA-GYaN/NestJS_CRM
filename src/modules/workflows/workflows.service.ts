@@ -132,7 +132,7 @@ export class WorkflowsService {
     return { ...workflow, steps: [] };
   }
 
-  async getAllWorkflows(tenantId: string, paginationDto: PaginationDto & { isActive?: boolean }) {
+  async getAllWorkflows(tenantId: string, queryDto: PaginationDto & { isActive?: boolean }) {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     const {
       page = 1,
@@ -141,7 +141,7 @@ export class WorkflowsService {
       sortOrder = 'asc',
       search,
       isActive,
-    } = paginationDto;
+    } = queryDto;
     const skip = (page - 1) * limit;
 
     const where: any = {
@@ -284,6 +284,38 @@ export class WorkflowsService {
     const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
     await this.getWorkflowById(tenantId, id);
     return tenantPrisma.visaWorkflow.delete({ where: { id } });
+  }
+
+  async activateWorkflow(tenantId: string, id: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    const workflow = await this.getWorkflowById(tenantId, id);
+
+    return tenantPrisma.visaWorkflow.update({
+      where: { id },
+      data: { isActive: true },
+      include: {
+        visaType: { include: { country: true } },
+        currentVersion: {
+          include: { steps: { orderBy: { stepOrder: 'asc' } } },
+        },
+      },
+    });
+  }
+
+  async deactivateWorkflow(tenantId: string, id: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+    const workflow = await this.getWorkflowById(tenantId, id);
+
+    return tenantPrisma.visaWorkflow.update({
+      where: { id },
+      data: { isActive: false },
+      include: {
+        visaType: { include: { country: true } },
+        currentVersion: {
+          include: { steps: { orderBy: { stepOrder: 'asc' } } },
+        },
+      },
+    });
   }
 
   // ============ Workflow Step Management (version-aware) ============

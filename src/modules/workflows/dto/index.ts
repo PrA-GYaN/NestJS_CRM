@@ -5,3 +5,4 @@ export * from './update-workflow-step.dto';
 export * from './workflow-versioning.dto';
 export * from './workflow-response.dto';
 export * from './workflow-error-codes';
+export * from './workflow-query.dto';

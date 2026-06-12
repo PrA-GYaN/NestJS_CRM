@@ -20,6 +20,7 @@ import {
   UpdateWorkflowStepDto,
   WorkflowResponse,
   WorkflowListResponse,
+  WorkflowQueryDto,
 } from './dto';
 import { ReorderStepItemDto } from './dto/reorder-workflow-steps.dto';
 import { PaginationDto, IdParamDto } from '../../common/dto/common.dto';
@@ -71,7 +72,7 @@ export class WorkflowsController {
 
   @Get()
   @CanRead('workflows')
-  @ApiOperation({ summary: 'Get all workflows with pagination' })
+  @ApiOperation({ summary: 'Get all workflows with pagination and filters' })
   @ApiResponse({
     status: 200,
     description: 'Returns paginated list of workflows',
@@ -79,9 +80,9 @@ export class WorkflowsController {
   })
   async getAllWorkflows(
     @TenantId() tenantId: string,
-    @Query() paginationDto: PaginationDto,
+    @Query() queryDto: WorkflowQueryDto,
   ): Promise<WorkflowListResponse<any>> {
-    const result = await this.workflowsService.getAllWorkflows(tenantId, paginationDto);
+    const result = await this.workflowsService.getAllWorkflows(tenantId, queryDto);
     return WorkflowResponseFactory.list(
       result.data,
       result.total,
@@ -179,6 +180,48 @@ export class WorkflowsController {
       'Workflow deleted successfully',
       WorkflowOperationCode.WORKFLOW_DELETED,
       { id: params.id },
+    );
+  }
+
+  @Put(':id/activate')
+  @CanUpdate('workflows')
+  @ApiOperation({ summary: 'Activate a workflow' })
+  @ApiResponse({
+    status: 200,
+    description: 'Workflow activated successfully',
+    type: WorkflowResponse,
+  })
+  @ApiResponse({ status: 404, description: 'Workflow not found' })
+  async activateWorkflow(
+    @TenantId() tenantId: string,
+    @Param() params: IdParamDto,
+  ): Promise<WorkflowResponse> {
+    const workflow = await this.workflowsService.activateWorkflow(tenantId, params.id);
+    return WorkflowResponseFactory.updated(
+      workflow,
+      'Workflow activated successfully',
+      WorkflowOperationCode.WORKFLOW_UPDATED,
+    );
+  }
+
+  @Put(':id/deactivate')
+  @CanUpdate('workflows')
+  @ApiOperation({ summary: 'Deactivate a workflow' })
+  @ApiResponse({
+    status: 200,
+    description: 'Workflow deactivated successfully',
+    type: WorkflowResponse,
+  })
+  @ApiResponse({ status: 404, description: 'Workflow not found' })
+  async deactivateWorkflow(
+    @TenantId() tenantId: string,
+    @Param() params: IdParamDto,
+  ): Promise<WorkflowResponse> {
+    const workflow = await this.workflowsService.deactivateWorkflow(tenantId, params.id);
+    return WorkflowResponseFactory.updated(
+      workflow,
+      'Workflow deactivated successfully',
+      WorkflowOperationCode.WORKFLOW_UPDATED,
     );
   }
 
