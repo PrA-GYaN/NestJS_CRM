@@ -79,6 +79,19 @@ export class QueueController {
     return this.queueService.getAssignmentHistory(tenantId, queryDto, userScopes, user.id);
   }
 
+  @Get('assignment-history/:id')
+  @CanRead('queues')
+  @UseScope('queues')
+  @ApiOperation({ summary: 'Get assignment history by ID' })
+  getAssignmentHistoryById(
+    @TenantId() tenantId: string,
+    @Param() params: IdParamDto,
+    @UserScopes() userScopes: ModuleScopeMap,
+    @CurrentUser() user: any,
+  ) {
+    return this.queueService.getAssignmentHistoryById(tenantId, params.id, userScopes, user.id);
+  }
+
   @Get(':id')
   @CanRead('queues')
   @ApiOperation({ summary: 'Get queue by ID with counts' })

@@ -656,6 +656,38 @@ export class QueueService {
     return this.getAssignmentHistory(tenantId, { leadId } as any, userScopes, currentUserId);
   }
 
+  async getAssignmentHistoryById(tenantId: string, id: string, userScopes?: ModuleScopeMap, currentUserId?: string) {
+    const tenantPrisma = await this.tenantService.getTenantPrisma(tenantId);
+
+    const where: any = { id, tenantId };
+
+    const scope = userScopes?.['queues'] || userScopes?.__all__;
+    if (scope === 'own' && currentUserId) {
+      const staffProfile = await tenantPrisma.staffProfile.findFirst({
+        where: { userId: currentUserId, tenantId },
+      });
+      if (!staffProfile) {
+        throw new NotFoundException('Assignment history record not found');
+      }
+      where.OR = [{ toStaffId: staffProfile.id }, { fromStaffId: staffProfile.id }];
+    }
+
+    const history = await tenantPrisma.assignmentHistory.findFirst({
+      where,
+      include: {
+        lead: { select: { id: true, firstName: true, lastName: true, email: true } },
+        fromStaff: { include: { user: { select: { id: true, name: true, email: true } } } },
+        toStaff: { include: { user: { select: { id: true, name: true, email: true } } } },
+      },
+    });
+
+    if (!history) {
+      throw new NotFoundException('Assignment history record not found');
+    }
+
+    return history;
+  }
+
   // ==================== Queue Analytics ====================
 
   async getQueueAnalytics(tenantId: string, queueId: string) {
