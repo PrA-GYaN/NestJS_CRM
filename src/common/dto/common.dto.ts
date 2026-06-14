@@ -63,6 +63,12 @@ export class IdParamDto {
   id!: string;
 }
 
+export class LeadIdParamDto {
+  @ApiProperty()
+  @IsUUID()
+  leadId!: string;
+}
+
 export class SuccessResponseDto {
   @ApiProperty()
   success!: boolean;

@@ -23,7 +23,7 @@ import {
   UpdateQueueItemStatusDto,
   AssignmentHistoryQueryDto,
 } from './dto/queue.dto';
-import { IdParamDto } from '../../common/dto/common.dto';
+import { IdParamDto, LeadIdParamDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import {
@@ -219,17 +219,17 @@ export class QueueController {
   @ApiOperation({ summary: 'Process a new lead through the queue pipeline' })
   processNewLead(
     @TenantId() tenantId: string,
-    @Param() params: IdParamDto,
+    @Param() params: LeadIdParamDto,
     @Query('queueId') queueId: string,
   ) {
-    return this.queueService.processNewLead(tenantId, queueId, params.id);
+    return this.queueService.processNewLead(tenantId, queueId, params.leadId);
   }
 
   @Post('leads/:leadId/revisit')
   @CanCreate('queues')
   @ApiOperation({ summary: 'Handle a revisit lead with continuity routing' })
-  handleRevisitLead(@TenantId() tenantId: string, @Param() params: IdParamDto) {
-    return this.queueService.handleRevisitLead(tenantId, params.id);
+  handleRevisitLead(@TenantId() tenantId: string, @Param() params: LeadIdParamDto) {
+    return this.queueService.handleRevisitLead(tenantId, params.leadId);
   }
 
   @Get('leads/:leadId/assignment-history')
@@ -238,10 +238,10 @@ export class QueueController {
   @ApiOperation({ summary: 'Get assignment history for a specific lead' })
   getLeadAssignmentHistory(
     @TenantId() tenantId: string,
-    @Param() params: IdParamDto,
+    @Param() params: LeadIdParamDto,
     @UserScopes() userScopes: ModuleScopeMap,
     @CurrentUser() user: any,
   ) {
-    return this.queueService.getLeadAssignmentHistory(tenantId, params.id, userScopes, user.id);
+    return this.queueService.getLeadAssignmentHistory(tenantId, params.leadId, userScopes, user.id);
   }
 }
